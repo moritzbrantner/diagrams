@@ -24,6 +24,7 @@ export default defineConfig({
       "@moritzbrantner/diagrams/org-chart": path.resolve(rootDir, "src/org-chart.ts"),
       "@moritzbrantner/diagrams/process-map": path.resolve(rootDir, "src/process-map.ts"),
       "@moritzbrantner/diagrams/relationship-map": path.resolve(rootDir, "src/relationship-map.ts"),
+      "@moritzbrantner/diagrams/uml-diagram": path.resolve(rootDir, "src/uml-diagram.ts"),
     },
   },
   server: {

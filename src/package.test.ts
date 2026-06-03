@@ -53,6 +53,10 @@ describe("package contract", () => {
         types: "./dist/relationship-map.d.ts",
         import: "./dist/relationship-map.js",
       },
+      "./uml-diagram": {
+        types: "./dist/uml-diagram.d.ts",
+        import: "./dist/uml-diagram.js",
+      },
       "./package.json": "./package.json",
     });
   });

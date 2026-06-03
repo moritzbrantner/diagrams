@@ -108,6 +108,25 @@ export function Team() {
 }
 ```
 
+## UML Diagram
+
+```tsx
+import { UmlDiagram } from "@moritzbrantner/diagrams/uml-diagram";
+
+export function OrderFlow() {
+  return (
+    <UmlDiagram
+      ariaLabel="Order service dependencies"
+      nodes={[
+        { id: "api", label: "API Gateway", x: 0, y: 0 },
+        { id: "orders", label: "Orders Service", x: 280, y: 0 },
+      ]}
+      edges={[{ id: "api-orders", source: "api", target: "orders", label: "routes" }]}
+    />
+  );
+}
+```
+
 ## Recharts Wrapper
 
 ```tsx

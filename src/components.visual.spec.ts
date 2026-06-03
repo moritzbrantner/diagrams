@@ -17,6 +17,11 @@ const stories = [
     name: "relationship-map",
     responsive: true,
   },
+  {
+    id: "diagrams-uml-diagram--default",
+    name: "uml-diagram",
+    responsive: true,
+  },
 ] as const;
 
 for (const story of stories) {

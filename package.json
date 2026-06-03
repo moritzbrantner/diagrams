@@ -39,6 +39,10 @@
       "types": "./dist/relationship-map.d.ts",
       "import": "./dist/relationship-map.js"
     },
+    "./uml-diagram": {
+      "types": "./dist/uml-diagram.d.ts",
+      "import": "./dist/uml-diagram.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -46,7 +50,7 @@
     "registry": "https://registry.npmjs.org"
   },
   "scripts": {
-    "build": "tsup src/index.ts src/charts.ts src/org-chart.ts src/process-map.ts src/relationship-map.ts --format esm --dts --clean --out-dir dist",
+    "build": "tsup src/index.ts src/charts.ts src/org-chart.ts src/process-map.ts src/relationship-map.ts src/uml-diagram.ts --format esm --dts --clean --out-dir dist",
     "build:examples": "vite build --outDir ../dist-examples --emptyOutDir",
     "build:storybook": "storybook build --output-dir storybook-static",
     "changeset": "changeset",

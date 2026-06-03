@@ -15,7 +15,14 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = mkdtempSync(path.join(tmpdir(), "diagrams-pack-check-"));
-const expectedEntrypoints = ["index", "charts", "org-chart", "process-map", "relationship-map"];
+const expectedEntrypoints = [
+  "index",
+  "charts",
+  "org-chart",
+  "process-map",
+  "relationship-map",
+  "uml-diagram",
+];
 
 try {
   const packed = JSON.parse(
@@ -96,13 +103,14 @@ try {
   writeFileSync(
     path.join(consumerDir, "import-check.mjs"),
     [
-      'import { ChartLineGraph, OrgChart, ProcessMap, RelationshipMap } from "@moritzbrantner/diagrams";',
+      'import { ChartLineGraph, OrgChart, ProcessMap, RelationshipMap, UmlDiagram } from "@moritzbrantner/diagrams";',
       'import { ChartContainer } from "@moritzbrantner/diagrams/charts";',
       'import { OrgChart as OrgChartSubpath } from "@moritzbrantner/diagrams/org-chart";',
       'import { ProcessMap as ProcessMapSubpath } from "@moritzbrantner/diagrams/process-map";',
       'import { RelationshipMap as RelationshipMapSubpath } from "@moritzbrantner/diagrams/relationship-map";',
+      'import { UmlDiagram as UmlDiagramSubpath } from "@moritzbrantner/diagrams/uml-diagram";',
       "",
-      "for (const value of [ChartLineGraph, ChartContainer, OrgChart, OrgChartSubpath, ProcessMap, ProcessMapSubpath, RelationshipMap, RelationshipMapSubpath]) {",
+      "for (const value of [ChartLineGraph, ChartContainer, OrgChart, OrgChartSubpath, ProcessMap, ProcessMapSubpath, RelationshipMap, RelationshipMapSubpath, UmlDiagram, UmlDiagramSubpath]) {",
       "  if (typeof value !== 'function' && typeof value !== 'object') {",
       "    throw new Error('Packed package runtime import returned an unexpected export.');",
       "  }",
@@ -116,13 +124,15 @@ try {
       'import { type ChartSeries, type OrgChartNodeData } from "@moritzbrantner/diagrams";',
       'import { type ProcessMapStepData } from "@moritzbrantner/diagrams/process-map";',
       'import { type RelationshipMapNode } from "@moritzbrantner/diagrams/relationship-map";',
+      'import { type UmlDiagramNode } from "@moritzbrantner/diagrams/uml-diagram";',
       "",
       'const series: ChartSeries = { key: "value", label: "Value" };',
       'const node: OrgChartNodeData = { id: "owner", label: "Owner" };',
       'const step: ProcessMapStepData = { id: "plan", label: "Plan", status: "active" };',
       'const relationship: RelationshipMapNode = { id: "product", label: "Product" };',
+      'const umlNode: UmlDiagramNode = { id: "draft", label: "Draft" };',
       "",
-      "if (!series.key || !node.id || !step.id || !relationship.id) {",
+      "if (!series.key || !node.id || !step.id || !relationship.id || !umlNode.id) {",
       "  throw new Error('Packed package type import returned unexpected data.');",
       "}",
       "",
