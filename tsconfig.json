@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "declaration": true,
+    "ignoreDeprecations": "6.0",
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@moritzbrantner/diagrams": ["./src/index.ts"],
+      "@moritzbrantner/diagrams/charts": ["./src/charts.ts"],
+      "@moritzbrantner/diagrams/org-chart": ["./src/org-chart.ts"],
+      "@moritzbrantner/diagrams/process-map": ["./src/process-map.ts"],
+      "@moritzbrantner/diagrams/relationship-map": ["./src/relationship-map.ts"]
+    },
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022"
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "examples/**/*.ts",
+    "examples/**/*.tsx",
+    ".storybook/**/*.ts",
+    "*.config.ts"
+  ]
+}

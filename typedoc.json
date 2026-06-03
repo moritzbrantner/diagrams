@@ -1,0 +1,19 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "readme": "README.md",
+  "tsconfig": "tsconfig.json",
+  "cleanOutputDir": true,
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "hideGenerator": true,
+  "intentionallyNotExported": ["THEMES", "TooltipNameType"],
+  "includeVersion": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/moritzbrantner/diagrams"
+  },
+  "validation": {
+    "invalidLink": false
+  }
+}

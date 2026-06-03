@@ -1,0 +1,10 @@
+coverage/
+dist/
+dist-examples/
+docs/
+node_modules/
+playwright-report/
+storybook-static/
+test-results/
+.unlighthouse/
+*.tgz
