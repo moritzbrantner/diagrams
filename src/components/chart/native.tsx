@@ -65,19 +65,12 @@ type ChartGraphProps = Omit<React.ComponentProps<"figure">, "children"> & {
   scrollPointWidth?: number;
   valueLabels?: boolean | "auto";
   onDatumFocus?: (datum: ChartDatum, index: number) => void;
-  formatLabel?: (
-    value: ChartDatumValue,
-    datum: ChartDatum,
-    index: number,
-  ) => React.ReactNode;
+  formatLabel?: (value: ChartDatumValue, datum: ChartDatum, index: number) => React.ReactNode;
   formatValue?: (value: number) => React.ReactNode;
   pretext?: ChartPretextItem[];
 };
 
-type ChartHistogramGraphProps = Omit<
-  React.ComponentProps<"figure">,
-  "children"
-> & {
+type ChartHistogramGraphProps = Omit<React.ComponentProps<"figure">, "children"> & {
   data?: ChartHistogramBin[];
   values?: number[];
   bins?: number | number[];
@@ -143,17 +136,10 @@ type ChartDonutGraphProps = Omit<React.ComponentProps<"figure">, "children"> & {
   ) => React.ReactNode;
   focusedSegmentPath?: readonly number[] | null;
   defaultFocusedSegmentPath?: readonly number[] | null;
-  onFocusedSegmentPathChange?: (
-    path: number[] | null,
-    datum: ChartDatum | null,
-  ) => void;
+  onFocusedSegmentPathChange?: (path: number[] | null, datum: ChartDatum | null) => void;
   onDrillDown?: (datum: ChartDatum, path: number[]) => void;
   onDrillUp?: (path: number[], datum: ChartDatum | null) => void;
-  formatLabel?: (
-    value: ChartDatumValue,
-    datum: ChartDatum,
-    index: number,
-  ) => React.ReactNode;
+  formatLabel?: (value: ChartDatumValue, datum: ChartDatum, index: number) => React.ReactNode;
   formatValue?: (value: number) => React.ReactNode;
 };
 
@@ -198,33 +184,15 @@ function ChartPretextText({
 }
 
 function ChartLineGraph(props: ChartGraphProps) {
-  return (
-    <ChartGraph graph="line" xScale="point" ariaLabel="Line chart" {...props} />
-  );
+  return <ChartGraph graph="line" xScale="point" ariaLabel="Line chart" {...props} />;
 }
 
 function ChartAreaGraph(props: ChartGraphProps) {
-  return (
-    <ChartGraph
-      graph="area"
-      xScale="point"
-      includeZero
-      ariaLabel="Area chart"
-      {...props}
-    />
-  );
+  return <ChartGraph graph="area" xScale="point" includeZero ariaLabel="Area chart" {...props} />;
 }
 
 function ChartBarGraph(props: ChartGraphProps) {
-  return (
-    <ChartGraph
-      graph="bar"
-      xScale="band"
-      includeZero
-      ariaLabel="Bar chart"
-      {...props}
-    />
-  );
+  return <ChartGraph graph="bar" xScale="band" includeZero ariaLabel="Bar chart" {...props} />;
 }
 
 function ChartHistogramGraph({
@@ -263,33 +231,21 @@ function ChartHistogramGraph({
   const chartWidth = shouldScroll
     ? Math.max(
         width,
-        GRAPH_PADDING.left +
-          GRAPH_PADDING.right +
-          histogramBins.length * scrollBinWidth,
+        GRAPH_PADDING.left + GRAPH_PADDING.right + histogramBins.length * scrollBinWidth,
       )
     : width;
   const layout = getChartLayout({ width: chartWidth, height });
-  const histogramXDomain = xDomain
-    ? normalizeDomain(xDomain)
-    : getHistogramXDomain(histogramBins);
+  const histogramXDomain = xDomain ? normalizeDomain(xDomain) : getHistogramXDomain(histogramBins);
   const histogramYDomain = yDomain
     ? normalizeDomain(yDomain)
-    : normalizeDomain([
-        0,
-        Math.max(...histogramBins.map((bin) => bin.count), 0),
-      ]);
+    : normalizeDomain([0, Math.max(...histogramBins.map((bin) => bin.count), 0)]);
   const yTicks = getTicks(histogramYDomain, yTickCount);
   const xTicks = getTicks(histogramXDomain, xTickCount);
   const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
   const activeBin = activeIndex == null ? null : histogramBins[activeIndex];
   const activeX =
-    activeBin == null
-      ? null
-      : getHistogramBinCenterX(layout, histogramXDomain, activeBin);
-  const activeY =
-    activeBin == null
-      ? null
-      : scaleY(layout, histogramYDomain, activeBin.count);
+    activeBin == null ? null : getHistogramBinCenterX(layout, histogramXDomain, activeBin);
+  const activeY = activeBin == null ? null : scaleY(layout, histogramYDomain, activeBin.count);
   const activeValues =
     activeBin == null
       ? []
@@ -304,11 +260,7 @@ function ChartHistogramGraph({
         ];
 
   return (
-    <figure
-      data-slot="chart-histogram-graph"
-      className={cn("grid gap-2", className)}
-      {...props}
-    >
+    <figure data-slot="chart-histogram-graph" className={cn("grid gap-2", className)} {...props}>
       {hasData ? (
         <>
           <div
@@ -332,11 +284,7 @@ function ChartHistogramGraph({
                 onPointerLeave={() => setActiveIndex(null)}
               >
                 {showGrid ? (
-                  <ChartGridLines
-                    layout={layout}
-                    ticks={yTicks}
-                    domain={histogramYDomain}
-                  />
+                  <ChartGridLines layout={layout} ticks={yTicks} domain={histogramYDomain} />
                 ) : null}
                 <ChartHistogramAxes
                   domain={histogramYDomain}
@@ -392,9 +340,7 @@ function ChartHistogramGraph({
         </div>
       )}
       {caption ? (
-        <figcaption className="text-sm text-muted-foreground">
-          {caption}
-        </figcaption>
+        <figcaption className="text-sm text-muted-foreground">{caption}</figcaption>
       ) : null}
     </figure>
   );
@@ -427,9 +373,7 @@ function ChartSparkline({
     })
     .filter((item): item is { index: number; value: number } => item !== null);
   const hasData = values.length > 0;
-  const domain = yDomain
-    ? normalizeDomain(yDomain)
-    : normalizeDomain(getNumericDomain(values));
+  const domain = yDomain ? normalizeDomain(yDomain) : normalizeDomain(getNumericDomain(values));
   const color = getSeriesColor(series, 0);
   const points = values.map((item) => ({
     index: item.index,
@@ -439,11 +383,7 @@ function ChartSparkline({
   }));
 
   return (
-    <figure
-      data-slot="chart-sparkline"
-      className={cn("grid gap-1.5", className)}
-      {...props}
-    >
+    <figure data-slot="chart-sparkline" className={cn("grid gap-1.5", className)} {...props}>
       {hasData ? (
         <svg
           role="img"
@@ -498,9 +438,7 @@ function ChartSparkline({
         </div>
       )}
       {caption ? (
-        <figcaption className="text-xs text-muted-foreground">
-          {caption}
-        </figcaption>
+        <figcaption className="text-xs text-muted-foreground">{caption}</figcaption>
       ) : null}
     </figure>
   );
@@ -536,24 +474,17 @@ function ChartDonutGraph({
   className,
   ...props
 }: ChartDonutGraphProps) {
-  const [internalActivePath, setInternalActivePath] = React.useState<number[]>(
-    () => [...(defaultActivePath ?? [])],
-  );
-  const [internalFocusedSegmentPath, setInternalFocusedSegmentPath] =
-    React.useState<number[] | null>(() =>
-      defaultFocusedSegmentPath ? [...defaultFocusedSegmentPath] : null,
-    );
+  const [internalActivePath, setInternalActivePath] = React.useState<number[]>(() => [
+    ...(defaultActivePath ?? []),
+  ]);
+  const [internalFocusedSegmentPath, setInternalFocusedSegmentPath] = React.useState<
+    number[] | null
+  >(() => (defaultFocusedSegmentPath ? [...defaultFocusedSegmentPath] : null));
   const segmentRefs = React.useRef(new Map<string, SVGPathElement>());
   const currentActivePath = activePath ? [...activePath] : internalActivePath;
-  const safeActivePath = getValidDonutPath(
-    data,
-    currentActivePath,
-    childrenKey,
-  );
+  const safeActivePath = getValidDonutPath(data, currentActivePath, childrenKey);
   const activeNode = getDonutNodeAtPath(data, safeActivePath, childrenKey);
-  const activeData = activeNode
-    ? getChartDatumChildren(activeNode, childrenKey)
-    : data;
+  const activeData = activeNode ? getChartDatumChildren(activeNode, childrenKey) : data;
   const currentFocusedSegmentPath =
     focusedSegmentPath !== undefined
       ? focusedSegmentPath
@@ -568,10 +499,7 @@ function ChartDonutGraph({
         setInternalActivePath(nextPath);
       }
 
-      onActivePathChange?.(
-        nextPath,
-        getDonutNodeAtPath(data, nextPath, childrenKey),
-      );
+      onActivePathChange?.(nextPath, getDonutNodeAtPath(data, nextPath, childrenKey));
     },
     [activePath, childrenKey, data, onActivePathChange],
   );
@@ -611,8 +539,7 @@ function ChartDonutGraph({
         index,
         label: formatLabel(getChartDatumScalar(datum, labelKey), datum, index),
         value,
-        color:
-          typeof color === "string" ? color : `var(--chart-${(index % 5) + 1})`,
+        color: typeof color === "string" ? color : `var(--chart-${(index % 5) + 1})`,
       };
     })
     .filter(
@@ -629,11 +556,8 @@ function ChartDonutGraph({
     );
   const total = segments.reduce((sum, item) => sum + item.value, 0);
   const hasData = total > 0;
-  const hasInteractiveSegments = segments.some(
-    (segment) => segment.children.length > 0,
-  );
-  const isInteractiveDonut =
-    hasInteractiveSegments || canGoUp || Boolean(onSegmentSelect);
+  const hasInteractiveSegments = segments.some((segment) => segment.children.length > 0);
+  const isInteractiveDonut = hasInteractiveSegments || canGoUp || Boolean(onSegmentSelect);
   const interactiveSegments = segments.filter(
     (segment) => segment.children.length > 0 || Boolean(onSegmentSelect),
   );
@@ -658,18 +582,15 @@ function ChartDonutGraph({
   const radiusOuter = Math.min(outerRadius, center - 2);
   const radiusInner = Math.min(innerRadius, radiusOuter - 8);
   let currentAngle = 0;
-  const setSegmentRef = React.useCallback(
-    (path: number[], element: SVGPathElement | null) => {
-      const key = getDonutPathKey(path);
+  const setSegmentRef = React.useCallback((path: number[], element: SVGPathElement | null) => {
+    const key = getDonutPathKey(path);
 
-      if (element) {
-        segmentRefs.current.set(key, element);
-      } else {
-        segmentRefs.current.delete(key);
-      }
-    },
-    [],
-  );
+    if (element) {
+      segmentRefs.current.set(key, element);
+    } else {
+      segmentRefs.current.delete(key);
+    }
+  }, []);
   const setFocusedDonutSegment = React.useCallback(
     (path: number[] | null, shouldFocusElement = false) => {
       if (focusedSegmentPath === undefined) {
@@ -682,9 +603,7 @@ function ChartDonutGraph({
       );
 
       if (path && shouldFocusElement) {
-        queueMicrotask(() =>
-          segmentRefs.current.get(getDonutPathKey(path))?.focus(),
-        );
+        queueMicrotask(() => segmentRefs.current.get(getDonutPathKey(path))?.focus());
       }
     },
     [childrenKey, data, focusedSegmentPath, onFocusedSegmentPathChange],
@@ -703,27 +622,17 @@ function ChartDonutGraph({
       onDrillDown?.(segment.datum, nextPath);
       setDonutPath(nextPath);
     },
-    [
-      onDrillDown,
-      onSegmentSelect,
-      safeActivePath,
-      setDonutPath,
-      setFocusedDonutSegment,
-    ],
+    [onDrillDown, onSegmentSelect, safeActivePath, setDonutPath, setFocusedDonutSegment],
   );
   const handleChartKeyDown = React.useCallback(
     (event: React.KeyboardEvent<SVGSVGElement>) => {
       const focusedIndex =
         currentFocusedSegmentPath &&
         currentFocusedSegmentPath.length === safeActivePath.length + 1 &&
-        safeActivePath.every(
-          (pathIndex, index) => pathIndex === currentFocusedSegmentPath[index],
-        )
+        safeActivePath.every((pathIndex, index) => pathIndex === currentFocusedSegmentPath[index])
           ? currentFocusedSegmentPath[currentFocusedSegmentPath.length - 1]
           : interactiveSegments[0]?.index;
-      const focusedSegment = interactiveSegments.find(
-        (segment) => segment.index === focusedIndex,
-      );
+      const focusedSegment = interactiveSegments.find((segment) => segment.index === focusedIndex);
 
       if (!focusedSegment && event.key !== "Escape") {
         return;
@@ -749,14 +658,11 @@ function ChartDonutGraph({
 
       event.preventDefault();
 
-      const currentIndex = interactiveSegments.findIndex(
-        (item) => item.index === focusedIndex,
-      );
+      const currentIndex = interactiveSegments.findIndex((item) => item.index === focusedIndex);
       const nextIndex =
         event.key === "ArrowRight"
           ? (currentIndex + 1) % interactiveSegments.length
-          : (currentIndex - 1 + interactiveSegments.length) %
-            interactiveSegments.length;
+          : (currentIndex - 1 + interactiveSegments.length) % interactiveSegments.length;
       const nextSegment = interactiveSegments[nextIndex];
 
       if (nextSegment) {
@@ -775,11 +681,7 @@ function ChartDonutGraph({
   );
 
   return (
-    <figure
-      data-slot="chart-donut-graph"
-      className={cn("grid gap-3", className)}
-      {...props}
-    >
+    <figure data-slot="chart-donut-graph" className={cn("grid gap-3", className)} {...props}>
       {hasData ? (
         <>
           <svg
@@ -789,14 +691,8 @@ function ChartDonutGraph({
             className="mx-auto h-auto w-full max-w-56 overflow-visible"
             tabIndex={isInteractiveDonut ? 0 : undefined}
             onFocus={
-              isInteractiveDonut &&
-              !currentFocusedSegmentPath &&
-              interactiveSegments[0]
-                ? () =>
-                    setFocusedDonutSegment([
-                      ...safeActivePath,
-                      interactiveSegments[0].index,
-                    ])
+              isInteractiveDonut && !currentFocusedSegmentPath && interactiveSegments[0]
+                ? () => setFocusedDonutSegment([...safeActivePath, interactiveSegments[0].index])
                 : undefined
             }
             onKeyDown={isInteractiveDonut ? handleChartKeyDown : undefined}
@@ -840,23 +736,13 @@ function ChartDonutGraph({
                         ? "true"
                         : undefined
                     }
-                    onClick={
-                      isInteractiveSegment
-                        ? () => handleSegmentClick(segment)
-                        : undefined
-                    }
+                    onClick={isInteractiveSegment ? () => handleSegmentClick(segment) : undefined}
                     onMouseEnter={
                       isInteractiveSegment
-                        ? () =>
-                            setFocusedDonutSegment([
-                              ...safeActivePath,
-                              segment.index,
-                            ])
+                        ? () => setFocusedDonutSegment([...safeActivePath, segment.index])
                         : undefined
                     }
-                    ref={(element) =>
-                      setSegmentRef([...safeActivePath, segment.index], element)
-                    }
+                    ref={(element) => setSegmentRef([...safeActivePath, segment.index], element)}
                     focusable="false"
                   />
                 );
@@ -894,9 +780,7 @@ function ChartDonutGraph({
                     y={center + 18}
                     className="fill-muted-foreground text-[10px]"
                   >
-                    {typeof centerLabel === "function"
-                      ? centerLabel(total)
-                      : centerLabel}
+                    {typeof centerLabel === "function" ? centerLabel(total) : centerLabel}
                   </ChartPretextText>
                 ) : null}
               </ChartPretext>
@@ -913,9 +797,7 @@ function ChartDonutGraph({
               onNavigate={(path) => setDonutPath(path)}
             />
           ) : null}
-          {showLegend ? (
-            <ChartDonutLegend segments={segments} formatValue={formatValue} />
-          ) : null}
+          {showLegend ? <ChartDonutLegend segments={segments} formatValue={formatValue} /> : null}
         </>
       ) : (
         <div
@@ -927,9 +809,7 @@ function ChartDonutGraph({
         </div>
       )}
       {caption ? (
-        <figcaption className="text-sm text-muted-foreground">
-          {caption}
-        </figcaption>
+        <figcaption className="text-sm text-muted-foreground">{caption}</figcaption>
       ) : null}
     </figure>
   );
@@ -972,12 +852,7 @@ function ChartGraph({
 }) {
   const shouldScroll = scrollable ?? data.length > 12;
   const chartWidth = shouldScroll
-    ? Math.max(
-        width,
-        GRAPH_PADDING.left +
-          GRAPH_PADDING.right +
-          data.length * scrollPointWidth,
-      )
+    ? Math.max(width, GRAPH_PADDING.left + GRAPH_PADDING.right + data.length * scrollPointWidth)
     : width;
   const layout = getChartLayout({ width: chartWidth, height });
   const domain = getValueDomain(data, series, yDomain, includeZero);
@@ -995,9 +870,7 @@ function ChartGraph({
   const activeValues =
     activeDatum && activeIndex != null
       ? series.map((item, index) => {
-          const value = getNumericValue(
-            getChartDatumScalar(activeDatum, item.key),
-          );
+          const value = getNumericValue(getChartDatumScalar(activeDatum, item.key));
 
           return {
             key: item.key,
@@ -1044,11 +917,7 @@ function ChartGraph({
                 onPointerLeave={() => setActiveIndex(null)}
               >
                 {showGrid ? (
-                  <ChartGridLines
-                    layout={layout}
-                    ticks={yTicks}
-                    domain={domain}
-                  />
+                  <ChartGridLines layout={layout} ticks={yTicks} domain={domain} />
                 ) : null}
                 <ChartAxes
                   data={data}
@@ -1130,17 +999,12 @@ function ChartGraph({
         </div>
       )}
       {summary ? (
-        <div
-          data-slot="chart-summary"
-          className="text-sm leading-6 text-foreground"
-        >
+        <div data-slot="chart-summary" className="text-sm leading-6 text-foreground">
           {summary}
         </div>
       ) : null}
       {caption ? (
-        <figcaption className="text-sm text-muted-foreground">
-          {caption}
-        </figcaption>
+        <figcaption className="text-sm text-muted-foreground">{caption}</figcaption>
       ) : null}
     </figure>
   );
@@ -1190,10 +1054,7 @@ function renderLineGraphSeries(
           y: scaleY(layout, domain, value),
         };
       })
-      .filter(
-        (point): point is { index: number; x: number; y: number } =>
-          point !== null,
-      );
+      .filter((point): point is { index: number; x: number; y: number } => point !== null);
 
     return (
       <g key={item.key} data-slot="chart-line-graph-line">
@@ -1269,10 +1130,7 @@ function renderAreaGraphSeries(
           y: scaleY(layout, domain, value),
         };
       })
-      .filter(
-        (point): point is { index: number; x: number; y: number } =>
-          point !== null,
-      );
+      .filter((point): point is { index: number; x: number; y: number } => point !== null);
 
     return (
       <g key={item.key} data-slot="chart-area-graph-area">
@@ -1340,8 +1198,7 @@ function renderBarGraphSeries(
   const barWidth = groupWidth / Math.max(series.length, 1);
 
   return data.map((datum, datumIndex) => {
-    const groupX =
-      layout.left + bandWidth * datumIndex + (bandWidth - groupWidth) / 2;
+    const groupX = layout.left + bandWidth * datumIndex + (bandWidth - groupWidth) / 2;
 
     return series.map((item, seriesIndex) => {
       const value = getNumericValue(getChartDatumScalar(datum, item.key)) ?? 0;
@@ -1361,11 +1218,7 @@ function renderBarGraphSeries(
             height={Math.abs(zeroY - y)}
             fill={getSeriesColor(item, seriesIndex)}
             className={item.className}
-            opacity={
-              activeIndex == null || activeIndex === datumIndex
-                ? undefined
-                : 0.35
-            }
+            opacity={activeIndex == null || activeIndex === datumIndex ? undefined : 0.35}
           />
           {shouldRenderValueLabels(valueLabels, data.length) ? (
             <ChartPretextText
@@ -1420,8 +1273,7 @@ function HistogramBar({
       opacity={isActive ? undefined : 0.35}
     >
       <title>
-        {bin.label ?? defaultFormatHistogramBin(bin)}:{" "}
-        {defaultFormatValue(bin.count)}
+        {bin.label ?? defaultFormatHistogramBin(bin)}: {defaultFormatValue(bin.count)}
       </title>
     </rect>
   );
@@ -1509,8 +1361,7 @@ function ChartHistogramInteractionLayer({
   onActiveIndexChange: (index: number | null) => void;
   xDomain: [number, number];
 }) {
-  const activeLabel =
-    activeBin && activeIndex != null ? formatBin(activeBin, activeIndex) : null;
+  const activeLabel = activeBin && activeIndex != null ? formatBin(activeBin, activeIndex) : null;
 
   return (
     <g data-slot="chart-interaction-layer">
@@ -1588,11 +1439,7 @@ function ChartInteractionLayer({
   ariaLabel?: string;
   data: ChartDatum[];
   domain: [number, number];
-  formatLabel: (
-    value: ChartDatumValue,
-    datum: ChartDatum,
-    index: number,
-  ) => React.ReactNode;
+  formatLabel: (value: ChartDatumValue, datum: ChartDatum, index: number) => React.ReactNode;
   layout: ChartLayout;
   onActiveIndexChange: (index: number | null) => void;
   series: ChartSeries[];
@@ -1602,20 +1449,14 @@ function ChartInteractionLayer({
   const activeDatum = activeIndex == null ? null : data[activeIndex];
   const activeLabel =
     activeDatum && activeIndex != null
-      ? formatLabel(
-          getChartDatumScalar(activeDatum, xKey),
-          activeDatum,
-          activeIndex,
-        )
+      ? formatLabel(getChartDatumScalar(activeDatum, xKey), activeDatum, activeIndex)
       : null;
   const activeY =
     activeDatum == null
       ? null
       : Math.min(
           ...series.flatMap((item) => {
-            const value = getNumericValue(
-              getChartDatumScalar(activeDatum, item.key),
-            );
+            const value = getNumericValue(getChartDatumScalar(activeDatum, item.key));
 
             return value == null ? [] : [scaleY(layout, domain, value)];
           }),
@@ -1636,11 +1477,7 @@ function ChartInteractionLayer({
       ) : null}
       {data.map((datum, index) => {
         const hitArea = getDatumHitArea(layout, data.length, index, xScale);
-        const label = formatLabel(
-          getChartDatumScalar(datum, xKey),
-          datum,
-          index,
-        );
+        const label = formatLabel(getChartDatumScalar(datum, xKey), datum, index);
 
         return (
           <rect
@@ -1700,11 +1537,7 @@ function ChartGraphTooltip({
     layout.right - GRAPH_TOOLTIP_WIDTH,
   );
   const preferredY = (y ?? layout.top) - height - 10;
-  const tooltipY = clamp(
-    preferredY,
-    layout.top,
-    Math.max(layout.top, layout.bottom - height),
-  );
+  const tooltipY = clamp(preferredY, layout.top, Math.max(layout.top, layout.bottom - height));
 
   return (
     <foreignObject
@@ -1719,10 +1552,7 @@ function ChartGraphTooltip({
         <div className="font-medium text-foreground">{label}</div>
         <div className="grid gap-1">
           {values.map((item) => (
-            <div
-              key={item.key}
-              className="flex items-center justify-between gap-3"
-            >
+            <div key={item.key} className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
                 <span
                   aria-hidden="true"
@@ -1753,13 +1583,7 @@ type ChartLayout = {
   plotHeight: number;
 };
 
-function getChartLayout({
-  width,
-  height,
-}: {
-  width: number;
-  height: number;
-}): ChartLayout {
+function getChartLayout({ width, height }: { width: number; height: number }): ChartLayout {
   const left = GRAPH_PADDING.left;
   const right = width - GRAPH_PADDING.right;
   const top = GRAPH_PADDING.top;
@@ -1792,14 +1616,7 @@ function ChartGridLines({
         const y = scaleY(layout, domain, tick);
 
         return (
-          <line
-            key={tick}
-            x1={layout.left}
-            x2={layout.right}
-            y1={y}
-            y2={y}
-            strokeDasharray="3 4"
-          />
+          <line key={tick} x1={layout.left} x2={layout.right} y1={y} y2={y} strokeDasharray="3 4" />
         );
       })}
     </g>
@@ -1820,11 +1637,7 @@ function ChartAxes({
 }: {
   data: ChartDatum[];
   domain: [number, number];
-  formatLabel: (
-    value: ChartDatumValue,
-    datum: ChartDatum,
-    index: number,
-  ) => React.ReactNode;
+  formatLabel: (value: ChartDatumValue, datum: ChartDatum, index: number) => React.ReactNode;
   formatValue: (value: number) => React.ReactNode;
   layout: ChartLayout;
   showXAxis: boolean;
@@ -1881,15 +1694,9 @@ function ChartGraphLegend({ series }: { series: ChartSeries[] }) {
   }
 
   return (
-    <div
-      data-slot="chart-graph-legend"
-      className="flex flex-wrap items-center gap-4 text-xs"
-    >
+    <div data-slot="chart-graph-legend" className="flex flex-wrap items-center gap-4 text-xs">
       {series.map((item, index) => (
-        <div
-          key={item.key}
-          className="flex items-center gap-1.5 text-muted-foreground"
-        >
+        <div key={item.key} className="flex items-center gap-1.5 text-muted-foreground">
           <span
             aria-hidden="true"
             className="size-2 shrink-0"
@@ -1917,10 +1724,7 @@ function ChartDonutLegend({
   return (
     <div data-slot="chart-donut-graph-legend" className="grid gap-2 text-sm">
       {segments.map((item) => (
-        <div
-          key={item.index}
-          className="flex items-center justify-between gap-3"
-        >
+        <div key={item.index} className="flex items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
             <span
               aria-hidden="true"
@@ -1957,10 +1761,7 @@ function ChartDonutBreadcrumbs({
           const label = renderBreadcrumb?.(item, index, items) ?? item.label;
 
           return (
-            <li
-              key={getDonutPathKey(item.path)}
-              className="flex min-w-0 items-center gap-1"
-            >
+            <li key={getDonutPathKey(item.path)} className="flex min-w-0 items-center gap-1">
               {index > 0 ? <span aria-hidden="true">/</span> : null}
               {current ? (
                 <span
@@ -1994,10 +1795,7 @@ function getChartDatumScalar(datum: ChartDatum, key: string): ChartDatumValue {
   return Array.isArray(value) ? undefined : value;
 }
 
-function getChartDatumChildren(
-  datum: ChartDatum,
-  childrenKey: string,
-): ChartDatum[] {
+function getChartDatumChildren(datum: ChartDatum, childrenKey: string): ChartDatum[] {
   const children = datum[childrenKey];
 
   return Array.isArray(children) ? children : [];
@@ -2014,23 +1812,16 @@ function getDonutDatumValue(
     return value;
   }
 
-  const childTotal = getChartDatumChildren(datum, childrenKey).reduce(
-    (sum, child) => {
-      const childValue = getDonutDatumValue(child, valueKey, childrenKey);
+  const childTotal = getChartDatumChildren(datum, childrenKey).reduce((sum, child) => {
+    const childValue = getDonutDatumValue(child, valueKey, childrenKey);
 
-      return sum + (childValue ?? 0);
-    },
-    0,
-  );
+    return sum + (childValue ?? 0);
+  }, 0);
 
   return childTotal > 0 ? childTotal : null;
 }
 
-function getValidDonutPath(
-  data: ChartDatum[],
-  path: number[],
-  childrenKey: string,
-): number[] {
+function getValidDonutPath(data: ChartDatum[], path: number[], childrenKey: string): number[] {
   let currentData = data;
   const validPath: number[] = [];
 
@@ -2091,9 +1882,7 @@ function getDonutBreadcrumbItems(
     labelKey: string;
   },
 ): ChartDonutBreadcrumbItem[] {
-  const items: ChartDonutBreadcrumbItem[] = [
-    { label: ariaLabel, path: [], datum: null },
-  ];
+  const items: ChartDonutBreadcrumbItem[] = [{ label: ariaLabel, path: [], datum: null }];
   let currentData = data;
   const currentPath: number[] = [];
 
@@ -2106,11 +1895,7 @@ function getDonutBreadcrumbItems(
 
     currentPath.push(itemIndex);
     items.push({
-      label: formatLabel(
-        getChartDatumScalar(datum, labelKey),
-        datum,
-        itemIndex,
-      ),
+      label: formatLabel(getChartDatumScalar(datum, labelKey), datum, itemIndex),
       path: [...currentPath],
       datum,
     });
@@ -2139,9 +1924,7 @@ function getDonutLiveRegionText(
 }
 
 function getRenderableText(value: React.ReactNode): string {
-  return typeof value === "string" || typeof value === "number"
-    ? String(value)
-    : "";
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
 function getDonutPathKey(path: readonly number[]): string {
@@ -2223,8 +2006,7 @@ function getHistogramBins({
   }
 
   const numericValues = (values ?? []).filter(
-    (value): value is number =>
-      typeof value === "number" && Number.isFinite(value),
+    (value): value is number => typeof value === "number" && Number.isFinite(value),
   );
 
   if (!numericValues.length) {
@@ -2257,10 +2039,7 @@ function getHistogramBins({
   return histogramBins;
 }
 
-function getHistogramEdges(
-  domain: [number, number],
-  bins: number | number[],
-): number[] {
+function getHistogramEdges(domain: [number, number], bins: number | number[]): number[] {
   const [min, max] = domain;
 
   if (Array.isArray(bins)) {
@@ -2269,9 +2048,7 @@ function getHistogramEdges(
     return [min, ...thresholds, max]
       .filter((value) => Number.isFinite(value))
       .sort((a, b) => a - b)
-      .filter(
-        (value, index, edges) => index === 0 || value !== edges[index - 1],
-      );
+      .filter((value, index, edges) => index === 0 || value !== edges[index - 1]);
   }
 
   const count = Math.max(1, Math.floor(bins));
@@ -2339,19 +2116,11 @@ function getTicks([min, max]: [number, number], tickCount: number): number[] {
   return Array.from({ length: count }, (_, index) => min + step * index);
 }
 
-function scaleY(
-  layout: ChartLayout,
-  [min, max]: [number, number],
-  value: number,
-): number {
+function scaleY(layout: ChartLayout, [min, max]: [number, number], value: number): number {
   return layout.bottom - ((value - min) / (max - min)) * layout.plotHeight;
 }
 
-function scaleX(
-  layout: ChartLayout,
-  [min, max]: [number, number],
-  value: number,
-): number {
+function scaleX(layout: ChartLayout, [min, max]: [number, number], value: number): number {
   return layout.left + ((value - min) / (max - min)) * layout.plotWidth;
 }
 
@@ -2363,11 +2132,7 @@ function getHistogramBinCenterX(
   return scaleX(layout, domain, bin.min + (bin.max - bin.min) / 2);
 }
 
-function getPointX(
-  layout: ChartLayout,
-  dataLength: number,
-  index: number,
-): number {
+function getPointX(layout: ChartLayout, dataLength: number, index: number): number {
   if (dataLength <= 1) {
     return layout.left + layout.plotWidth / 2;
   }
@@ -2375,11 +2140,7 @@ function getPointX(
   return layout.left + (layout.plotWidth / (dataLength - 1)) * index;
 }
 
-function getBandCenterX(
-  layout: ChartLayout,
-  dataLength: number,
-  index: number,
-): number {
+function getBandCenterX(layout: ChartLayout, dataLength: number, index: number): number {
   if (dataLength <= 0) {
     return layout.left + layout.plotWidth / 2;
   }
@@ -2388,15 +2149,10 @@ function getBandCenterX(
 }
 
 function getLinePath(points: Array<{ x: number; y: number }>): string {
-  return points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
+  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
 }
 
-function getAreaPath(
-  points: Array<{ x: number; y: number }>,
-  baseline: number,
-): string {
+function getAreaPath(points: Array<{ x: number; y: number }>, baseline: number): string {
   if (!points.length) {
     return "";
   }
@@ -2408,10 +2164,7 @@ function getAreaPath(
   return `${linePath} L ${last.x} ${baseline} L ${first.x} ${baseline} Z`;
 }
 
-function getSparklineAreaPath(
-  points: Array<{ x: number; y: number }>,
-  height: number,
-): string {
+function getSparklineAreaPath(points: Array<{ x: number; y: number }>, height: number): string {
   if (!points.length) {
     return "";
   }
@@ -2423,11 +2176,7 @@ function getSparklineAreaPath(
   return `${getLinePath(points)} L ${last.x} ${baseline} L ${first.x} ${baseline} Z`;
 }
 
-function getSparklineX(
-  width: number,
-  dataLength: number,
-  index: number,
-): number {
+function getSparklineX(width: number, dataLength: number, index: number): number {
   if (dataLength <= 1) {
     return width / 2;
   }
@@ -2437,16 +2186,10 @@ function getSparklineX(
   return SPARKLINE_PADDING + (plotWidth / (dataLength - 1)) * index;
 }
 
-function scaleSparklineY(
-  height: number,
-  [min, max]: [number, number],
-  value: number,
-): number {
+function scaleSparklineY(height: number, [min, max]: [number, number], value: number): number {
   const plotHeight = height - SPARKLINE_PADDING * 2;
 
-  return (
-    height - SPARKLINE_PADDING - ((value - min) / (max - min)) * plotHeight
-  );
+  return height - SPARKLINE_PADDING - ((value - min) / (max - min)) * plotHeight;
 }
 
 function getDonutSegmentPath(
@@ -2457,8 +2200,7 @@ function getDonutSegmentPath(
   startAngle: number,
   endAngle: number,
 ): string {
-  const normalizedEnd =
-    endAngle - startAngle >= 360 ? startAngle + 359.99 : endAngle;
+  const normalizedEnd = endAngle - startAngle >= 360 ? startAngle + 359.99 : endAngle;
   const startOuter = getPolarPoint(cx, cy, outerRadius, startAngle);
   const endOuter = getPolarPoint(cx, cy, outerRadius, normalizedEnd);
   const startInner = getPolarPoint(cx, cy, innerRadius, normalizedEnd);
@@ -2499,17 +2241,10 @@ function getDatumHitArea(
   }
 
   const current = getPointX(layout, dataLength, index);
-  const previous =
-    index === 0 ? layout.left : getPointX(layout, dataLength, index - 1);
-  const next =
-    index === dataLength - 1
-      ? layout.right
-      : getPointX(layout, dataLength, index + 1);
+  const previous = index === 0 ? layout.left : getPointX(layout, dataLength, index - 1);
+  const next = index === dataLength - 1 ? layout.right : getPointX(layout, dataLength, index + 1);
   const x = index === 0 ? layout.left : previous + (current - previous) / 2;
-  const width =
-    index === dataLength - 1
-      ? layout.right - x
-      : next - (next - current) / 2 - x;
+  const width = index === dataLength - 1 ? layout.right - x : next - (next - current) / 2 - x;
 
   return {
     x,
@@ -2521,10 +2256,7 @@ function getSeriesColor(series: ChartSeries, index: number): string {
   return series.color ?? `var(--chart-${(index % 5) + 1})`;
 }
 
-function shouldRenderValueLabels(
-  valueLabels: boolean | "auto",
-  dataLength: number,
-) {
+function shouldRenderValueLabels(valueLabels: boolean | "auto", dataLength: number) {
   return valueLabels === true || (valueLabels === "auto" && dataLength <= 8);
 }
 
@@ -2543,10 +2275,7 @@ function defaultFormatValue(value: number): React.ReactNode {
 }
 
 function defaultFormatHistogramBin(bin: ChartHistogramBin): React.ReactNode {
-  return (
-    bin.label ??
-    `${defaultFormatValue(bin.min)} - ${defaultFormatValue(bin.max)}`
-  );
+  return bin.label ?? `${defaultFormatValue(bin.min)} - ${defaultFormatValue(bin.max)}`;
 }
 
 export {
@@ -2576,6 +2305,4 @@ export type ChartAreaGraphProps = React.ComponentProps<typeof ChartAreaGraph>;
 export type ChartBarGraphProps = React.ComponentProps<typeof ChartBarGraph>;
 export type ChartLineGraphProps = React.ComponentProps<typeof ChartLineGraph>;
 export type ChartPretextProps = React.ComponentProps<typeof ChartPretext>;
-export type ChartPretextTextProps = React.ComponentProps<
-  typeof ChartPretextText
->;
+export type ChartPretextTextProps = React.ComponentProps<typeof ChartPretextText>;

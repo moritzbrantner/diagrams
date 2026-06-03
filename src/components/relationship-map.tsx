@@ -4,20 +4,9 @@ import * as React from "react";
 
 import { cn } from "../lib/cn";
 
-type RelationshipMapEdgeKind =
-  | "default"
-  | "dependency"
-  | "blocking"
-  | "success"
-  | "risk";
+type RelationshipMapEdgeKind = "default" | "dependency" | "blocking" | "success" | "risk";
 type RelationshipMapDirection = "forward" | "backward" | "both" | "none";
-type RelationshipMapTone =
-  | "default"
-  | "accent"
-  | "success"
-  | "warning"
-  | "danger"
-  | "muted";
+type RelationshipMapTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";
 
 type RelationshipMapPoint = {
   x: number;
@@ -103,9 +92,7 @@ function RelationshipMap({
     () => new Map(positionedNodes.map((node) => [node.id, node])),
     [positionedNodes],
   );
-  const validEdges = edges.filter(
-    (edge) => nodeMap.has(edge.source) && nodeMap.has(edge.target),
-  );
+  const validEdges = edges.filter((edge) => nodeMap.has(edge.source) && nodeMap.has(edge.target));
   const bounds = getBounds(positionedNodes, validEdges);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
@@ -145,10 +132,7 @@ function RelationshipMap({
               refY="5"
               orient="auto-start-reverse"
             >
-              <path
-                d="M 0 0 L 10 5 L 0 10 z"
-                className="fill-current text-muted-foreground"
-              />
+              <path d="M 0 0 L 10 5 L 0 10 z" className="fill-current text-muted-foreground" />
             </marker>
           </defs>
           {positionedNodes.length ? (
@@ -214,9 +198,7 @@ function RelationshipMapEdgeShape({
     return null;
   }
 
-  const points = edge.points?.length
-    ? edge.points
-    : getRoutePoints(source, target, edgeIndex);
+  const points = edge.points?.length ? edge.points : getRoutePoints(source, target, edgeIndex);
   const path = pointsToPath(points);
   const direction = edge.direction ?? "forward";
   const labelPoint = points[Math.floor(points.length / 2)] ?? points[0];
@@ -229,16 +211,8 @@ function RelationshipMapEdgeShape({
         fill="none"
         strokeWidth="2"
         className={cn(edgeKindClasses[edge.kind ?? "default"])}
-        markerStart={
-          direction === "backward" || direction === "both"
-            ? markerUrl
-            : undefined
-        }
-        markerEnd={
-          direction === "forward" || direction === "both"
-            ? markerUrl
-            : undefined
-        }
+        markerStart={direction === "backward" || direction === "both" ? markerUrl : undefined}
+        markerEnd={direction === "forward" || direction === "both" ? markerUrl : undefined}
       />
       {edge.label && labelPoint ? (
         <foreignObject
@@ -257,11 +231,7 @@ function RelationshipMapEdgeShape({
   );
 }
 
-function RelationshipMapNodeShape({
-  node,
-}: {
-  node: PositionedRelationshipMapNode;
-}) {
+function RelationshipMapNodeShape({ node }: { node: PositionedRelationshipMapNode }) {
   return (
     <foreignObject
       data-slot="relationship-map-node"
@@ -279,17 +249,11 @@ function RelationshipMapNodeShape({
         )}
       >
         {node.group ? (
-          <div
-            data-slot="relationship-map-node-group"
-            className="text-xs text-muted-foreground"
-          >
+          <div data-slot="relationship-map-node-group" className="text-xs text-muted-foreground">
             {node.group}
           </div>
         ) : null}
-        <div
-          data-slot="relationship-map-node-label"
-          className="font-medium leading-5"
-        >
+        <div data-slot="relationship-map-node-label" className="font-medium leading-5">
           {node.label}
         </div>
         {node.description ? (
@@ -311,30 +275,27 @@ function getPositionedNodes(
 ) {
   const seen = new Set<string>();
 
-  return nodes.reduce<PositionedRelationshipMapNode[]>(
-    (positioned, node, index) => {
-      if (seen.has(node.id)) {
-        return positioned;
-      }
-
-      seen.add(node.id);
-      const width = node.width ?? DEFAULT_NODE_WIDTH;
-      const height = node.height ?? DEFAULT_NODE_HEIGHT;
-      const column = index % autoLayoutColumns;
-      const row = Math.floor(index / autoLayoutColumns);
-
-      positioned.push({
-        ...node,
-        width,
-        height,
-        x: node.x ?? column * (DEFAULT_NODE_WIDTH + AUTO_LAYOUT_GAP.x),
-        y: node.y ?? row * (DEFAULT_NODE_HEIGHT + AUTO_LAYOUT_GAP.y),
-      });
-
+  return nodes.reduce<PositionedRelationshipMapNode[]>((positioned, node, index) => {
+    if (seen.has(node.id)) {
       return positioned;
-    },
-    [],
-  );
+    }
+
+    seen.add(node.id);
+    const width = node.width ?? DEFAULT_NODE_WIDTH;
+    const height = node.height ?? DEFAULT_NODE_HEIGHT;
+    const column = index % autoLayoutColumns;
+    const row = Math.floor(index / autoLayoutColumns);
+
+    positioned.push({
+      ...node,
+      width,
+      height,
+      x: node.x ?? column * (DEFAULT_NODE_WIDTH + AUTO_LAYOUT_GAP.x),
+      y: node.y ?? row * (DEFAULT_NODE_HEIGHT + AUTO_LAYOUT_GAP.y),
+    });
+
+    return positioned;
+  }, []);
 }
 
 function getBounds(
@@ -379,12 +340,7 @@ function getRoutePoints(
   const offset = (edgeIndex % 3) * 12;
   const midX = (sourcePoint.x + targetPoint.x) / 2 + offset;
 
-  return [
-    sourcePoint,
-    { x: midX, y: sourcePoint.y },
-    { x: midX, y: targetPoint.y },
-    targetPoint,
-  ];
+  return [sourcePoint, { x: midX, y: sourcePoint.y }, { x: midX, y: targetPoint.y }, targetPoint];
 }
 
 function pointsToPath(points: readonly RelationshipMapPoint[]) {

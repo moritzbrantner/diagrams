@@ -13,30 +13,17 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const rootDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = mkdtempSync(path.join(tmpdir(), "diagrams-pack-check-"));
-const expectedEntrypoints = [
-  "index",
-  "charts",
-  "org-chart",
-  "process-map",
-  "relationship-map",
-];
+const expectedEntrypoints = ["index", "charts", "org-chart", "process-map", "relationship-map"];
 
 try {
   const packed = JSON.parse(
-    execFileSync(
-      "npm",
-      ["pack", "--ignore-scripts", "--json", "--pack-destination", tempDir],
-      {
-        cwd: rootDir,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "inherit"],
-      },
-    ),
+    execFileSync("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", tempDir], {
+      cwd: rootDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "inherit"],
+    }),
   );
   const tarball = path.join(tempDir, path.basename(packed[0]?.filename ?? ""));
   const extractDir = path.join(tempDir, "extract");
@@ -57,18 +44,14 @@ try {
     assertFile(path.join(packageDir, "dist", `${entrypoint}.d.ts`));
   }
 
-  const packageJson = JSON.parse(
-    readFileSync(path.join(packageDir, "package.json"), "utf8"),
-  );
+  const packageJson = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
 
   for (const entrypoint of expectedEntrypoints) {
     const exportKey = entrypoint === "index" ? "." : `./${entrypoint}`;
     const distName = entrypoint === "index" ? "index" : entrypoint;
 
     if (packageJson.exports?.[exportKey]?.import !== `./dist/${distName}.js`) {
-      throw new Error(
-        `Packed package ${exportKey} import export is incorrect.`,
-      );
+      throw new Error(`Packed package ${exportKey} import export is incorrect.`);
     }
 
     if (packageJson.exports?.[exportKey]?.types !== `./dist/${distName}.d.ts`) {
@@ -85,19 +68,12 @@ try {
   const consumerNodeModules = path.join(consumerDir, "node_modules");
 
   mkdirSync(consumerDir);
-  linkInstalledModules(
-    path.join(rootDir, "node_modules"),
-    path.join(packageDir, "node_modules"),
-  );
+  linkInstalledModules(path.join(rootDir, "node_modules"), path.join(packageDir, "node_modules"));
   linkInstalledModules(path.join(rootDir, "node_modules"), consumerNodeModules);
   mkdirSync(path.join(consumerNodeModules, "@moritzbrantner"), {
     recursive: true,
   });
-  symlinkSync(
-    packageDir,
-    path.join(consumerNodeModules, "@moritzbrantner", "diagrams"),
-    "dir",
-  );
+  symlinkSync(packageDir, path.join(consumerNodeModules, "@moritzbrantner", "diagrams"), "dir");
 
   writeFileSync(
     path.join(consumerDir, "package.json"),
@@ -107,8 +83,7 @@ try {
         type: "module",
         dependencies: {
           "@moritzbrantner/diagrams": "file:../extract/package",
-          "@moritzbrantner/ui":
-            packageJson.peerDependencies["@moritzbrantner/ui"],
+          "@moritzbrantner/ui": packageJson.peerDependencies["@moritzbrantner/ui"],
           react: packageJson.peerDependencies.react,
           "react-dom": packageJson.peerDependencies["react-dom"],
           recharts: packageJson.peerDependencies.recharts,
@@ -184,18 +159,14 @@ try {
     },
   );
 
-  console.log(
-    "@moritzbrantner/diagrams packed artifact import and type checks passed.",
-  );
+  console.log("@moritzbrantner/diagrams packed artifact import and type checks passed.");
 } finally {
   rmSync(tempDir, { force: true, recursive: true });
 }
 
 function assertFile(filePath) {
   if (!existsSync(filePath)) {
-    throw new Error(
-      `Expected packed file to exist: ${path.relative(rootDir, filePath)}`,
-    );
+    throw new Error(`Expected packed file to exist: ${path.relative(rootDir, filePath)}`);
   }
 }
 
@@ -229,11 +200,7 @@ function linkInstalledModules(sourceNodeModules, targetNodeModules) {
         const scopedTargetPath = path.join(targetPath, scopedEntry.name);
 
         if (!existsSync(scopedTargetPath)) {
-          symlinkSync(
-            path.join(sourcePath, scopedEntry.name),
-            scopedTargetPath,
-            "dir",
-          );
+          symlinkSync(path.join(sourcePath, scopedEntry.name), scopedTargetPath, "dir");
         }
       }
 

@@ -29,8 +29,6 @@ for (const story of stories) {
     await page.goto(`/iframe.html?id=${story.id}&viewMode=story`);
     await expect(page.locator("#storybook-root")).toBeVisible();
     await expect(page.locator("#storybook-root")).not.toBeEmpty();
-    await expect(page.locator("#storybook-root")).toHaveScreenshot(
-      `${story.name}.png`,
-    );
+    await expect(page.locator("#storybook-root")).toHaveScreenshot(`${story.name}.png`);
   });
 }

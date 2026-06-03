@@ -8,8 +8,7 @@ export default defineConfig({
     },
   },
   outputDir: "test-results/visual",
-  snapshotPathTemplate:
-    "src/components/__screenshots__/{testFileName}/{projectName}/{arg}{ext}",
+  snapshotPathTemplate: "src/components/__screenshots__/{testFileName}/{projectName}/{arg}{ext}",
   testDir: ".",
   testMatch: "src/**/*.visual.spec.ts",
   use: {

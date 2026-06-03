@@ -1,12 +1,4 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { expect } from "storybook/test";
 
 import {
@@ -72,18 +64,8 @@ export const Charts: Story = {
           <YAxis tickLine={false} axisLine={false} />
           <ChartTooltip content={<ChartTooltipContent />} />
           <ChartLegend content={<ChartLegendContent />} />
-          <Line
-            dataKey="actual"
-            stroke="var(--color-actual)"
-            strokeWidth={2}
-            dot={false}
-          />
-          <Line
-            dataKey="target"
-            stroke="var(--color-target)"
-            strokeWidth={2}
-            dot={false}
-          />
+          <Line dataKey="actual" stroke="var(--color-actual)" strokeWidth={2} dot={false} />
+          <Line dataKey="target" stroke="var(--color-target)" strokeWidth={2} dot={false} />
         </LineChart>
       </ChartContainer>
       <div className="grid gap-6 lg:grid-cols-2">
@@ -101,9 +83,7 @@ export const Charts: Story = {
         />
         <ChartHistogramGraph
           ariaLabel="Story histogram"
-          values={[
-            82, 88, 93, 101, 108, 112, 119, 124, 132, 140, 148, 161, 175, 199,
-          ]}
+          values={[82, 88, 93, 101, 108, 112, 119, 124, 132, 140, 148, 161, 175, 199]}
           bins={[100, 130, 160]}
         />
         <div className="grid gap-6">
@@ -128,18 +108,10 @@ export const Charts: Story = {
     </StoryFrame>
   ),
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole("img", { name: "Story line chart" }),
-    ).toBeVisible();
-    await expect(
-      canvas.getByRole("img", { name: "Story bar chart" }),
-    ).toBeVisible();
-    await expect(
-      canvas.getByRole("img", { name: "Story histogram" }),
-    ).toBeVisible();
-    await expect(
-      canvas.getByRole("img", { name: "Story donut chart" }),
-    ).toBeVisible();
+    await expect(canvas.getByRole("img", { name: "Story line chart" })).toBeVisible();
+    await expect(canvas.getByRole("img", { name: "Story bar chart" })).toBeVisible();
+    await expect(canvas.getByRole("img", { name: "Story histogram" })).toBeVisible();
+    await expect(canvas.getByRole("img", { name: "Story donut chart" })).toBeVisible();
   },
 };
 
@@ -178,9 +150,7 @@ export const OrgChartStory: Story = {
     </StoryFrame>
   ),
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole("treeitem", { name: "Program owner" }),
-    ).toBeVisible();
+    await expect(canvas.getByRole("treeitem", { name: "Program owner" })).toBeVisible();
     await expect(canvas.getByText("Quality")).toBeVisible();
   },
 };
@@ -287,9 +257,7 @@ export const RelationshipMapStory: Story = {
     </StoryFrame>
   ),
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole("img", { name: "Story relationship map" }),
-    ).toBeVisible();
+    await expect(canvas.getByRole("img", { name: "Story relationship map" })).toBeVisible();
     await expect(canvas.getByText("Governance")).toBeVisible();
   },
 };

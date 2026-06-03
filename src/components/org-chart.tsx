@@ -52,20 +52,14 @@ type OrgChartProps = React.ComponentProps<"div"> & {
     node: OrgChartNodeData | null,
     context: OrgChartRenderNodeContext | null,
   ) => void;
-  getNodeDisabled?: (
-    node: OrgChartNodeData,
-    context: OrgChartRenderNodeContext,
-  ) => boolean;
+  getNodeDisabled?: (node: OrgChartNodeData, context: OrgChartRenderNodeContext) => boolean;
   nodeActions?:
     | readonly OrgChartNodeAction[]
     | ((
         node: OrgChartNodeData,
         context: OrgChartRenderNodeContext,
       ) => readonly OrgChartNodeAction[]);
-  onNodeSelect?: (
-    node: OrgChartNodeData,
-    context: OrgChartRenderNodeContext,
-  ) => void;
+  onNodeSelect?: (node: OrgChartNodeData, context: OrgChartRenderNodeContext) => void;
   onNodeActionSelect?: (
     action: OrgChartNodeAction,
     node: OrgChartNodeData,
@@ -90,10 +84,7 @@ type OrgChartNodeAction = {
   icon?: React.ReactNode;
   disabled?: boolean;
   destructive?: boolean;
-  onSelect?: (
-    node: OrgChartNodeData,
-    context: OrgChartRenderNodeContext,
-  ) => void;
+  onSelect?: (node: OrgChartNodeData, context: OrgChartRenderNodeContext) => void;
 };
 
 export type OrgChartNodeProps = React.ComponentProps<"div"> & {
@@ -116,10 +107,7 @@ export type OrgChartNodeProps = React.ComponentProps<"div"> & {
   onExpandedChange?: (expanded: boolean, node: OrgChartNodeData) => void;
   getNodeExpanded?: (node: OrgChartNodeData) => boolean;
   onToggleNode?: (node: OrgChartNodeData, expanded: boolean) => void;
-  onFocusNode?: (
-    node: OrgChartNodeData,
-    context: OrgChartRenderNodeContext,
-  ) => void;
+  onFocusNode?: (node: OrgChartNodeData, context: OrgChartRenderNodeContext) => void;
   onNodeKeyDown?: (
     event: React.KeyboardEvent<HTMLDivElement>,
     node: OrgChartNodeData,
@@ -156,9 +144,9 @@ function OrgChart({
     () => collectExpandableNodeIds(nodes, defaultExpandedDepth),
     [defaultExpandedDepth, nodes],
   );
-  const [internalExpandedIds, setInternalExpandedIds] = React.useState<
-    string[] | undefined
-  >(() => (defaultExpandedIds ? [...defaultExpandedIds] : undefined));
+  const [internalExpandedIds, setInternalExpandedIds] = React.useState<string[] | undefined>(() =>
+    defaultExpandedIds ? [...defaultExpandedIds] : undefined,
+  );
   const currentExpandedIds = React.useMemo(
     () => new Set(expandedIds ?? internalExpandedIds ?? defaultExpandableIds),
     [defaultExpandableIds, expandedIds, internalExpandedIds],
@@ -170,27 +158,21 @@ function OrgChart({
   const renderedNodeIds = React.useMemo(
     () =>
       typeof maxRenderedNodes === "number"
-        ? new Set(
-            visibleNodes
-              .slice(0, Math.max(0, maxRenderedNodes))
-              .map((item) => item.node.id),
-          )
+        ? new Set(visibleNodes.slice(0, Math.max(0, maxRenderedNodes)).map((item) => item.node.id))
         : undefined,
     [maxRenderedNodes, visibleNodes],
   );
   const nodeRefs = React.useRef(new Map<string, HTMLDivElement>());
-  const [internalFocusedNodeId, setInternalFocusedNodeId] = React.useState<
-    string | null
-  >(() => defaultFocusedNodeId ?? null);
+  const [internalFocusedNodeId, setInternalFocusedNodeId] = React.useState<string | null>(
+    () => defaultFocusedNodeId ?? null,
+  );
   const isNodeDisabled = React.useCallback(
     (item: OrgChartVisibleNode) =>
       getNodeDisabled?.(
         item.node,
         createOrgChartContext({
           ...item,
-          expanded: item.node.children?.length
-            ? currentExpandedIds.has(item.node.id)
-            : false,
+          expanded: item.node.children?.length ? currentExpandedIds.has(item.node.id) : false,
           selected: selectedNodeId === item.node.id,
           focused: false,
           disabled: false,
@@ -208,8 +190,7 @@ function OrgChart({
   const requestedFocusedNodeId =
     focusedNodeId !== undefined ? focusedNodeId : internalFocusedNodeId;
   const effectiveFocusedNodeId =
-    enabledVisibleNodes.find((item) => item.node.id === requestedFocusedNodeId)
-      ?.node.id ??
+    enabledVisibleNodes.find((item) => item.node.id === requestedFocusedNodeId)?.node.id ??
     enabledVisibleNodes[0]?.node.id ??
     null;
 
@@ -227,28 +208,22 @@ function OrgChart({
     },
     [currentExpandedIds, expandedIds, onExpandedIdsChange],
   );
-  const setNodeRef = React.useCallback(
-    (nodeId: string, element: HTMLDivElement | null) => {
-      if (element) {
-        nodeRefs.current.set(nodeId, element);
-      } else {
-        nodeRefs.current.delete(nodeId);
-      }
-    },
-    [],
-  );
+  const setNodeRef = React.useCallback((nodeId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      nodeRefs.current.set(nodeId, element);
+    } else {
+      nodeRefs.current.delete(nodeId);
+    }
+  }, []);
   const getFocusChangeContext = React.useCallback(
     (item: OrgChartVisibleNode, focused: boolean) =>
       createOrgChartContext({
         ...item,
-        expanded: item.node.children?.length
-          ? currentExpandedIds.has(item.node.id)
-          : false,
+        expanded: item.node.children?.length ? currentExpandedIds.has(item.node.id) : false,
         selected: selectedNodeId === item.node.id,
         focused,
         disabled: isNodeDisabled(item),
-        toggleExpanded: () =>
-          toggleNode(item.node, !currentExpandedIds.has(item.node.id)),
+        toggleExpanded: () => toggleNode(item.node, !currentExpandedIds.has(item.node.id)),
         focusNode: () => undefined,
         selectNode: () => undefined,
       }),
@@ -323,16 +298,12 @@ function OrgChart({
         return;
       }
 
-      const currentIndex = enabledVisibleNodes.findIndex(
-        (item) => item.node.id === node.id,
-      );
+      const currentIndex = enabledVisibleNodes.findIndex((item) => item.node.id === node.id);
 
       switch (event.key) {
         case "ArrowDown":
           event.preventDefault();
-          focusVisibleItem(
-            enabledVisibleNodes[currentIndex + 1] ?? enabledVisibleNodes[0],
-          );
+          focusVisibleItem(enabledVisibleNodes[currentIndex + 1] ?? enabledVisibleNodes[0]);
           break;
         case "ArrowUp":
           event.preventDefault();
@@ -352,12 +323,8 @@ function OrgChart({
           }
 
           focusVisibleItem(
-            getVisibleOrgChartNodes(
-              nodes,
-              new Set([...currentExpandedIds, node.id]),
-            ).find(
-              (item) =>
-                item.parentNode?.id === node.id && !isNodeDisabled(item),
+            getVisibleOrgChartNodes(nodes, new Set([...currentExpandedIds, node.id])).find(
+              (item) => item.parentNode?.id === node.id && !isNodeDisabled(item),
             ),
           );
           break;
@@ -367,11 +334,7 @@ function OrgChart({
             toggleNode(node, false);
           } else if (context.parentNode) {
             event.preventDefault();
-            focusVisibleItem(
-              visibleNodes.find(
-                (item) => item.node.id === context.parentNode?.id,
-              ),
-            );
+            focusVisibleItem(visibleNodes.find((item) => item.node.id === context.parentNode?.id));
           }
           break;
         case "Home":
@@ -421,9 +384,7 @@ function OrgChart({
               path={[node.id]}
               renderNode={renderNode}
               nodeActions={nodeActions}
-              getNodeExpanded={(chartNode) =>
-                currentExpandedIds.has(chartNode.id)
-              }
+              getNodeExpanded={(chartNode) => currentExpandedIds.has(chartNode.id)}
               onToggleNode={toggleNode}
               selectedNodeId={selectedNodeId}
               focused={effectiveFocusedNodeId === node.id}
@@ -441,10 +402,7 @@ function OrgChart({
         </div>
       ) : (
         (children ?? (
-          <div
-            data-slot="org-chart-empty"
-            className="text-sm text-muted-foreground"
-          >
+          <div data-slot="org-chart-empty" className="text-sm text-muted-foreground">
             {emptyMessage}
           </div>
         ))
@@ -491,8 +449,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
   }
 
   const hasChildren = Boolean(node.children?.length);
-  const [internalExpanded, setInternalExpanded] =
-    React.useState(defaultExpanded);
+  const [internalExpanded, setInternalExpanded] = React.useState(defaultExpanded);
   const expanded = hasChildren
     ? (getNodeExpanded?.(node) ?? expandedProp ?? internalExpanded)
     : false;
@@ -508,14 +465,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
 
     onExpandedChange?.(nextExpanded, node);
     onToggleNode?.(node, nextExpanded);
-  }, [
-    expanded,
-    expandedProp,
-    getNodeExpanded,
-    node,
-    onExpandedChange,
-    onToggleNode,
-  ]);
+  }, [expanded, expandedProp, getNodeExpanded, node, onExpandedChange, onToggleNode]);
 
   const disabled =
     disabledProp ??
@@ -578,9 +528,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
   ]);
   const resolvedActions = React.useMemo(
     () =>
-      typeof nodeActions === "function"
-        ? nodeActions(node, renderContext)
-        : (nodeActions ?? []),
+      typeof nodeActions === "function" ? nodeActions(node, renderContext) : (nodeActions ?? []),
     [node, nodeActions, renderContext],
   );
   const hasNestedControls = hasChildren || resolvedActions.length > 0;
@@ -624,9 +572,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
               ? 0
               : -1
         }
-        aria-label={
-          onNodeSelect && !hasNestedControls ? accessibleName : undefined
-        }
+        aria-label={onNodeSelect && !hasNestedControls ? accessibleName : undefined}
         aria-disabled={disabled || undefined}
         className={cn(
           "relative min-w-56 rounded-md border bg-background p-3 shadow-sm outline-none transition-colors",
@@ -675,10 +621,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
                 </div>
               ) : null}
               <div className="grid min-w-0 gap-1">
-                <div
-                  data-slot="org-chart-node-label"
-                  className="font-medium leading-5"
-                >
+                <div data-slot="org-chart-node-label" className="font-medium leading-5">
                   {node.label}
                 </div>
                 {node.description ? (
@@ -690,10 +633,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
                   </div>
                 ) : null}
                 {node.meta ? (
-                  <div
-                    data-slot="org-chart-node-meta"
-                    className="text-xs text-muted-foreground"
-                  >
+                  <div data-slot="org-chart-node-meta" className="text-xs text-muted-foreground">
                     {node.meta}
                   </div>
                 ) : null}
@@ -702,10 +642,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
           )}
         </div>
         {resolvedActions.length ? (
-          <div
-            data-slot="org-chart-node-actions"
-            className="mt-3 flex flex-wrap gap-1.5"
-          >
+          <div data-slot="org-chart-node-actions" className="mt-3 flex flex-wrap gap-1.5">
             {resolvedActions.map((action) => (
               <button
                 key={action.id}
@@ -736,11 +673,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
       </div>
       {hasChildren && expanded ? (
         <>
-          <div
-            data-slot="org-chart-connector"
-            aria-hidden="true"
-            className="h-6 w-px bg-border"
-          />
+          <div data-slot="org-chart-connector" aria-hidden="true" className="h-6 w-px bg-border" />
           <div
             data-slot="org-chart-children"
             role="group"
@@ -788,9 +721,7 @@ function collectExpandableNodeIds(
   for (const node of nodes) {
     if (node.children?.length && depth < maxDepth) {
       expandedNodeIds.push(node.id);
-      expandedNodeIds.push(
-        ...collectExpandableNodeIds(node.children, maxDepth, depth + 1),
-      );
+      expandedNodeIds.push(...collectExpandableNodeIds(node.children, maxDepth, depth + 1));
     }
   }
 

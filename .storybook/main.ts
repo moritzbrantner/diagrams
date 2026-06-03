@@ -5,10 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 import type { StorybookConfig } from "@storybook/react-vite";
 
-const rootDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const config: StorybookConfig = {
   addons: ["@storybook/addon-vitest"],
@@ -16,10 +13,7 @@ const config: StorybookConfig = {
     name: "@storybook/react-vite",
     options: {},
   },
-  stories: [
-    "../src/**/*.stories.@(ts|tsx)",
-    "../examples/**/*.stories.@(ts|tsx)",
-  ],
+  stories: ["../src/**/*.stories.@(ts|tsx)", "../examples/**/*.stories.@(ts|tsx)"],
   viteFinal(config) {
     config.plugins = [...(config.plugins ?? []), tailwindcss()];
     config.resolve = {

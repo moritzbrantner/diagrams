@@ -26,9 +26,7 @@ describe("package contract", () => {
   });
 
   test("omits charts density engine and wasm scripts", () => {
-    expect(
-      packageJson.dependencies?.["@moritzbrantner/viz-engine"],
-    ).toBeUndefined();
+    expect(packageJson.dependencies?.["@moritzbrantner/viz-engine"]).toBeUndefined();
     expect(packageJson.scripts?.["build:wasm"]).toBeUndefined();
     expect(packageJson.scripts?.["test:wasm"]).toBeUndefined();
   });

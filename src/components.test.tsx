@@ -11,12 +11,7 @@ import {
   ChartPretextText,
   ChartSparkline,
 } from "./charts";
-import {
-  OrgChart,
-  insertOrgChartNode,
-  removeOrgChartNode,
-  updateOrgChartNode,
-} from "./org-chart";
+import { OrgChart, insertOrgChartNode, removeOrgChartNode, updateOrgChartNode } from "./org-chart";
 import { ProcessMap } from "./process-map";
 import { RelationshipMap } from "./relationship-map";
 
@@ -49,9 +44,7 @@ const orgNodes = [
 
 function getOrgChartNode(name: string) {
   const branch = screen.getByRole("treeitem", { name });
-  const node = branch.querySelector<HTMLElement>(
-    '[data-slot="org-chart-node"]',
-  );
+  const node = branch.querySelector<HTMLElement>('[data-slot="org-chart-node"]');
 
   if (!node) {
     throw new Error(`Could not find org chart node ${name}`);
@@ -97,21 +90,11 @@ describe("chart graph components", () => {
     expect(screen.getByRole("img", { name: "Quarterly bars" })).toBeTruthy();
     expect(screen.getAllByText("Actual")).toHaveLength(1);
     expect(screen.getByText("Pipeline is ahead.")).toBeTruthy();
-    expect(
-      container.querySelectorAll('[data-slot="chart-value-label"]'),
-    ).toHaveLength(6);
+    expect(container.querySelectorAll('[data-slot="chart-value-label"]')).toHaveLength(6);
 
-    rerender(
-      <ChartAreaGraph
-        ariaLabel="Quarterly area"
-        data={chartData}
-        series={chartSeries}
-      />,
-    );
+    rerender(<ChartAreaGraph ariaLabel="Quarterly area" data={chartData} series={chartSeries} />);
     expect(screen.getByRole("img", { name: "Quarterly area" })).toBeTruthy();
-    expect(
-      container.querySelector('[data-slot="chart-area-graph-area"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="chart-area-graph-area"]')).not.toBeNull();
 
     rerender(
       <ChartSparkline
@@ -121,9 +104,7 @@ describe("chart graph components", () => {
         showPoints
       />,
     );
-    expect(
-      screen.getByRole("img", { name: "Quarterly sparkline" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Quarterly sparkline" })).toBeTruthy();
 
     rerender(
       <ChartDonutGraph
@@ -172,9 +153,7 @@ describe("chart graph components", () => {
     expect(hitAreas).toHaveLength(2);
     fireEvent.pointerEnter(hitAreas[1] as Element);
 
-    const tooltip = container.querySelector(
-      '[data-slot="chart-graph-tooltip"]',
-    );
+    const tooltip = container.querySelector('[data-slot="chart-graph-tooltip"]');
 
     expect(tooltip).not.toBeNull();
     expect(within(tooltip as HTMLElement).getByText("High")).toBeTruthy();
@@ -194,9 +173,7 @@ describe("chart graph components", () => {
       />,
     );
 
-    fireEvent.focus(
-      container.querySelectorAll('[data-slot="chart-hit-area"]')[1] as Element,
-    );
+    fireEvent.focus(container.querySelectorAll('[data-slot="chart-hit-area"]')[1] as Element);
     expect(handleDatumFocus).toHaveBeenCalledWith(chartData[1], 1);
 
     rerender(
@@ -208,9 +185,7 @@ describe("chart graph components", () => {
         </ChartPretext>
       </svg>,
     );
-    expect(screen.getByText("Annotation").getAttribute("data-slot")).toBe(
-      "chart-pretext-text",
-    );
+    expect(screen.getByText("Annotation").getAttribute("data-slot")).toBe("chart-pretext-text");
   });
 });
 
@@ -224,28 +199,15 @@ describe("OrgChart", () => {
     rerender(<OrgChart nodes={[]} emptyMessage="No team" />);
     expect(screen.getByText("No team")).toBeTruthy();
 
-    rerender(
-      <OrgChart
-        nodes={orgNodes}
-        renderNode={(node) => <strong>{node.id}</strong>}
-      />,
-    );
+    rerender(<OrgChart nodes={orgNodes} renderNode={(node) => <strong>{node.id}</strong>} />);
     expect(screen.getByText("vp")).toBeTruthy();
   });
 
   test("supports branch expansion, node selection, and helpers", () => {
     const onNodeSelect = vi.fn();
 
-    render(
-      <OrgChart
-        nodes={orgNodes}
-        selectedNodeId="eng"
-        onNodeSelect={onNodeSelect}
-      />,
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Collapse VP Product" }),
-    );
+    render(<OrgChart nodes={orgNodes} selectedNodeId="eng" onNodeSelect={onNodeSelect} />);
+    fireEvent.click(screen.getByRole("button", { name: "Collapse VP Product" }));
     expect(screen.queryByText("Design Lead")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Expand VP Product" }));
@@ -290,26 +252,18 @@ describe("ProcessMap", () => {
     expect(screen.getByRole("list")).toBeTruthy();
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
     expect(
-      container
-        .querySelector('[data-slot="process-map"]')
-        ?.getAttribute("data-orientation"),
+      container.querySelector('[data-slot="process-map"]')?.getAttribute("data-orientation"),
     ).toBe("horizontal");
     expect(
-      container
-        .querySelector('[data-slot="process-map-step"]')
-        ?.getAttribute("data-tone"),
+      container.querySelector('[data-slot="process-map-step"]')?.getAttribute("data-tone"),
     ).toBe("success");
     expect(
-      container
-        .querySelector('[data-slot="process-map-connector"]')
-        ?.getAttribute("aria-hidden"),
+      container.querySelector('[data-slot="process-map-connector"]')?.getAttribute("aria-hidden"),
     ).toBe("true");
 
     rerender(<ProcessMap steps={steps} orientation="vertical" />);
     expect(
-      container
-        .querySelector('[data-slot="process-map"]')
-        ?.getAttribute("data-orientation"),
+      container.querySelector('[data-slot="process-map"]')?.getAttribute("data-orientation"),
     ).toBe("vertical");
   });
 });
@@ -334,9 +288,7 @@ describe("RelationshipMap", () => {
 
     expect(screen.getByRole("img", { name: "Stakeholder map" })).toBeTruthy();
     expect(screen.getByText("Product")).toBeTruthy();
-    expect(
-      container.querySelectorAll('[data-slot="relationship-map-edge"]'),
-    ).toHaveLength(1);
+    expect(container.querySelectorAll('[data-slot="relationship-map-edge"]')).toHaveLength(1);
 
     rerender(
       <RelationshipMap
@@ -356,9 +308,7 @@ describe("RelationshipMap", () => {
         ]}
       />,
     );
-    const path = container.querySelector(
-      '[data-slot="relationship-map-edge"] path',
-    );
+    const path = container.querySelector('[data-slot="relationship-map-edge"] path');
 
     expect(path?.getAttribute("marker-start")).toContain("url(");
     expect(path?.getAttribute("marker-end")).toContain("url(");

@@ -127,9 +127,7 @@ const data = [
 
 export function WrappedRecharts() {
   return (
-    <ChartContainer
-      config={{ actual: { label: "Actual", color: "var(--chart-1)" } }}
-    >
+    <ChartContainer config={{ actual: { label: "Actual", color: "var(--chart-1)" } }}>
       <LineChart data={data} accessibilityLayer>
         <XAxis dataKey="month" />
         <ChartTooltip content={<ChartTooltipContent />} />

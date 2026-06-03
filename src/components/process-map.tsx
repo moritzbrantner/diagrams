@@ -5,13 +5,7 @@ import * as React from "react";
 import { cn } from "../lib/cn";
 
 type ProcessMapOrientation = "horizontal" | "vertical";
-type ProcessMapTone =
-  | "default"
-  | "accent"
-  | "success"
-  | "warning"
-  | "danger"
-  | "muted";
+type ProcessMapTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";
 type ProcessMapStatus = "pending" | "active" | "done" | "blocked" | "warning";
 
 type ProcessMapStepData = {
@@ -90,12 +84,7 @@ function ProcessMap({
   );
 }
 
-function ProcessMapStep({
-  step,
-  children,
-  className,
-  ...props
-}: ProcessMapStepProps) {
+function ProcessMapStep({ step, children, className, ...props }: ProcessMapStepProps) {
   const Icon = step?.icon;
   const tone = step?.tone ?? "default";
 
@@ -114,10 +103,7 @@ function ProcessMapStep({
       {step ? (
         <>
           <div className="flex min-w-0 items-start justify-between gap-3">
-            <div
-              data-slot="process-map-step-label"
-              className="font-medium leading-5"
-            >
+            <div data-slot="process-map-step-label" className="font-medium leading-5">
               {step.label}
             </div>
             {Icon ? (

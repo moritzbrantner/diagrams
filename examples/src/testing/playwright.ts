@@ -29,9 +29,7 @@ export function expectNoBrowserErrors(errors: BrowserErrors) {
 }
 
 function isAxeAlreadyRunningError(error: unknown) {
-  return (
-    error instanceof Error && error.message.includes("Axe is already running")
-  );
+  return error instanceof Error && error.message.includes("Axe is already running");
 }
 
 async function waitForAxeIdle(page: Page) {
@@ -73,30 +71,14 @@ export async function expectA11yClean(page: Page) {
 export async function expectNoInvalidSvgGeometry(page: Page) {
   const invalidGeometry = await page.evaluate(() => {
     const invalid: string[] = [];
-    const finiteAttributes = [
-      "x",
-      "y",
-      "x1",
-      "x2",
-      "y1",
-      "y2",
-      "cx",
-      "cy",
-      "r",
-      "rx",
-      "ry",
-    ];
+    const finiteAttributes = ["x", "y", "x1", "x2", "y1", "y2", "cx", "cy", "r", "rx", "ry"];
     const nonNegativeAttributes = ["height", "width"];
 
     for (const element of Array.from(document.querySelectorAll("svg *"))) {
       for (const attribute of finiteAttributes) {
         const value = element.getAttribute(attribute);
 
-        if (
-          value !== null &&
-          value !== "auto" &&
-          !Number.isFinite(Number(value))
-        ) {
+        if (value !== null && value !== "auto" && !Number.isFinite(Number(value))) {
           invalid.push(`${element.tagName}[${attribute}="${value}"]`);
         }
       }
@@ -104,10 +86,7 @@ export async function expectNoInvalidSvgGeometry(page: Page) {
       for (const attribute of nonNegativeAttributes) {
         const value = element.getAttribute(attribute);
 
-        if (
-          value !== null &&
-          (!Number.isFinite(Number(value)) || Number(value) < 0)
-        ) {
+        if (value !== null && (!Number.isFinite(Number(value)) || Number(value) < 0)) {
           invalid.push(`${element.tagName}[${attribute}="${value}"]`);
         }
       }
@@ -198,10 +177,7 @@ export async function installLongTaskObserver(page: Page) {
   });
 }
 
-export async function expectLongTasksWithinBudget(
-  page: Page,
-  maxCount: number,
-) {
+export async function expectLongTasksWithinBudget(page: Page, maxCount: number) {
   const longTasks = await page.evaluate(() => window.__chartLongTasks ?? []);
 
   expect(longTasks.length).toBeLessThanOrEqual(maxCount);

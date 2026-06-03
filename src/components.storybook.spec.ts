@@ -17,9 +17,7 @@ const storyIds = [
 ] as const;
 
 for (const storyId of storyIds) {
-  test(`${storyId} has no accessibility or geometry regressions`, async ({
-    page,
-  }) => {
+  test(`${storyId} has no accessibility or geometry regressions`, async ({ page }) => {
     const errors = collectBrowserErrors(page);
 
     await page.goto(`/iframe.html?id=${storyId}&viewMode=story`);
@@ -51,10 +49,7 @@ async function expectStoryA11yClean(page: Page) {
       expect(results.violations).toEqual([]);
       return;
     } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        !error.message.includes("Axe is already running")
-      ) {
+      if (!(error instanceof Error) || !error.message.includes("Axe is already running")) {
         throw error;
       }
 
