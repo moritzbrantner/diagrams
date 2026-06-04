@@ -17,6 +17,16 @@ const stories = [
     responsive: true,
   },
   {
+    id: "diagrams-components--burndown-chart-story",
+    name: "burndown-chart",
+    responsive: true,
+  },
+  {
+    id: "diagrams-components--gantt-chart-story",
+    name: "gantt-chart",
+    responsive: true,
+  },
+  {
     id: "diagrams-uml-diagram--default",
     name: "uml-diagram",
     responsive: true,

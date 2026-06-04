@@ -38,6 +38,14 @@ describe("package contract", () => {
         types: "./dist/index.d.ts",
         import: "./dist/index.js",
       },
+      "./burndown-chart": {
+        types: "./dist/burndown-chart.d.ts",
+        import: "./dist/burndown-chart.js",
+      },
+      "./gantt-chart": {
+        types: "./dist/gantt-chart.d.ts",
+        import: "./dist/gantt-chart.js",
+      },
       "./org-chart": {
         types: "./dist/org-chart.d.ts",
         import: "./dist/org-chart.js",

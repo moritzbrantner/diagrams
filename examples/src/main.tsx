@@ -3,7 +3,14 @@ import { BoxesIcon, GitBranchIcon, NetworkIcon, WorkflowIcon } from "lucide-reac
 import { StrictMode, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-import { OrgChart, ProcessMap, RelationshipMap, UmlDiagram } from "@moritzbrantner/diagrams";
+import {
+  BurndownChart,
+  GanttChart,
+  OrgChart,
+  ProcessMap,
+  RelationshipMap,
+  UmlDiagram,
+} from "@moritzbrantner/diagrams";
 
 import "./styles.css";
 
@@ -11,7 +18,7 @@ import type React from "react";
 
 const queryClient = new QueryClient();
 
-type DiagramKey = "uml" | "org" | "process" | "relationships";
+type DiagramKey = "uml" | "org" | "process" | "relationships" | "burndown" | "gantt";
 
 type ShowcaseData = {
   umlNodes: React.ComponentProps<typeof UmlDiagram>["nodes"];
@@ -20,6 +27,8 @@ type ShowcaseData = {
   orgNodes: React.ComponentProps<typeof OrgChart>["nodes"];
   relationshipNodes: React.ComponentProps<typeof RelationshipMap>["nodes"];
   relationshipEdges: React.ComponentProps<typeof RelationshipMap>["edges"];
+  burndownPoints: React.ComponentProps<typeof BurndownChart>["points"];
+  ganttTasks: React.ComponentProps<typeof GanttChart>["tasks"];
 };
 
 const diagramTabs: {
@@ -31,6 +40,8 @@ const diagramTabs: {
   { key: "org", label: "Org", icon: GitBranchIcon },
   { key: "process", label: "Process", icon: WorkflowIcon },
   { key: "relationships", label: "Map", icon: NetworkIcon },
+  { key: "burndown", label: "Burndown", icon: WorkflowIcon },
+  { key: "gantt", label: "Gantt", icon: GitBranchIcon },
 ];
 
 const snippets: Record<DiagramKey, string> = {
@@ -40,6 +51,9 @@ const snippets: Record<DiagramKey, string> = {
     '<ProcessMap steps={processSteps} orientation={mode === "compact" ? "vertical" : "horizontal"} />',
   relationships:
     '<RelationshipMap nodes={nodes} edges={edges} ariaLabel="Release relationship map" />',
+  burndown:
+    '<BurndownChart points={burndownPoints} startDate="2026-04-01" endDate="2026-04-15" totalWork={48} />',
+  gantt: '<GanttChart tasks={ganttTasks} startDate="2026-04-01" endDate="2026-04-24" />',
 };
 
 async function loadShowcaseData(): Promise<ShowcaseData> {
@@ -218,6 +232,48 @@ async function loadShowcaseData(): Promise<ShowcaseData> {
         kind: "risk",
       },
     ],
+    burndownPoints: [
+      { id: "day-1", date: "2026-04-01", remaining: 48 },
+      { id: "day-3", date: "2026-04-03", remaining: 42 },
+      { id: "day-6", date: "2026-04-06", remaining: 31 },
+      { id: "day-9", date: "2026-04-09", remaining: 24 },
+      { id: "day-12", date: "2026-04-12", remaining: 11 },
+      { id: "day-15", date: "2026-04-15", remaining: 4 },
+    ],
+    ganttTasks: [
+      {
+        id: "brief",
+        label: "Release brief",
+        description: "Scope and approval",
+        startDate: "2026-04-01",
+        endDate: "2026-04-04",
+        earliestStartDate: "2026-04-01",
+        deadlineDate: "2026-04-05",
+        progress: 1,
+        tone: "success",
+      },
+      {
+        id: "components",
+        label: "Component work",
+        description: "Build diagram primitives",
+        startDate: "2026-04-04",
+        endDate: "2026-04-14",
+        earliestStartDate: "2026-04-03",
+        deadlineDate: "2026-04-16",
+        progress: 0.68,
+      },
+      {
+        id: "validation",
+        label: "Validation",
+        description: "Tests and docs",
+        startDate: "2026-04-15",
+        endDate: "2026-04-22",
+        earliestStartDate: "2026-04-12",
+        deadlineDate: "2026-04-21",
+        progress: 0.3,
+        tone: "warning",
+      },
+    ],
   };
 }
 
@@ -264,10 +320,7 @@ function ShowcaseButton({
 
 function InsightStrip({ data }: { data: ShowcaseData }) {
   const stats = [
-    {
-      label: "Diagrams",
-      value: diagramTabs.length,
-    },
+    { label: "Diagrams", value: diagramTabs.length },
     {
       label: "Steps",
       value: data.processSteps?.length ?? 0,
@@ -331,12 +384,37 @@ function ShowcasePreview({
       return <ProcessMap steps={data.processSteps} />;
     }
 
+    if (activeDiagram === "relationships") {
+      return (
+        <RelationshipMap
+          ariaLabel="Release relationship map"
+          caption="Labeled edges keep dependency intent visible."
+          nodes={data.relationshipNodes}
+          edges={data.relationshipEdges}
+        />
+      );
+    }
+
+    if (activeDiagram === "burndown") {
+      return (
+        <BurndownChart
+          ariaLabel="Release burndown chart"
+          caption="Remaining work is shown against the ideal completion path."
+          points={data.burndownPoints}
+          startDate="2026-04-01"
+          endDate="2026-04-15"
+          totalWork={48}
+        />
+      );
+    }
+
     return (
-      <RelationshipMap
-        ariaLabel="Release relationship map"
-        caption="Labeled edges keep dependency intent visible."
-        nodes={data.relationshipNodes}
-        edges={data.relationshipEdges}
+      <GanttChart
+        ariaLabel="Release Gantt chart"
+        caption="Earliest starts and deadlines are marked per task."
+        tasks={data.ganttTasks}
+        startDate="2026-04-01"
+        endDate="2026-04-24"
       />
     );
   }, [activeDiagram, data]);
@@ -353,7 +431,7 @@ function ShowcaseApp({ data }: { data: ShowcaseData }) {
 
   return (
     <section className="grid min-w-0 gap-4 py-6">
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {diagramTabs.map((tab) => (
           <ShowcaseButton
             key={tab.key}
@@ -398,6 +476,25 @@ function ExamplesGallery({ data }: { data: ShowcaseData }) {
           edges={data.relationshipEdges}
         />
       </ExampleSection>
+
+      <ExampleSection title="Burndown chart" testId="burndown-chart-example">
+        <BurndownChart
+          ariaLabel="Release burndown chart"
+          points={data.burndownPoints}
+          startDate="2026-04-01"
+          endDate="2026-04-15"
+          totalWork={48}
+        />
+      </ExampleSection>
+
+      <ExampleSection title="Gantt chart" testId="gantt-chart-example">
+        <GanttChart
+          ariaLabel="Release Gantt chart"
+          tasks={data.ganttTasks}
+          startDate="2026-04-01"
+          endDate="2026-04-24"
+        />
+      </ExampleSection>
     </>
   );
 }
@@ -425,7 +522,7 @@ function AppContent() {
           <h1 className="text-3xl font-semibold tracking-normal">@moritzbrantner/diagrams</h1>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
             React 19 diagram primitives with Tailwind styles, React Query data orchestration, UML
-            diagrams, process maps, org structures, and relationship graphs.
+            diagrams, process maps, org structures, planning charts, and relationship graphs.
           </p>
         </div>
         <InsightStrip data={data} />

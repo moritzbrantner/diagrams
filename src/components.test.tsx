@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
+import { BurndownChart } from "./burndown-chart";
+import { GanttChart } from "./gantt-chart";
 import { OrgChart, insertOrgChartNode, removeOrgChartNode, updateOrgChartNode } from "./org-chart";
 import { ProcessMap } from "./process-map";
 import { RelationshipMap } from "./relationship-map";
@@ -108,6 +110,82 @@ describe("ProcessMap", () => {
     expect(
       container.querySelector('[data-slot="process-map"]')?.getAttribute("data-orientation"),
     ).toBe("vertical");
+  });
+});
+
+describe("BurndownChart", () => {
+  test("renders actual points, ideal line, and empty state", () => {
+    const { container, rerender } = render(
+      <BurndownChart
+        ariaLabel="Sprint burndown"
+        points={[
+          { id: "day-1", date: "2026-04-01", remaining: 40 },
+          { id: "day-2", date: "2026-04-02", remaining: 32 },
+          { id: "day-3", date: "2026-04-03", remaining: 18 },
+        ]}
+        startDate="2026-04-01"
+        endDate="2026-04-05"
+        totalWork={40}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Sprint burndown" })).toBeTruthy();
+    expect(container.querySelectorAll('[data-slot="burndown-chart-point"]')).toHaveLength(3);
+    expect(
+      container.querySelector('[data-slot="burndown-chart-actual-line"]')?.getAttribute("d"),
+    ).toContain("M ");
+    expect(
+      container
+        .querySelector('[data-slot="burndown-chart-ideal-line"]')
+        ?.getAttribute("stroke-dasharray"),
+    ).toBe("6 6");
+
+    rerender(<BurndownChart points={[]} emptyMessage="No sprint data" />);
+    expect(screen.getByText("No sprint data")).toBeTruthy();
+  });
+});
+
+describe("GanttChart", () => {
+  test("renders task bars, earliest starts, deadlines, and late state", () => {
+    const { container, rerender } = render(
+      <GanttChart
+        ariaLabel="Release plan"
+        tasks={[
+          {
+            id: "brief",
+            label: "Release brief",
+            startDate: "2026-04-01",
+            endDate: "2026-04-04",
+            earliestStartDate: "2026-04-01",
+            deadlineDate: "2026-04-05",
+            progress: 1,
+          },
+          {
+            id: "validation",
+            label: "Validation",
+            startDate: "2026-04-15",
+            endDate: "2026-04-22",
+            earliestStartDate: "2026-04-12",
+            deadlineDate: "2026-04-21",
+            progress: 0.3,
+          },
+        ]}
+        startDate="2026-04-01"
+        endDate="2026-04-24"
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Release plan" })).toBeTruthy();
+    expect(screen.getByText("Release brief")).toBeTruthy();
+    expect(container.querySelectorAll('[data-slot="gantt-chart-task-bar"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-slot="gantt-chart-earliest-start"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-slot="gantt-chart-deadline"]')).toHaveLength(2);
+    expect(container.querySelector('[data-task-id="validation"]')?.getAttribute("data-late")).toBe(
+      "true",
+    );
+
+    rerender(<GanttChart tasks={[]} emptyMessage="No release tasks" />);
+    expect(screen.getByText("No release tasks")).toBeTruthy();
   });
 });
 

@@ -13,6 +13,8 @@ const storyIds = [
   "diagrams-components--org-chart-story",
   "diagrams-components--process-map-story",
   "diagrams-components--relationship-map-story",
+  "diagrams-components--burndown-chart-story",
+  "diagrams-components--gantt-chart-story",
   "diagrams-uml-diagram--default",
 ] as const;
 

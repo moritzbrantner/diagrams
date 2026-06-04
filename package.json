@@ -23,6 +23,14 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./burndown-chart": {
+      "types": "./dist/burndown-chart.d.ts",
+      "import": "./dist/burndown-chart.js"
+    },
+    "./gantt-chart": {
+      "types": "./dist/gantt-chart.d.ts",
+      "import": "./dist/gantt-chart.js"
+    },
     "./org-chart": {
       "types": "./dist/org-chart.d.ts",
       "import": "./dist/org-chart.js"
@@ -46,7 +54,7 @@
     "registry": "https://registry.npmjs.org"
   },
   "scripts": {
-    "build": "tsup src/index.ts src/org-chart.ts src/process-map.ts src/relationship-map.ts src/uml-diagram.ts --format esm --dts --clean --out-dir dist",
+    "build": "tsup src/index.ts src/burndown-chart.ts src/gantt-chart.ts src/org-chart.ts src/process-map.ts src/relationship-map.ts src/uml-diagram.ts --format esm --dts --clean --out-dir dist",
     "build:examples": "vite build --outDir ../dist-examples --emptyOutDir",
     "build:storybook": "storybook build --output-dir storybook-static",
     "changeset": "changeset",

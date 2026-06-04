@@ -86,6 +86,65 @@ export function ReleaseProcess() {
 }
 ```
 
+## Burndown Chart
+
+```tsx
+import { BurndownChart } from "@moritzbrantner/diagrams";
+
+export function SprintBurndown() {
+  return (
+    <BurndownChart
+      ariaLabel="Sprint burndown"
+      startDate="2026-04-01"
+      endDate="2026-04-15"
+      totalWork={48}
+      points={[
+        { date: "2026-04-01", remaining: 48 },
+        { date: "2026-04-06", remaining: 31 },
+        { date: "2026-04-12", remaining: 11 },
+        { date: "2026-04-15", remaining: 4 },
+      ]}
+    />
+  );
+}
+```
+
+## Gantt Chart
+
+```tsx
+import { GanttChart } from "@moritzbrantner/diagrams";
+
+export function ReleasePlan() {
+  return (
+    <GanttChart
+      ariaLabel="Release plan"
+      startDate="2026-04-01"
+      endDate="2026-04-24"
+      tasks={[
+        {
+          id: "brief",
+          label: "Release brief",
+          startDate: "2026-04-01",
+          endDate: "2026-04-04",
+          earliestStartDate: "2026-04-01",
+          deadlineDate: "2026-04-05",
+          progress: 1,
+        },
+        {
+          id: "components",
+          label: "Component work",
+          startDate: "2026-04-04",
+          endDate: "2026-04-14",
+          earliestStartDate: "2026-04-03",
+          deadlineDate: "2026-04-16",
+          progress: 0.68,
+        },
+      ]}
+    />
+  );
+}
+```
+
 ## Org Chart
 
 ```tsx
@@ -130,7 +189,7 @@ export function OrderFlow() {
 
 ## Scope
 
-`@moritzbrantner/diagrams` intentionally does not export chart primitives or chart adapters. Keep
+`@moritzbrantner/diagrams` intentionally does not export analytical chart adapters. Keep
 time-series, categorical, statistical, and quantitative chart work in `@moritzbrantner/charts`; use
 this package for diagrams whose primary meaning comes from nodes, edges, hierarchy, sequence, state,
-dependency, or process structure.
+dependency, scheduling, deadlines, or process structure.
