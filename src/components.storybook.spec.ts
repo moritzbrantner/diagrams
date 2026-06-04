@@ -10,10 +10,10 @@ import {
 import type { Page } from "@playwright/test";
 
 const storyIds = [
-  "diagrams-components--charts",
   "diagrams-components--org-chart-story",
   "diagrams-components--process-map-story",
   "diagrams-components--relationship-map-story",
+  "diagrams-uml-diagram--default",
 ] as const;
 
 for (const storyId of storyIds) {

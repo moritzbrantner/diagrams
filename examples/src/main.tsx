@@ -1,31 +1,9 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import {
-  BarChart3Icon,
-  BoxesIcon,
-  ChartNoAxesCombinedIcon,
-  GitBranchIcon,
-  NetworkIcon,
-  WorkflowIcon,
-} from "lucide-react";
+import { BoxesIcon, GitBranchIcon, NetworkIcon, WorkflowIcon } from "lucide-react";
 import { StrictMode, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-import {
-  ChartBarGraph,
-  ChartContainer,
-  ChartDonutGraph,
-  ChartHistogramGraph,
-  ChartLegend,
-  ChartLegendContent,
-  ChartLineGraph,
-  ChartSparkline,
-  ChartTooltip,
-  ChartTooltipContent,
-  OrgChart,
-  ProcessMap,
-  RelationshipMap,
-} from "@moritzbrantner/diagrams";
+import { OrgChart, ProcessMap, RelationshipMap, UmlDiagram } from "@moritzbrantner/diagrams";
 
 import "./styles.css";
 
@@ -33,18 +11,11 @@ import type React from "react";
 
 const queryClient = new QueryClient();
 
-type DiagramKey = "charts" | "org" | "process" | "relationships";
-
-type TrendPoint = {
-  label: string;
-  actual: number;
-  target: number;
-};
+type DiagramKey = "uml" | "org" | "process" | "relationships";
 
 type ShowcaseData = {
-  trend: TrendPoint[];
-  histogram: number[];
-  workSplit: { label: string; value: number }[];
+  umlNodes: React.ComponentProps<typeof UmlDiagram>["nodes"];
+  umlEdges: React.ComponentProps<typeof UmlDiagram>["edges"];
   processSteps: React.ComponentProps<typeof ProcessMap>["steps"];
   orgNodes: React.ComponentProps<typeof OrgChart>["nodes"];
   relationshipNodes: React.ComponentProps<typeof RelationshipMap>["nodes"];
@@ -56,20 +27,14 @@ const diagramTabs: {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { key: "charts", label: "Charts", icon: ChartNoAxesCombinedIcon },
+  { key: "uml", label: "UML", icon: BoxesIcon },
   { key: "org", label: "Org", icon: GitBranchIcon },
   { key: "process", label: "Process", icon: WorkflowIcon },
   { key: "relationships", label: "Map", icon: NetworkIcon },
 ];
 
-const chartSeries = [
-  { key: "actual", label: "Actual", color: "var(--chart-1)" },
-  { key: "target", label: "Target", color: "var(--chart-2)" },
-];
-
 const snippets: Record<DiagramKey, string> = {
-  charts:
-    '<ChartLineGraph data={trend} series={series} xKey="label" ariaLabel="Monthly line trend" />',
+  uml: '<UmlDiagram nodes={serviceNodes} edges={serviceEdges} ariaLabel="Service dependency UML diagram" />',
   org: '<OrgChart nodes={orgNodes} defaultExpandedDepth={2} selectedNodeId="platform" />',
   process:
     '<ProcessMap steps={processSteps} orientation={mode === "compact" ? "vertical" : "horizontal"} />',
@@ -81,19 +46,62 @@ async function loadShowcaseData(): Promise<ShowcaseData> {
   await new Promise((resolve) => setTimeout(resolve, 80));
 
   return {
-    trend: [
-      { label: "Jan", actual: 42, target: 38 },
-      { label: "Feb", actual: 51, target: 44 },
-      { label: "Mar", actual: 48, target: 50 },
-      { label: "Apr", actual: 63, target: 57 },
-      { label: "May", actual: 71, target: 66 },
-      { label: "Jun", actual: 84, target: 76 },
+    umlNodes: [
+      {
+        id: "api",
+        label: "API Gateway",
+        description: "Routes authenticated requests.",
+        x: 0,
+        y: 0,
+      },
+      {
+        id: "orders",
+        label: "Orders Service",
+        description: "Owns lifecycle commands and state.",
+        variant: "accent",
+        x: 292,
+        y: 0,
+      },
+      {
+        id: "billing",
+        label: "Billing Adapter",
+        description: "Maps domain requests onto provider APIs.",
+        variant: "muted",
+        x: 584,
+        y: 0,
+      },
+      {
+        id: "events",
+        label: "Event Stream",
+        description: "Publishes lifecycle changes.",
+        variant: "warning",
+        x: 292,
+        y: 192,
+      },
     ],
-    histogram: [82, 88, 93, 101, 108, 112, 119, 124, 132, 140, 148, 161, 175, 199],
-    workSplit: [
-      { label: "Discovery", value: 34 },
-      { label: "Delivery", value: 46 },
-      { label: "Review", value: 20 },
+    umlEdges: [
+      {
+        id: "api-orders",
+        source: "api",
+        target: "orders",
+        label: "command",
+        direction: "forward",
+      },
+      {
+        id: "orders-billing",
+        source: "orders",
+        target: "billing",
+        label: "authorizes",
+        kind: "dependency",
+        direction: "forward",
+      },
+      {
+        id: "orders-events",
+        source: "orders",
+        target: "events",
+        label: "publishes",
+        direction: "forward",
+      },
     ],
     processSteps: [
       {
@@ -257,8 +265,8 @@ function ShowcaseButton({
 function InsightStrip({ data }: { data: ShowcaseData }) {
   const stats = [
     {
-      label: "Series",
-      value: data.trend.length,
+      label: "Diagrams",
+      value: diagramTabs.length,
     },
     {
       label: "Steps",
@@ -266,7 +274,7 @@ function InsightStrip({ data }: { data: ShowcaseData }) {
     },
     {
       label: "Nodes",
-      value: data.relationshipNodes.length + (data.orgNodes?.length ?? 0),
+      value: data.umlNodes.length + data.relationshipNodes.length + (data.orgNodes?.length ?? 0),
     },
   ];
 
@@ -286,7 +294,7 @@ function SnippetPanel({ activeDiagram }: { activeDiagram: DiagramKey }) {
   return (
     <div className="grid min-w-0 content-start gap-3 rounded-md border bg-card p-4 text-card-foreground">
       <div className="flex items-center gap-2">
-        <BarChart3Icon className="size-4 text-muted-foreground" />
+        <BoxesIcon className="size-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold tracking-normal">API shape</h2>
       </div>
       <pre className="min-w-0 whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
@@ -304,24 +312,14 @@ function ShowcasePreview({
   data: ShowcaseData;
 }) {
   const preview = useMemo(() => {
-    if (activeDiagram === "charts") {
+    if (activeDiagram === "uml") {
       return (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ChartLineGraph
-            ariaLabel="Showcase line trend"
-            data={data.trend}
-            series={chartSeries}
-            xKey="label"
-            caption="Simple line trend."
-          />
-          <ChartBarGraph
-            ariaLabel="Showcase bar comparison"
-            data={data.trend}
-            series={chartSeries}
-            xKey="label"
-            caption="Grouped bar comparison."
-          />
-        </div>
+        <UmlDiagram
+          ariaLabel="Service dependency UML diagram"
+          caption="Directed dependencies make service boundaries explicit."
+          nodes={data.umlNodes}
+          edges={data.umlEdges}
+        />
       );
     }
 
@@ -351,7 +349,7 @@ function ShowcasePreview({
 }
 
 function ShowcaseApp({ data }: { data: ShowcaseData }) {
-  const [activeDiagram, setActiveDiagram] = useState<DiagramKey>("charts");
+  const [activeDiagram, setActiveDiagram] = useState<DiagramKey>("uml");
 
   return (
     <section className="grid min-w-0 gap-4 py-6">
@@ -377,68 +375,12 @@ function ShowcaseApp({ data }: { data: ShowcaseData }) {
 function ExamplesGallery({ data }: { data: ShowcaseData }) {
   return (
     <>
-      <ExampleSection title="Recharts wrapper" testId="recharts-wrapper-example">
-        <ChartContainer
-          config={{
-            actual: { label: "Actual", color: "var(--chart-1)" },
-            target: { label: "Target", color: "var(--chart-2)" },
-          }}
-          className="min-h-80"
-        >
-          <LineChart data={data.trend} accessibilityLayer>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} />
-            <YAxis tickLine={false} axisLine={false} />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <ChartLegend content={<ChartLegendContent />} />
-            <Line dataKey="actual" stroke="var(--color-actual)" strokeWidth={2} dot={false} />
-            <Line dataKey="target" stroke="var(--color-target)" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ChartContainer>
-      </ExampleSection>
-
-      <ExampleSection title="Native charts" testId="native-chart-examples">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ChartLineGraph
-            ariaLabel="Monthly line trend"
-            data={data.trend}
-            series={chartSeries}
-            xKey="label"
-            caption="Simple line trend."
-          />
-          <ChartBarGraph
-            ariaLabel="Monthly bar comparison"
-            data={data.trend}
-            series={chartSeries}
-            xKey="label"
-            caption="Grouped bar comparison."
-          />
-          <ChartHistogramGraph
-            ariaLabel="Response time histogram"
-            values={data.histogram}
-            bins={[100, 130, 160]}
-            countLabel="Requests"
-            formatValue={(value) => `${value}ms`}
-          />
-          <div className="grid gap-6">
-            <ChartDonutGraph
-              ariaLabel="Work split donut"
-              data={data.workSplit}
-              labelKey="label"
-              centerLabel="Work"
-            />
-            <ChartSparkline
-              ariaLabel="Weekly confidence sparkline"
-              data={data.trend}
-              series={{
-                key: "actual",
-                label: "Actual",
-                color: "var(--chart-3)",
-              }}
-              showPoints
-            />
-          </div>
-        </div>
+      <ExampleSection title="UML dependency diagram" testId="uml-diagram-example">
+        <UmlDiagram
+          ariaLabel="Service dependency UML diagram"
+          nodes={data.umlNodes}
+          edges={data.umlEdges}
+        />
       </ExampleSection>
 
       <ExampleSection title="Organization chart" testId="org-chart-example">
@@ -455,26 +397,6 @@ function ExamplesGallery({ data }: { data: ShowcaseData }) {
           nodes={data.relationshipNodes}
           edges={data.relationshipEdges}
         />
-      </ExampleSection>
-
-      <ExampleSection title="Recharts bars" testId="recharts-bar-example">
-        <ChartContainer
-          config={{
-            actual: { label: "Actual", color: "var(--chart-4)" },
-            target: { label: "Target", color: "var(--chart-5)" },
-          }}
-          className="min-h-80"
-        >
-          <BarChart data={data.trend} accessibilityLayer>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} />
-            <YAxis tickLine={false} axisLine={false} />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <ChartLegend content={<ChartLegendContent />} />
-            <Bar dataKey="actual" fill="var(--color-actual)" radius={4} />
-            <Bar dataKey="target" fill="var(--color-target)" radius={4} />
-          </BarChart>
-        </ChartContainer>
       </ExampleSection>
     </>
   );
@@ -502,8 +424,8 @@ function AppContent() {
         <div className="grid gap-2">
           <h1 className="text-3xl font-semibold tracking-normal">@moritzbrantner/diagrams</h1>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            React 19 diagram primitives with Tailwind styles, React Query data orchestration,
-            Recharts adapters, and native SVG chart surfaces.
+            React 19 diagram primitives with Tailwind styles, React Query data orchestration, UML
+            diagrams, process maps, org structures, and relationship graphs.
           </p>
         </div>
         <InsightStrip data={data} />

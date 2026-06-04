@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 
 const stories = [
-  { id: "diagrams-components--charts", name: "charts", responsive: true },
   {
     id: "diagrams-components--org-chart-story",
     name: "org-chart",
@@ -15,6 +14,11 @@ const stories = [
   {
     id: "diagrams-components--relationship-map-story",
     name: "relationship-map",
+    responsive: true,
+  },
+  {
+    id: "diagrams-uml-diagram--default",
+    name: "uml-diagram",
     responsive: true,
   },
 ] as const;

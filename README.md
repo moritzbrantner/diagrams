@@ -1,15 +1,16 @@
 # @moritzbrantner/diagrams
 
-Diagram and lightweight visual primitives for React 19 applications. This package is for semantic,
-authored, structural, process, org, relationship, and lightweight presentation visuals.
+Diagram primitives for React 19 applications. This package is for authored structural diagrams,
+UML diagrams, process and Gantt-style flows, org structures, relationship maps, dependency graphs,
+and other graph-based visualizations.
 
-Use `@moritzbrantner/charts` for density-aware data visualizations, binned series, analytical chart
-controls, and chart data processing.
+Use `@moritzbrantner/charts` for line, bar, area, donut, histogram, sparkline, Recharts wrappers,
+density-aware data visualizations, analytical chart controls, and chart data processing.
 
 ## Install
 
 ```sh
-bun add @moritzbrantner/diagrams @moritzbrantner/ui react react-dom recharts
+bun add @moritzbrantner/diagrams @moritzbrantner/ui react react-dom
 ```
 
 Import the shared UI stylesheet once in your app:
@@ -108,53 +109,28 @@ export function Team() {
 }
 ```
 
-## Recharts Wrapper
+## UML Diagram
 
 ```tsx
-import {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@moritzbrantner/diagrams/charts";
-import { Line, LineChart, XAxis } from "recharts";
+import { UmlDiagram } from "@moritzbrantner/diagrams/uml-diagram";
 
-const data = [
-  { month: "Jan", actual: 42 },
-  { month: "Feb", actual: 51 },
-];
-
-export function WrappedRecharts() {
+export function OrderFlow() {
   return (
-    <ChartContainer config={{ actual: { label: "Actual", color: "var(--chart-1)" } }}>
-      <LineChart data={data} accessibilityLayer>
-        <XAxis dataKey="month" />
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <ChartLegend content={<ChartLegendContent />} />
-        <Line dataKey="actual" stroke="var(--color-actual)" />
-      </LineChart>
-    </ChartContainer>
-  );
-}
-```
-
-## Native Line Graph
-
-```tsx
-import { ChartLineGraph } from "@moritzbrantner/diagrams/charts";
-
-export function Trend() {
-  return (
-    <ChartLineGraph
-      ariaLabel="Monthly trend"
-      data={[
-        { month: "Jan", actual: 42 },
-        { month: "Feb", actual: 51 },
+    <UmlDiagram
+      ariaLabel="Order service dependencies"
+      nodes={[
+        { id: "api", label: "API Gateway", x: 0, y: 0 },
+        { id: "orders", label: "Orders Service", x: 280, y: 0 },
       ]}
-      series={[{ key: "actual", label: "Actual", color: "var(--chart-1)" }]}
-      xKey="month"
+      edges={[{ id: "api-orders", source: "api", target: "orders", label: "routes" }]}
     />
   );
 }
 ```
+
+## Scope
+
+`@moritzbrantner/diagrams` intentionally does not export chart primitives or chart adapters. Keep
+time-series, categorical, statistical, and quantitative chart work in `@moritzbrantner/charts`; use
+this package for diagrams whose primary meaning comes from nodes, edges, hierarchy, sequence, state,
+dependency, or process structure.

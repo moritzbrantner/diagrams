@@ -11,7 +11,8 @@
       "@moritzbrantner/diagrams/charts": ["./src/charts.ts"],
       "@moritzbrantner/diagrams/org-chart": ["./src/org-chart.ts"],
       "@moritzbrantner/diagrams/process-map": ["./src/process-map.ts"],
-      "@moritzbrantner/diagrams/relationship-map": ["./src/relationship-map.ts"]
+      "@moritzbrantner/diagrams/relationship-map": ["./src/relationship-map.ts"],
+      "@moritzbrantner/diagrams/uml-diagram": ["./src/uml-diagram.ts"]
     },
     "skipLibCheck": true,
     "strict": true,
