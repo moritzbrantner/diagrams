@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 
 const stories = [
-  { id: "diagrams-components--charts", name: "charts", responsive: true },
   {
     id: "diagrams-components--org-chart-story",
     name: "org-chart",

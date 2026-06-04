@@ -9,7 +9,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@moritzbrantner/diagrams": path.resolve(rootDir, "src/index.ts"),
-      "@moritzbrantner/diagrams/charts": path.resolve(rootDir, "src/charts.ts"),
       "@moritzbrantner/diagrams/org-chart": path.resolve(rootDir, "src/org-chart.ts"),
       "@moritzbrantner/diagrams/process-map": path.resolve(rootDir, "src/process-map.ts"),
       "@moritzbrantner/diagrams/relationship-map": path.resolve(rootDir, "src/relationship-map.ts"),

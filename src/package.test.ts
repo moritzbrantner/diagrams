@@ -21,11 +21,12 @@ describe("package contract", () => {
       "@moritzbrantner/ui": "^0.9.1",
       react: "^19.0.0",
       "react-dom": "^19.0.0",
-      recharts: "^3.0.0",
     });
   });
 
-  test("omits charts density engine and wasm scripts", () => {
+  test("omits chart package surfaces and density engine scripts", () => {
+    expect(packageJson.exports?.["./charts"]).toBeUndefined();
+    expect(packageJson.peerDependencies?.recharts).toBeUndefined();
     expect(packageJson.dependencies?.["@moritzbrantner/viz-engine"]).toBeUndefined();
     expect(packageJson.scripts?.["build:wasm"]).toBeUndefined();
     expect(packageJson.scripts?.["test:wasm"]).toBeUndefined();
@@ -36,10 +37,6 @@ describe("package contract", () => {
       ".": {
         types: "./dist/index.d.ts",
         import: "./dist/index.js",
-      },
-      "./charts": {
-        types: "./dist/charts.d.ts",
-        import: "./dist/charts.js",
       },
       "./org-chart": {
         types: "./dist/org-chart.d.ts",

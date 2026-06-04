@@ -182,6 +182,10 @@ const UML_STATE_HEADER_HEIGHT = 48;
 const UML_STATE_SIMPLE_SIZE = 36;
 const UML_STATE_BAR_WIDTH = 88;
 const UML_STATE_BAR_HEIGHT = 16;
+const SCROLL_AREA_KEYBOARD_PROPS = { tabIndex: 0 } satisfies Pick<
+  React.ComponentProps<"div">,
+  "tabIndex"
+>;
 
 function UmlDiagram({
   nodes,
@@ -343,7 +347,12 @@ function UmlDiagram({
       )}
       {...props}
     >
-      <div data-slot="uml-diagram-scroll-area" className="overflow-auto">
+      <div
+        data-slot="uml-diagram-scroll-area"
+        aria-label={`${ariaLabel} viewport`}
+        className="overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+        {...SCROLL_AREA_KEYBOARD_PROPS}
+      >
         <svg
           data-slot="uml-diagram-svg"
           role={onNodeSelect || nodeActions ? "group" : "img"}
