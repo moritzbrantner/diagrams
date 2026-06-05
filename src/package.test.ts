@@ -44,13 +44,37 @@ describe("package contract", () => {
         types: "./dist/index.d.ts",
         import: "./dist/index.js",
       },
+      "./architecture-diagram": {
+        types: "./dist/architecture-diagram.d.ts",
+        import: "./dist/architecture-diagram.js",
+      },
       "./burndown-chart": {
         types: "./dist/burndown-chart.d.ts",
         import: "./dist/burndown-chart.js",
       },
+      "./decision-tree": {
+        types: "./dist/decision-tree.d.ts",
+        import: "./dist/decision-tree.js",
+      },
+      "./dependency-graph": {
+        types: "./dist/dependency-graph.d.ts",
+        import: "./dist/dependency-graph.js",
+      },
+      "./entity-relationship-diagram": {
+        types: "./dist/entity-relationship-diagram.d.ts",
+        import: "./dist/entity-relationship-diagram.js",
+      },
       "./gantt-chart": {
         types: "./dist/gantt-chart.d.ts",
         import: "./dist/gantt-chart.js",
+      },
+      "./journey-map": {
+        types: "./dist/journey-map.d.ts",
+        import: "./dist/journey-map.js",
+      },
+      "./mind-map": {
+        types: "./dist/mind-map.d.ts",
+        import: "./dist/mind-map.js",
       },
       "./org-chart": {
         types: "./dist/org-chart.d.ts",
@@ -63,6 +87,22 @@ describe("package contract", () => {
       "./relationship-map": {
         types: "./dist/relationship-map.d.ts",
         import: "./dist/relationship-map.js",
+      },
+      "./sequence-diagram": {
+        types: "./dist/sequence-diagram.d.ts",
+        import: "./dist/sequence-diagram.js",
+      },
+      "./state-machine-diagram": {
+        types: "./dist/state-machine-diagram.d.ts",
+        import: "./dist/state-machine-diagram.js",
+      },
+      "./swimlane-diagram": {
+        types: "./dist/swimlane-diagram.d.ts",
+        import: "./dist/swimlane-diagram.js",
+      },
+      "./timeline-diagram": {
+        types: "./dist/timeline-diagram.d.ts",
+        import: "./dist/timeline-diagram.js",
       },
       "./uml-diagram": {
         types: "./dist/uml-diagram.d.ts",

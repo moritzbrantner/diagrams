@@ -60,14 +60,24 @@ Generated API documentation is published under <https://moritzbrantner.github.io
 
 ## API Overview
 
+- `ArchitectureDiagram` for systems, boundaries, stores, queues, and external integrations.
 - `BurndownChart` for sprint or scope burndown timelines.
+- `DecisionTree` for branching decisions, actions, and outcomes.
+- `DependencyGraph` for package, module, service, or team dependencies.
+- `EntityRelationshipDiagram` for entities, fields, keys, and cardinality relationships.
 - `GanttChart` for scheduled tasks, progress, earliest-start markers, and deadlines.
+- `JourneyMap` for phase-based journeys, touchpoints, sentiment, and ownership.
+- `MindMap` for radial or tree-like idea decomposition.
 - `OrgChart`, `OrgChartNode`, `getVisibleOrgChartNodes`, `findOrgChartNode`,
   `insertOrgChartNode`, `updateOrgChartNode`, and `removeOrgChartNode` for hierarchical org or
   ownership structures.
 - `ProcessMap`, `ProcessMapStep`, and `ProcessMapConnector` for horizontal and vertical workflow
   sequences.
 - `RelationshipMap` for node-and-edge dependency, stakeholder, ownership, or risk maps.
+- `SequenceDiagram` for ordered interactions between participants.
+- `StateMachineDiagram` for state machines with events, guards, actions, and terminal states.
+- `SwimlaneDiagram` for workflow steps grouped by team, role, or system.
+- `TimelineDiagram` for structural milestone and event timelines.
 - `UmlDiagram`, `UmlClassDiagram`, `UmlStateDiagram`, and `getUmlDiagramBounds` for generic UML,
   class, and state diagrams.
 
@@ -221,6 +231,83 @@ export function OrderFlow() {
     />
   );
 }
+```
+
+## Additional Diagram Primitives
+
+```tsx
+import {
+  ArchitectureDiagram,
+  DecisionTree,
+  DependencyGraph,
+  EntityRelationshipDiagram,
+  JourneyMap,
+  MindMap,
+  SequenceDiagram,
+  StateMachineDiagram,
+  SwimlaneDiagram,
+  TimelineDiagram,
+} from "@moritzbrantner/diagrams";
+
+<SequenceDiagram
+  participants={[
+    { id: "client", label: "Client" },
+    { id: "api", label: "API" },
+  ]}
+  messages={[{ id: "request", from: "client", to: "api", label: "Request" }]}
+/>;
+
+<SwimlaneDiagram
+  lanes={[{ id: "team", label: "Team" }]}
+  steps={[{ id: "build", laneId: "team", label: "Build" }]}
+/>;
+
+<DependencyGraph
+  nodes={[
+    { id: "app", label: "App" },
+    { id: "pkg", label: "Package" },
+  ]}
+  edges={[{ id: "app-pkg", source: "app", target: "pkg" }]}
+/>;
+
+<ArchitectureDiagram
+  nodes={[
+    { id: "api", label: "API" },
+    { id: "db", label: "DB", kind: "database" },
+  ]}
+  connections={[{ id: "api-db", source: "api", target: "db", label: "writes" }]}
+/>;
+
+<EntityRelationshipDiagram
+  entities={[{ id: "orders", name: "orders", fields: [{ id: "id", name: "id", key: "primary" }] }]}
+/>;
+
+<DecisionTree
+  root={{
+    id: "ready",
+    label: "Ready?",
+    children: [{ id: "yes", label: "Yes", target: { id: "ship", label: "Ship" } }],
+  }}
+/>;
+
+<StateMachineDiagram
+  states={[
+    { id: "draft", label: "Draft" },
+    { id: "review", label: "Review" },
+  ]}
+  transitions={[{ id: "submit", source: "draft", target: "review", event: "submit" }]}
+/>;
+
+<JourneyMap
+  phases={[{ id: "discover", label: "Discover" }]}
+  touchpoints={[{ id: "docs", phaseId: "discover", label: "Read docs" }]}
+/>;
+
+<TimelineDiagram items={[{ id: "beta", date: "2026-04-10", label: "Beta" }]} />;
+
+<MindMap
+  root={{ id: "diagrams", label: "Diagrams", children: [{ id: "workflow", label: "Workflow" }] }}
+/>;
 ```
 
 ## Scope

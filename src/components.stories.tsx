@@ -1,6 +1,22 @@
 import { expect } from "storybook/test";
 
-import { BurndownChart, GanttChart, OrgChart, ProcessMap, RelationshipMap } from "./index";
+import {
+  ArchitectureDiagram,
+  BurndownChart,
+  DecisionTree,
+  DependencyGraph,
+  EntityRelationshipDiagram,
+  GanttChart,
+  JourneyMap,
+  MindMap,
+  OrgChart,
+  ProcessMap,
+  RelationshipMap,
+  SequenceDiagram,
+  StateMachineDiagram,
+  SwimlaneDiagram,
+  TimelineDiagram,
+} from "./index";
 
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type React from "react";
@@ -241,5 +257,307 @@ export const GanttChartStory: Story = {
     await expect(canvas.getByRole("img", { name: "Story Gantt chart" })).toBeVisible();
     await expect(canvas.getByText("Component work")).toBeVisible();
     await expect(canvas.getAllByText("Deadline")).toHaveLength(3);
+  },
+};
+
+export const SequenceDiagramStory: Story = {
+  name: "Sequence Diagram",
+  render: () => (
+    <StoryFrame>
+      <SequenceDiagram
+        ariaLabel="Story sequence diagram"
+        participants={[
+          { id: "client", label: "Client" },
+          { id: "api", label: "API", tone: "accent" },
+          { id: "orders", label: "Orders" },
+        ]}
+        messages={[
+          { id: "request", from: "client", to: "api", label: "POST /orders" },
+          { id: "command", from: "api", to: "orders", label: "Create order", kind: "async" },
+          { id: "result", from: "orders", to: "api", label: "Accepted", kind: "return" },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("img", { name: "Story sequence diagram" })).toBeVisible();
+    await expect(canvas.getByText("Create order")).toBeVisible();
+  },
+};
+
+export const SwimlaneDiagramStory: Story = {
+  name: "Swimlane Diagram",
+  render: () => (
+    <StoryFrame>
+      <SwimlaneDiagram
+        ariaLabel="Story swimlane diagram"
+        lanes={[
+          { id: "product", label: "Product" },
+          { id: "engineering", label: "Engineering" },
+          { id: "quality", label: "Quality" },
+        ]}
+        steps={[
+          { id: "brief", laneId: "product", label: "Brief", status: "done", tone: "success" },
+          { id: "build", laneId: "engineering", label: "Build", status: "active", tone: "accent" },
+          {
+            id: "validate",
+            laneId: "quality",
+            label: "Validate",
+            status: "warning",
+            tone: "warning",
+          },
+        ]}
+        connectors={[
+          { id: "brief-build", source: "brief", target: "build", label: "handoff" },
+          {
+            id: "build-validate",
+            source: "build",
+            target: "validate",
+            label: "candidate",
+            kind: "risk",
+          },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("img", { name: "Story swimlane diagram" })).toBeVisible();
+    await expect(canvas.getByText("Validate")).toBeVisible();
+  },
+};
+
+export const DependencyGraphStory: Story = {
+  name: "Dependency Graph",
+  render: () => (
+    <StoryFrame>
+      <DependencyGraph
+        ariaLabel="Story dependency graph"
+        showLegend
+        nodes={[
+          { id: "app", label: "App", x: 0, y: 90 },
+          { id: "diagrams", label: "Diagrams", status: "active", x: 280, y: 0 },
+          { id: "ui", label: "UI", status: "stable", x: 560, y: 90 },
+        ]}
+        edges={[
+          { id: "app-diagrams", source: "app", target: "diagrams", label: "imports" },
+          { id: "diagrams-ui", source: "diagrams", target: "ui", label: "peer", kind: "peer" },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("img", { name: "Story dependency graph" })).toBeVisible();
+    await expect(canvas.getByText("Diagrams")).toBeVisible();
+  },
+};
+
+export const ArchitectureDiagramStory: Story = {
+  name: "Architecture Diagram",
+  render: () => (
+    <StoryFrame>
+      <ArchitectureDiagram
+        ariaLabel="Story architecture diagram"
+        boundaries={[{ id: "platform", label: "Platform" }]}
+        nodes={[
+          { id: "gateway", label: "Gateway", kind: "gateway", boundaryId: "platform", x: 0, y: 40 },
+          {
+            id: "orders",
+            label: "Orders",
+            kind: "service",
+            boundaryId: "platform",
+            x: 260,
+            y: 40,
+            tone: "accent",
+          },
+          {
+            id: "db",
+            label: "Orders DB",
+            kind: "database",
+            boundaryId: "platform",
+            x: 260,
+            y: 190,
+          },
+        ]}
+        connections={[
+          { id: "gateway-orders", source: "gateway", target: "orders", label: "command" },
+          { id: "orders-db", source: "orders", target: "db", label: "writes", kind: "data" },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("img", { name: "Story architecture diagram" })).toBeVisible();
+    await expect(canvas.getByText("Orders DB")).toBeVisible();
+  },
+};
+
+export const EntityRelationshipDiagramStory: Story = {
+  name: "Entity Relationship Diagram",
+  render: () => (
+    <StoryFrame>
+      <EntityRelationshipDiagram
+        ariaLabel="Story entity relationship diagram"
+        entities={[
+          {
+            id: "orders",
+            name: "orders",
+            fields: [
+              { id: "id", name: "id", type: "uuid", key: "primary" },
+              { id: "customer_id", name: "customer_id", type: "uuid", key: "foreign" },
+            ],
+          },
+          {
+            id: "customers",
+            name: "customers",
+            x: 340,
+            y: 80,
+            fields: [{ id: "customer-id", name: "id", type: "uuid", key: "primary" }],
+          },
+        ]}
+        relations={[
+          {
+            id: "customer-orders",
+            source: "customers",
+            target: "orders",
+            label: "places",
+            sourceCardinality: "one",
+            targetCardinality: "zero-or-many",
+          },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("img", { name: "Story entity relationship diagram" }),
+    ).toBeVisible();
+    await expect(canvas.getByText("customer_id")).toBeVisible();
+  },
+};
+
+export const DecisionTreeStory: Story = {
+  name: "Decision Tree",
+  render: () => (
+    <StoryFrame>
+      <DecisionTree
+        ariaLabel="Story decision tree"
+        root={{
+          id: "ready",
+          label: "Ready?",
+          children: [
+            {
+              id: "yes",
+              label: "Yes",
+              target: { id: "ship", label: "Ship", kind: "outcome", tone: "success" },
+            },
+            {
+              id: "no",
+              label: "No",
+              target: { id: "fix", label: "Fix blockers", kind: "action", tone: "warning" },
+            },
+          ],
+        }}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("img", { name: "Story decision tree" })).toBeVisible();
+    await expect(canvas.getByText("Fix blockers")).toBeVisible();
+  },
+};
+
+export const StateMachineDiagramStory: Story = {
+  name: "State Machine Diagram",
+  render: () => (
+    <StoryFrame>
+      <StateMachineDiagram
+        ariaLabel="Story state machine diagram"
+        states={[
+          { id: "initial", label: "Initial", kind: "initial", x: 0, y: 24 },
+          { id: "draft", label: "Draft", x: 150, y: 0 },
+          { id: "review", label: "Review", x: 420, y: 0, tone: "accent" },
+          { id: "final", label: "Final", kind: "final", x: 700, y: 24 },
+        ]}
+        transitions={[
+          { id: "start", source: "initial", target: "draft", event: "create" },
+          { id: "submit", source: "draft", target: "review", event: "submit" },
+          { id: "approve", source: "review", target: "final", event: "approve" },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("img", { name: "Story state machine diagram" })).toBeVisible();
+    await expect(canvas.getByText("Review")).toBeVisible();
+  },
+};
+
+export const JourneyMapStory: Story = {
+  name: "Journey Map",
+  render: () => (
+    <StoryFrame>
+      <JourneyMap
+        ariaLabel="Story journey map"
+        phases={[
+          { id: "discover", label: "Discover" },
+          { id: "adopt", label: "Adopt", tone: "accent" },
+          { id: "ship", label: "Ship" },
+        ]}
+        touchpoints={[
+          { id: "docs", phaseId: "discover", label: "Read docs", sentiment: "positive" },
+          { id: "model", phaseId: "adopt", label: "Model data", sentiment: "neutral" },
+          { id: "verify", phaseId: "ship", label: "Run verify", sentiment: "positive" },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("grid", { name: "Story journey map" })).toBeVisible();
+    await expect(canvas.getByText("Model data")).toBeVisible();
+  },
+};
+
+export const TimelineDiagramStory: Story = {
+  name: "Timeline Diagram",
+  render: () => (
+    <StoryFrame>
+      <TimelineDiagram
+        ariaLabel="Story timeline diagram"
+        items={[
+          { id: "scope", date: "2026-04-01", label: "Scope" },
+          { id: "beta", date: "2026-04-10", label: "Beta", tone: "accent" },
+          { id: "ga", date: "2026-04-24", label: "GA", tone: "success" },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("img", { name: "Story timeline diagram" })).toBeVisible();
+    await expect(canvas.getByText("Beta")).toBeVisible();
+  },
+};
+
+export const MindMapStory: Story = {
+  name: "Mind Map",
+  render: () => (
+    <StoryFrame>
+      <MindMap
+        ariaLabel="Story mind map"
+        root={{
+          id: "diagrams",
+          label: "Diagrams",
+          tone: "accent",
+          children: [
+            { id: "structure", label: "Structure" },
+            { id: "workflow", label: "Workflow" },
+            { id: "systems", label: "Systems" },
+          ],
+        }}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("img", { name: "Story mind map" })).toBeVisible();
+    await expect(canvas.getByText("Workflow")).toBeVisible();
   },
 };

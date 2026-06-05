@@ -23,13 +23,37 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./architecture-diagram": {
+      "types": "./dist/architecture-diagram.d.ts",
+      "import": "./dist/architecture-diagram.js"
+    },
     "./burndown-chart": {
       "types": "./dist/burndown-chart.d.ts",
       "import": "./dist/burndown-chart.js"
     },
+    "./decision-tree": {
+      "types": "./dist/decision-tree.d.ts",
+      "import": "./dist/decision-tree.js"
+    },
+    "./dependency-graph": {
+      "types": "./dist/dependency-graph.d.ts",
+      "import": "./dist/dependency-graph.js"
+    },
+    "./entity-relationship-diagram": {
+      "types": "./dist/entity-relationship-diagram.d.ts",
+      "import": "./dist/entity-relationship-diagram.js"
+    },
     "./gantt-chart": {
       "types": "./dist/gantt-chart.d.ts",
       "import": "./dist/gantt-chart.js"
+    },
+    "./journey-map": {
+      "types": "./dist/journey-map.d.ts",
+      "import": "./dist/journey-map.js"
+    },
+    "./mind-map": {
+      "types": "./dist/mind-map.d.ts",
+      "import": "./dist/mind-map.js"
     },
     "./org-chart": {
       "types": "./dist/org-chart.d.ts",
@@ -42,6 +66,22 @@
     "./relationship-map": {
       "types": "./dist/relationship-map.d.ts",
       "import": "./dist/relationship-map.js"
+    },
+    "./sequence-diagram": {
+      "types": "./dist/sequence-diagram.d.ts",
+      "import": "./dist/sequence-diagram.js"
+    },
+    "./state-machine-diagram": {
+      "types": "./dist/state-machine-diagram.d.ts",
+      "import": "./dist/state-machine-diagram.js"
+    },
+    "./swimlane-diagram": {
+      "types": "./dist/swimlane-diagram.d.ts",
+      "import": "./dist/swimlane-diagram.js"
+    },
+    "./timeline-diagram": {
+      "types": "./dist/timeline-diagram.d.ts",
+      "import": "./dist/timeline-diagram.js"
     },
     "./uml-diagram": {
       "types": "./dist/uml-diagram.d.ts",
@@ -57,7 +97,7 @@
     "api:check": "bun run build && node ./scripts/check-api-report.mjs",
     "audit:production": "bun audit --production",
     "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
-    "build": "tsup src/index.ts src/burndown-chart.ts src/gantt-chart.ts src/org-chart.ts src/process-map.ts src/relationship-map.ts src/uml-diagram.ts --format esm --dts --clean --out-dir dist",
+    "build": "tsup src/index.ts src/architecture-diagram.ts src/burndown-chart.ts src/decision-tree.ts src/dependency-graph.ts src/entity-relationship-diagram.ts src/gantt-chart.ts src/journey-map.ts src/mind-map.ts src/org-chart.ts src/process-map.ts src/relationship-map.ts src/sequence-diagram.ts src/state-machine-diagram.ts src/swimlane-diagram.ts src/timeline-diagram.ts src/uml-diagram.ts --format esm --dts --clean --out-dir dist",
     "build:examples": "vite build --outDir ../dist-examples --emptyOutDir && bun run docs && node ./scripts/copy-docs-to-examples.mjs",
     "build:storybook": "storybook build --output-dir storybook-static",
     "changeset": "changeset",

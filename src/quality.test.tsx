@@ -2,10 +2,20 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  ArchitectureDiagram,
   BurndownChart,
+  DecisionTree,
+  DependencyGraph,
+  EntityRelationshipDiagram,
   GanttChart,
+  JourneyMap,
+  MindMap,
   OrgChart,
   RelationshipMap,
+  SequenceDiagram,
+  StateMachineDiagram,
+  SwimlaneDiagram,
+  TimelineDiagram,
   UmlDiagram,
   getVisibleOrgChartNodes,
   insertOrgChartNode,
@@ -64,6 +74,78 @@ describe("diagram quality invariants", () => {
             },
           ]}
         />
+        <SequenceDiagram
+          ariaLabel="Sequence"
+          participants={[
+            { id: "client", label: "Client" },
+            { id: "api", label: "API" },
+          ]}
+          messages={[{ id: "request", from: "client", to: "api", label: "Request" }]}
+        />
+        <SwimlaneDiagram
+          ariaLabel="Swimlane"
+          lanes={[{ id: "team", label: "Team" }]}
+          steps={[
+            { id: "start", laneId: "team", label: "Start", x: Number.NaN },
+            { id: "end", laneId: "team", label: "End", y: Number.POSITIVE_INFINITY },
+          ]}
+          connectors={[{ id: "start-end", source: "start", target: "end" }]}
+        />
+        <DependencyGraph
+          ariaLabel="Dependencies"
+          nodes={[
+            { id: "app", label: "App", x: Number.NaN },
+            { id: "pkg", label: "Package", y: Number.POSITIVE_INFINITY },
+          ]}
+          edges={[{ id: "app-pkg", source: "app", target: "pkg" }]}
+        />
+        <ArchitectureDiagram
+          ariaLabel="Architecture"
+          nodes={[
+            { id: "api", label: "API", x: Number.NaN },
+            { id: "db", label: "DB", kind: "database" },
+          ]}
+          connections={[{ id: "api-db", source: "api", target: "db" }]}
+        />
+        <EntityRelationshipDiagram
+          ariaLabel="ERD"
+          entities={[
+            { id: "orders", name: "orders", x: Number.NaN },
+            { id: "customers", name: "customers", y: Number.POSITIVE_INFINITY },
+          ]}
+          relations={[{ id: "customers-orders", source: "customers", target: "orders" }]}
+        />
+        <DecisionTree
+          ariaLabel="Decision"
+          nodes={[
+            { id: "ready", label: "Ready?", x: Number.NaN },
+            { id: "ship", label: "Ship", y: Number.POSITIVE_INFINITY },
+          ]}
+          edges={[{ id: "ready-ship", source: "ready", target: "ship" }]}
+          layout="manual"
+        />
+        <StateMachineDiagram
+          ariaLabel="State"
+          states={[
+            { id: "draft", label: "Draft", x: Number.NaN },
+            { id: "review", label: "Review", y: Number.POSITIVE_INFINITY },
+          ]}
+          transitions={[{ id: "draft-review", source: "draft", target: "review" }]}
+        />
+        <MindMap
+          ariaLabel="Mind"
+          nodes={[
+            { id: "root", label: "Root", x: Number.NaN },
+            { id: "child", label: "Child", parentId: "root", y: Number.POSITIVE_INFINITY },
+          ]}
+        />
+        <TimelineDiagram
+          ariaLabel="Timeline"
+          items={[
+            { id: "valid", date: "2026-04-01", label: "Valid" },
+            { id: "invalid", date: "not-a-date", label: "Invalid" },
+          ]}
+        />
       </>,
     );
 
@@ -118,15 +200,37 @@ describe("diagram quality invariants", () => {
         <RelationshipMap nodes={[]} emptyMessage="No relationships" />
         <BurndownChart points={[]} emptyMessage="No sprint data" />
         <GanttChart tasks={[]} emptyMessage="No scheduled work" />
+        <SequenceDiagram participants={[]} emptyMessage="No sequence" />
+        <SwimlaneDiagram lanes={[]} emptyMessage="No swimlanes" />
+        <DependencyGraph nodes={[]} emptyMessage="No dependency nodes" />
+        <ArchitectureDiagram nodes={[]} emptyMessage="No architecture nodes" />
+        <EntityRelationshipDiagram entities={[]} emptyMessage="No entities" />
+        <DecisionTree nodes={[]} emptyMessage="No decisions" />
+        <StateMachineDiagram states={[]} emptyMessage="No states" />
+        <MindMap nodes={[]} emptyMessage="No mind nodes" />
+        <TimelineDiagram items={[]} emptyMessage="No timeline" />
+        <JourneyMap phases={[]} emptyMessage="No journey" />
       </>,
     );
 
     expect(screen.getByRole("img", { name: "Relationship map" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "Burndown chart" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "Gantt chart" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Sequence diagram" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Swimlane diagram" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Dependency graph" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Architecture diagram" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Entity relationship diagram" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Decision tree" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "State machine diagram" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Mind map" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Timeline diagram" })).toBeTruthy();
+    expect(screen.getByRole("grid", { name: "Journey map" })).toBeTruthy();
     expect(screen.getByText("No relationships")).toBeTruthy();
     expect(screen.getByText("No sprint data")).toBeTruthy();
     expect(screen.getByText("No scheduled work")).toBeTruthy();
+    expect(screen.getByText("No sequence")).toBeTruthy();
+    expect(screen.getByText("No journey")).toBeTruthy();
   });
 
   test("keeps tree helpers and task rendering from mutating caller input", () => {

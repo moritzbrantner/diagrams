@@ -16,6 +16,16 @@ const storyIds = [
   "diagrams-components--burndown-chart-story",
   "diagrams-components--gantt-chart-story",
   "diagrams-uml-diagram--default",
+  "diagrams-components--sequence-diagram-story",
+  "diagrams-components--swimlane-diagram-story",
+  "diagrams-components--dependency-graph-story",
+  "diagrams-components--architecture-diagram-story",
+  "diagrams-components--entity-relationship-diagram-story",
+  "diagrams-components--decision-tree-story",
+  "diagrams-components--state-machine-diagram-story",
+  "diagrams-components--journey-map-story",
+  "diagrams-components--timeline-diagram-story",
+  "diagrams-components--mind-map-story",
 ] as const;
 
 for (const storyId of storyIds) {

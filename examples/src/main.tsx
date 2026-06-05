@@ -4,11 +4,21 @@ import { StrictMode, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import {
+  ArchitectureDiagram,
   BurndownChart,
+  DecisionTree,
+  DependencyGraph,
+  EntityRelationshipDiagram,
   GanttChart,
+  JourneyMap,
+  MindMap,
   OrgChart,
   ProcessMap,
   RelationshipMap,
+  SequenceDiagram,
+  StateMachineDiagram,
+  SwimlaneDiagram,
+  TimelineDiagram,
   UmlDiagram,
 } from "@moritzbrantner/diagrams";
 
@@ -18,7 +28,23 @@ import type React from "react";
 
 const queryClient = new QueryClient();
 
-type DiagramKey = "uml" | "org" | "process" | "relationships" | "burndown" | "gantt";
+type DiagramKey =
+  | "uml"
+  | "org"
+  | "process"
+  | "relationships"
+  | "burndown"
+  | "gantt"
+  | "sequence"
+  | "swimlane"
+  | "dependencies"
+  | "architecture"
+  | "erd"
+  | "decision"
+  | "state"
+  | "journey"
+  | "timeline"
+  | "mind";
 
 type ShowcaseData = {
   umlNodes: React.ComponentProps<typeof UmlDiagram>["nodes"];
@@ -29,6 +55,25 @@ type ShowcaseData = {
   relationshipEdges: React.ComponentProps<typeof RelationshipMap>["edges"];
   burndownPoints: React.ComponentProps<typeof BurndownChart>["points"];
   ganttTasks: React.ComponentProps<typeof GanttChart>["tasks"];
+  sequenceParticipants: React.ComponentProps<typeof SequenceDiagram>["participants"];
+  sequenceMessages: React.ComponentProps<typeof SequenceDiagram>["messages"];
+  swimlaneLanes: React.ComponentProps<typeof SwimlaneDiagram>["lanes"];
+  swimlaneSteps: React.ComponentProps<typeof SwimlaneDiagram>["steps"];
+  swimlaneConnectors: React.ComponentProps<typeof SwimlaneDiagram>["connectors"];
+  dependencyNodes: React.ComponentProps<typeof DependencyGraph>["nodes"];
+  dependencyEdges: React.ComponentProps<typeof DependencyGraph>["edges"];
+  architectureNodes: React.ComponentProps<typeof ArchitectureDiagram>["nodes"];
+  architectureConnections: React.ComponentProps<typeof ArchitectureDiagram>["connections"];
+  architectureBoundaries: React.ComponentProps<typeof ArchitectureDiagram>["boundaries"];
+  erdEntities: React.ComponentProps<typeof EntityRelationshipDiagram>["entities"];
+  erdRelations: React.ComponentProps<typeof EntityRelationshipDiagram>["relations"];
+  decisionRoot: React.ComponentProps<typeof DecisionTree>["root"];
+  stateMachineStates: React.ComponentProps<typeof StateMachineDiagram>["states"];
+  stateMachineTransitions: React.ComponentProps<typeof StateMachineDiagram>["transitions"];
+  journeyPhases: React.ComponentProps<typeof JourneyMap>["phases"];
+  journeyTouchpoints: React.ComponentProps<typeof JourneyMap>["touchpoints"];
+  timelineItems: React.ComponentProps<typeof TimelineDiagram>["items"];
+  mindMapRoot: React.ComponentProps<typeof MindMap>["root"];
 };
 
 const diagramTabs: {
@@ -42,6 +87,16 @@ const diagramTabs: {
   { key: "relationships", label: "Map", icon: NetworkIcon },
   { key: "burndown", label: "Burndown", icon: WorkflowIcon },
   { key: "gantt", label: "Gantt", icon: GitBranchIcon },
+  { key: "sequence", label: "Sequence", icon: WorkflowIcon },
+  { key: "swimlane", label: "Swimlane", icon: WorkflowIcon },
+  { key: "dependencies", label: "Deps", icon: NetworkIcon },
+  { key: "architecture", label: "Arch", icon: BoxesIcon },
+  { key: "erd", label: "ERD", icon: BoxesIcon },
+  { key: "decision", label: "Decision", icon: GitBranchIcon },
+  { key: "state", label: "State", icon: WorkflowIcon },
+  { key: "journey", label: "Journey", icon: WorkflowIcon },
+  { key: "timeline", label: "Timeline", icon: WorkflowIcon },
+  { key: "mind", label: "Mind", icon: NetworkIcon },
 ];
 
 const snippets: Record<DiagramKey, string> = {
@@ -54,6 +109,17 @@ const snippets: Record<DiagramKey, string> = {
   burndown:
     '<BurndownChart points={burndownPoints} startDate="2026-04-01" endDate="2026-04-15" totalWork={48} />',
   gantt: '<GanttChart tasks={ganttTasks} startDate="2026-04-01" endDate="2026-04-24" />',
+  sequence: "<SequenceDiagram participants={participants} messages={messages} />",
+  swimlane: "<SwimlaneDiagram lanes={lanes} steps={steps} connectors={connectors} />",
+  dependencies: "<DependencyGraph nodes={nodes} edges={edges} showLegend />",
+  architecture:
+    "<ArchitectureDiagram nodes={nodes} connections={connections} boundaries={boundaries} />",
+  erd: "<EntityRelationshipDiagram entities={entities} relations={relations} />",
+  decision: "<DecisionTree root={decisionRoot} />",
+  state: "<StateMachineDiagram states={states} transitions={transitions} />",
+  journey: "<JourneyMap phases={phases} touchpoints={touchpoints} />",
+  timeline: "<TimelineDiagram items={items} />",
+  mind: "<MindMap root={mindMapRoot} />",
 };
 
 async function loadShowcaseData(): Promise<ShowcaseData> {
@@ -274,6 +340,210 @@ async function loadShowcaseData(): Promise<ShowcaseData> {
         tone: "warning",
       },
     ],
+    sequenceParticipants: [
+      { id: "client", label: "Client", description: "Browser" },
+      { id: "api", label: "API", description: "Gateway", tone: "accent" },
+      { id: "orders", label: "Orders", description: "Domain service" },
+    ],
+    sequenceMessages: [
+      { id: "request", from: "client", to: "api", label: "POST /orders" },
+      { id: "command", from: "api", to: "orders", label: "Create order", kind: "async" },
+      { id: "result", from: "orders", to: "api", label: "Accepted", kind: "return" },
+    ],
+    swimlaneLanes: [
+      { id: "product", label: "Product", description: "Defines intent" },
+      { id: "engineering", label: "Engineering", description: "Ships package" },
+      { id: "quality", label: "Quality", description: "Checks release" },
+    ],
+    swimlaneSteps: [
+      { id: "brief-step", laneId: "product", label: "Brief", status: "done", tone: "success" },
+      { id: "build-step", laneId: "engineering", label: "Build", status: "active", tone: "accent" },
+      { id: "test-step", laneId: "quality", label: "Validate", status: "warning", tone: "warning" },
+    ],
+    swimlaneConnectors: [
+      { id: "brief-build", source: "brief-step", target: "build-step", label: "hands off" },
+      {
+        id: "build-test",
+        source: "build-step",
+        target: "test-step",
+        label: "candidate",
+        kind: "risk",
+      },
+    ],
+    dependencyNodes: [
+      { id: "app", label: "App", group: "Consumer", status: "active", x: 0, y: 90 },
+      {
+        id: "diagrams",
+        label: "Diagrams",
+        group: "Package",
+        version: "0.1",
+        status: "stable",
+        x: 280,
+        y: 0,
+      },
+      { id: "ui", label: "UI", group: "Peer", version: "0.9", status: "stable", x: 560, y: 90 },
+      {
+        id: "react",
+        label: "React",
+        group: "Peer",
+        version: "19",
+        status: "stable",
+        x: 280,
+        y: 180,
+      },
+    ],
+    dependencyEdges: [
+      { id: "app-diagrams", source: "app", target: "diagrams", label: "imports", kind: "runtime" },
+      { id: "diagrams-ui", source: "diagrams", target: "ui", label: "styles", kind: "peer" },
+      { id: "diagrams-react", source: "diagrams", target: "react", label: "renders", kind: "peer" },
+    ],
+    architectureBoundaries: [
+      { id: "platform", label: "Platform" },
+      { id: "external", label: "External", x: 560, y: -44, width: 236, height: 300 },
+    ],
+    architectureNodes: [
+      { id: "gateway", label: "Gateway", kind: "gateway", boundaryId: "platform", x: 0, y: 40 },
+      {
+        id: "orders-arch",
+        label: "Orders",
+        kind: "service",
+        boundaryId: "platform",
+        x: 260,
+        y: 40,
+        tone: "accent",
+      },
+      { id: "db", label: "Orders DB", kind: "database", boundaryId: "platform", x: 260, y: 190 },
+      {
+        id: "payments",
+        label: "Payments",
+        kind: "external",
+        boundaryId: "external",
+        x: 600,
+        y: 100,
+      },
+    ],
+    architectureConnections: [
+      {
+        id: "gateway-orders",
+        source: "gateway",
+        target: "orders-arch",
+        label: "command",
+        protocol: "HTTPS",
+      },
+      { id: "orders-db", source: "orders-arch", target: "db", label: "writes", kind: "data" },
+      {
+        id: "orders-payments",
+        source: "orders-arch",
+        target: "payments",
+        label: "authorize",
+        kind: "risk",
+      },
+    ],
+    erdEntities: [
+      {
+        id: "orders-table",
+        name: "orders",
+        fields: [
+          { id: "order-id", name: "id", type: "uuid", key: "primary" },
+          { id: "customer-id", name: "customer_id", type: "uuid", key: "foreign" },
+          { id: "status", name: "status", type: "text" },
+        ],
+      },
+      {
+        id: "customers-table",
+        name: "customers",
+        x: 340,
+        y: 80,
+        fields: [
+          { id: "customer-id-pk", name: "id", type: "uuid", key: "primary" },
+          { id: "email", name: "email", type: "text", key: "unique" },
+        ],
+      },
+    ],
+    erdRelations: [
+      {
+        id: "customers-orders",
+        source: "customers-table",
+        target: "orders-table",
+        label: "places",
+        sourceCardinality: "one",
+        targetCardinality: "zero-or-many",
+        identifying: true,
+      },
+    ],
+    decisionRoot: {
+      id: "release-ready",
+      label: "Release ready?",
+      children: [
+        {
+          id: "yes-path",
+          label: "Yes",
+          target: { id: "ship", label: "Ship package", kind: "outcome", tone: "success" },
+          tone: "success",
+        },
+        {
+          id: "no-path",
+          label: "No",
+          target: { id: "fix", label: "Fix blockers", kind: "action", tone: "warning" },
+          tone: "warning",
+        },
+      ],
+    },
+    stateMachineStates: [
+      { id: "initial", label: "Initial", kind: "initial", x: 0, y: 24 },
+      { id: "draft", label: "Draft", x: 150, y: 0 },
+      { id: "review", label: "Review", x: 420, y: 0, tone: "accent" },
+      { id: "released", label: "Released", kind: "final", x: 700, y: 24 },
+    ],
+    stateMachineTransitions: [
+      { id: "start-draft", source: "initial", target: "draft", event: "create" },
+      { id: "draft-review", source: "draft", target: "review", event: "submit" },
+      { id: "review-released", source: "review", target: "released", event: "approve" },
+    ],
+    journeyPhases: [
+      { id: "discover-phase", label: "Discover", description: "Find the package" },
+      { id: "adopt-phase", label: "Adopt", description: "Wire examples", tone: "accent" },
+      { id: "ship-phase", label: "Ship", description: "Publish release" },
+    ],
+    journeyTouchpoints: [
+      {
+        id: "docs-touch",
+        phaseId: "discover-phase",
+        label: "Read docs",
+        sentiment: "positive",
+        owner: "Developer",
+      },
+      {
+        id: "api-touch",
+        phaseId: "adopt-phase",
+        label: "Model data",
+        sentiment: "neutral",
+        owner: "Developer",
+      },
+      {
+        id: "verify-touch",
+        phaseId: "ship-phase",
+        label: "Run verify",
+        sentiment: "positive",
+        owner: "Maintainer",
+      },
+    ],
+    timelineItems: [
+      { id: "scope-time", date: "2026-04-01", label: "Scope", kind: "milestone" },
+      { id: "beta-time", date: "2026-04-10", label: "Beta", kind: "release", tone: "accent" },
+      { id: "ga-time", date: "2026-04-24", label: "GA", kind: "deadline", tone: "success" },
+    ],
+    mindMapRoot: {
+      id: "diagrams-root",
+      label: "Diagrams",
+      tone: "accent",
+      children: [
+        { id: "structure-mind", label: "Structure" },
+        { id: "workflow-mind", label: "Workflow" },
+        { id: "planning-mind", label: "Planning" },
+        { id: "systems-mind", label: "Systems" },
+      ],
+    },
   };
 }
 
@@ -408,15 +678,100 @@ function ShowcasePreview({
       );
     }
 
-    return (
-      <GanttChart
-        ariaLabel="Release Gantt chart"
-        caption="Earliest starts and deadlines are marked per task."
-        tasks={data.ganttTasks}
-        startDate="2026-04-01"
-        endDate="2026-04-24"
-      />
-    );
+    if (activeDiagram === "gantt") {
+      return (
+        <GanttChart
+          ariaLabel="Release Gantt chart"
+          caption="Earliest starts and deadlines are marked per task."
+          tasks={data.ganttTasks}
+          startDate="2026-04-01"
+          endDate="2026-04-24"
+        />
+      );
+    }
+
+    if (activeDiagram === "sequence") {
+      return (
+        <SequenceDiagram
+          ariaLabel="Release sequence diagram"
+          participants={data.sequenceParticipants}
+          messages={data.sequenceMessages}
+        />
+      );
+    }
+
+    if (activeDiagram === "swimlane") {
+      return (
+        <SwimlaneDiagram
+          ariaLabel="Release swimlane diagram"
+          lanes={data.swimlaneLanes}
+          steps={data.swimlaneSteps}
+          connectors={data.swimlaneConnectors}
+        />
+      );
+    }
+
+    if (activeDiagram === "dependencies") {
+      return (
+        <DependencyGraph
+          ariaLabel="Package dependency graph"
+          nodes={data.dependencyNodes}
+          edges={data.dependencyEdges}
+          showLegend
+        />
+      );
+    }
+
+    if (activeDiagram === "architecture") {
+      return (
+        <ArchitectureDiagram
+          ariaLabel="Service architecture diagram"
+          nodes={data.architectureNodes}
+          connections={data.architectureConnections}
+          boundaries={data.architectureBoundaries}
+        />
+      );
+    }
+
+    if (activeDiagram === "erd") {
+      return (
+        <EntityRelationshipDiagram
+          ariaLabel="Order entity relationship diagram"
+          entities={data.erdEntities}
+          relations={data.erdRelations}
+        />
+      );
+    }
+
+    if (activeDiagram === "decision") {
+      return <DecisionTree ariaLabel="Release decision tree" root={data.decisionRoot} />;
+    }
+
+    if (activeDiagram === "state") {
+      return (
+        <StateMachineDiagram
+          ariaLabel="Release state machine diagram"
+          states={data.stateMachineStates}
+          transitions={data.stateMachineTransitions}
+        />
+      );
+    }
+
+    if (activeDiagram === "journey") {
+      return (
+        <JourneyMap
+          ariaLabel="Adoption journey map"
+          phases={data.journeyPhases}
+          touchpoints={data.journeyTouchpoints}
+        />
+      );
+    }
+
+    if (activeDiagram === "timeline") {
+      return <TimelineDiagram ariaLabel="Release timeline diagram" items={data.timelineItems} />;
+    }
+
+    return <MindMap ariaLabel="Diagram mind map" root={data.mindMapRoot} />;
   }, [activeDiagram, data]);
 
   return (
@@ -494,6 +849,80 @@ function ExamplesGallery({ data }: { data: ShowcaseData }) {
           startDate="2026-04-01"
           endDate="2026-04-24"
         />
+      </ExampleSection>
+
+      <ExampleSection title="Sequence diagram" testId="sequence-diagram-example">
+        <SequenceDiagram
+          ariaLabel="Release sequence diagram"
+          participants={data.sequenceParticipants}
+          messages={data.sequenceMessages}
+        />
+      </ExampleSection>
+
+      <ExampleSection title="Swimlane diagram" testId="swimlane-diagram-example">
+        <SwimlaneDiagram
+          ariaLabel="Release swimlane diagram"
+          lanes={data.swimlaneLanes}
+          steps={data.swimlaneSteps}
+          connectors={data.swimlaneConnectors}
+        />
+      </ExampleSection>
+
+      <ExampleSection title="Dependency graph" testId="dependency-graph-example">
+        <DependencyGraph
+          ariaLabel="Package dependency graph"
+          nodes={data.dependencyNodes}
+          edges={data.dependencyEdges}
+          showLegend
+        />
+      </ExampleSection>
+
+      <ExampleSection title="Architecture diagram" testId="architecture-diagram-example">
+        <ArchitectureDiagram
+          ariaLabel="Service architecture diagram"
+          nodes={data.architectureNodes}
+          connections={data.architectureConnections}
+          boundaries={data.architectureBoundaries}
+        />
+      </ExampleSection>
+
+      <ExampleSection
+        title="Entity relationship diagram"
+        testId="entity-relationship-diagram-example"
+      >
+        <EntityRelationshipDiagram
+          ariaLabel="Order entity relationship diagram"
+          entities={data.erdEntities}
+          relations={data.erdRelations}
+        />
+      </ExampleSection>
+
+      <ExampleSection title="Decision tree" testId="decision-tree-example">
+        <DecisionTree ariaLabel="Release decision tree" root={data.decisionRoot} />
+      </ExampleSection>
+
+      <ExampleSection title="State machine diagram" testId="state-machine-diagram-example">
+        <StateMachineDiagram
+          ariaLabel="Release state machine diagram"
+          states={data.stateMachineStates}
+          transitions={data.stateMachineTransitions}
+        />
+      </ExampleSection>
+
+      <ExampleSection title="Journey map" testId="journey-map-example">
+        <JourneyMap
+          ariaLabel="Adoption journey map"
+          phases={data.journeyPhases}
+          touchpoints={data.journeyTouchpoints}
+        />
+      </ExampleSection>
+
+      <ExampleSection title="Timeline diagram" testId="timeline-diagram-example">
+        <TimelineDiagram ariaLabel="Release timeline diagram" items={data.timelineItems} />
+      </ExampleSection>
+
+      <ExampleSection title="Mind map" testId="mind-map-example">
+        <MindMap ariaLabel="Diagram mind map" root={data.mindMapRoot} />
       </ExampleSection>
     </>
   );
