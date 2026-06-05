@@ -19,6 +19,8 @@ import {
 
 export type DependencyGraphStatus = "stable" | "active" | "deprecated" | "blocked" | "at-risk";
 export type DependencyGraphEdgeKind = "runtime" | "build" | "peer" | "optional" | "blocking";
+export type DependencyGraphKeyboardMode = "nodes" | "none";
+export type DependencyGraphNodeActionPlacement = "inside-bottom-end" | "outside-top-end";
 
 export type DependencyGraphNode = {
   id: string;
@@ -32,6 +34,15 @@ export type DependencyGraphNode = {
   width?: number;
   height?: number;
   tone?: DiagramTone;
+};
+
+export type DependencyGraphNodeAction = {
+  id: string;
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  destructive?: boolean;
+  onSelect?: (node: PositionedDependencyGraphNode) => void;
 };
 
 export type DependencyGraphEdge = {
@@ -53,6 +64,23 @@ export type DependencyGraphProps = Omit<React.ComponentProps<"figure">, "childre
   emptyMessage?: React.ReactNode;
   padding?: number;
   autoLayoutColumns?: number;
+  selectedNodeId?: string | null;
+  keyboardMode?: DependencyGraphKeyboardMode;
+  focusedNodeId?: string | null;
+  defaultFocusedNodeId?: string | null;
+  onFocusedNodeIdChange?: (node: PositionedDependencyGraphNode | null) => void;
+  nodeActionPlacement?: DependencyGraphNodeActionPlacement;
+  getNodeDisabled?: (node: PositionedDependencyGraphNode) => boolean;
+  renderNodeSelection?: (node: PositionedDependencyGraphNode) => React.ReactNode;
+  nodeActions?:
+    | readonly DependencyGraphNodeAction[]
+    | ((node: PositionedDependencyGraphNode) => readonly DependencyGraphNodeAction[]);
+  onNodeSelect?: (node: PositionedDependencyGraphNode) => void;
+  onNodeDeselect?: () => void;
+  onNodeActionSelect?: (
+    action: DependencyGraphNodeAction,
+    node: PositionedDependencyGraphNode,
+  ) => void;
 };
 
 type PositionedDependencyGraphNode = DependencyGraphNode &
@@ -87,6 +115,18 @@ function DependencyGraph({
   emptyMessage = "No dependencies to display.",
   padding = 32,
   autoLayoutColumns = 3,
+  selectedNodeId,
+  keyboardMode,
+  focusedNodeId,
+  defaultFocusedNodeId,
+  onFocusedNodeIdChange,
+  nodeActionPlacement = "inside-bottom-end",
+  getNodeDisabled,
+  renderNodeSelection,
+  nodeActions,
+  onNodeSelect,
+  onNodeDeselect,
+  onNodeActionSelect,
   className,
   ...props
 }: DependencyGraphProps) {
@@ -100,6 +140,112 @@ function DependencyGraph({
     [positionedNodes],
   );
   const validEdges = edges.filter((edge) => nodeMap.has(edge.source) && nodeMap.has(edge.target));
+  const resolvedKeyboardMode = keyboardMode ?? (onNodeSelect ? "nodes" : "none");
+  const nodeRefs = React.useRef(new Map<string, SVGGElement>());
+  const [internalFocusedNodeId, setInternalFocusedNodeId] = React.useState<string | null>(
+    () => defaultFocusedNodeId ?? null,
+  );
+  const enabledNodes = React.useMemo(
+    () => positionedNodes.filter((node) => !getNodeDisabled?.(node)),
+    [getNodeDisabled, positionedNodes],
+  );
+  const requestedFocusedNodeId =
+    focusedNodeId !== undefined ? focusedNodeId : internalFocusedNodeId;
+  const effectiveFocusedNodeId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledNodes.find((node) => node.id === requestedFocusedNodeId)?.id ??
+        enabledNodes[0]?.id ??
+        null)
+      : null;
+  const setNodeRef = React.useCallback((nodeId: string, element: SVGGElement | null) => {
+    if (element) {
+      nodeRefs.current.set(nodeId, element);
+    } else {
+      nodeRefs.current.delete(nodeId);
+    }
+  }, []);
+  const focusNodeById = React.useCallback(
+    (nodeId: string | null, shouldFocusElement = true) => {
+      const nextNode = nodeId ? (nodeMap.get(nodeId) ?? null) : null;
+
+      if (focusedNodeId === undefined) {
+        setInternalFocusedNodeId(nodeId);
+      }
+
+      onFocusedNodeIdChange?.(nextNode);
+
+      if (nodeId && shouldFocusElement) {
+        queueMicrotask(() => nodeRefs.current.get(nodeId)?.focus());
+      }
+    },
+    [focusedNodeId, nodeMap, onFocusedNodeIdChange],
+  );
+  const handleNodeFocus = React.useCallback(
+    (node: PositionedDependencyGraphNode) => {
+      if (getNodeDisabled?.(node)) {
+        return;
+      }
+
+      if (focusedNodeId === undefined) {
+        setInternalFocusedNodeId(node.id);
+      }
+
+      onFocusedNodeIdChange?.(node);
+    },
+    [focusedNodeId, getNodeDisabled, onFocusedNodeIdChange],
+  );
+  const handleNodeKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<SVGGElement>, node: PositionedDependencyGraphNode) => {
+      if (resolvedKeyboardMode === "none" || getNodeDisabled?.(node)) {
+        return;
+      }
+
+      if (isActivationKey(event)) {
+        event.preventDefault();
+        onNodeSelect?.(node);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (selectedNodeId != null && onNodeSelect && onNodeDeselect) {
+          event.preventDefault();
+          onNodeDeselect();
+        }
+
+        return;
+      }
+
+      if (
+        event.key !== "ArrowRight" &&
+        event.key !== "ArrowLeft" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const nextNode = getNearestDependencyGraphNode(
+        node,
+        enabledNodes.filter((item) => item.id !== node.id),
+        event.key,
+      );
+
+      if (nextNode) {
+        focusNodeById(nextNode.id);
+      }
+    },
+    [
+      enabledNodes,
+      focusNodeById,
+      getNodeDisabled,
+      onNodeDeselect,
+      onNodeSelect,
+      resolvedKeyboardMode,
+      selectedNodeId,
+    ],
+  );
   const routePoints = validEdges.flatMap((edge, index) =>
     edge.points?.length
       ? edge.points
@@ -131,7 +277,7 @@ function DependencyGraph({
         </button>
         <svg
           data-slot="dependency-graph-svg"
-          role="img"
+          role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
           viewBox={viewBox}
           className="block min-h-72 w-full min-w-160 text-foreground"
@@ -163,7 +309,22 @@ function DependencyGraph({
               </g>
               <g data-slot="dependency-graph-nodes">
                 {positionedNodes.map((node) => (
-                  <DependencyGraphNodeShape key={node.id} node={node} />
+                  <DependencyGraphInteractiveNode
+                    key={node.id}
+                    node={node}
+                    nodeActions={nodeActions}
+                    nodeActionPlacement={nodeActionPlacement}
+                    selected={selectedNodeId === node.id}
+                    focused={effectiveFocusedNodeId === node.id}
+                    disabled={Boolean(getNodeDisabled?.(node))}
+                    keyboardMode={resolvedKeyboardMode}
+                    renderNodeSelection={renderNodeSelection}
+                    onNodeActionSelect={onNodeActionSelect}
+                    onNodeFocus={handleNodeFocus}
+                    onNodeKeyDown={handleNodeKeyDown}
+                    onNodeSelect={onNodeSelect}
+                    setNodeRef={setNodeRef}
+                  />
                 ))}
               </g>
             </>
@@ -198,6 +359,175 @@ function DependencyGraph({
         </figcaption>
       ) : null}
     </figure>
+  );
+}
+
+function DependencyGraphInteractiveNode({
+  node,
+  nodeActions,
+  nodeActionPlacement,
+  selected,
+  focused,
+  disabled,
+  keyboardMode,
+  renderNodeSelection,
+  onNodeActionSelect,
+  onNodeFocus,
+  onNodeKeyDown,
+  onNodeSelect,
+  setNodeRef,
+}: {
+  node: PositionedDependencyGraphNode;
+  nodeActions?: DependencyGraphProps["nodeActions"];
+  nodeActionPlacement: DependencyGraphNodeActionPlacement;
+  selected: boolean;
+  focused: boolean;
+  disabled: boolean;
+  keyboardMode: DependencyGraphKeyboardMode;
+  renderNodeSelection?: DependencyGraphProps["renderNodeSelection"];
+  onNodeActionSelect?: DependencyGraphProps["onNodeActionSelect"];
+  onNodeFocus: (node: PositionedDependencyGraphNode) => void;
+  onNodeKeyDown: (
+    event: React.KeyboardEvent<SVGGElement>,
+    node: PositionedDependencyGraphNode,
+  ) => void;
+  onNodeSelect?: DependencyGraphProps["onNodeSelect"];
+  setNodeRef: (nodeId: string, element: SVGGElement | null) => void;
+}) {
+  const resolvedActions =
+    typeof nodeActions === "function" ? nodeActions(node) : (nodeActions ?? []);
+  const interactive = Boolean(onNodeSelect) && !disabled;
+  const accessibleName = getDependencyGraphNodeAccessibleName(node);
+  const selectNode = React.useCallback(() => {
+    if (!disabled) {
+      onNodeSelect?.(node);
+    }
+  }, [disabled, node, onNodeSelect]);
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<SVGGElement>) => {
+      onNodeKeyDown(event, node);
+    },
+    [node, onNodeKeyDown],
+  );
+
+  return (
+    <g
+      data-slot="dependency-graph-node-interaction"
+      data-node-id={node.id}
+      data-selected={selected ? "true" : undefined}
+      data-focused={focused ? "true" : undefined}
+      data-disabled={disabled ? "true" : undefined}
+      role={onNodeSelect && resolvedActions.length === 0 ? "button" : undefined}
+      aria-label={onNodeSelect && resolvedActions.length === 0 ? accessibleName : undefined}
+      aria-pressed={onNodeSelect && resolvedActions.length === 0 ? selected : undefined}
+      aria-disabled={
+        onNodeSelect && resolvedActions.length === 0 ? disabled || undefined : undefined
+      }
+      tabIndex={keyboardMode === "nodes" && focused && !disabled ? 0 : -1}
+      className={cn(
+        "outline-none",
+        onNodeSelect &&
+          "cursor-pointer focus-visible:[&_[data-slot='dependency-graph-node-focus']]:stroke-ring",
+        disabled && "opacity-60",
+      )}
+      onClick={interactive ? selectNode : undefined}
+      onFocus={() => onNodeFocus(node)}
+      onKeyDown={handleKeyDown}
+      ref={(element) => setNodeRef(node.id, element)}
+    >
+      {selected ? (
+        (renderNodeSelection?.(node) ?? (
+          <rect
+            data-slot="dependency-graph-node-focus"
+            x={node.x - 6}
+            y={node.y - 6}
+            width={node.width + 12}
+            height={node.height + 12}
+            rx="12"
+            className="fill-transparent stroke-primary stroke-2"
+          />
+        ))
+      ) : focused ? (
+        <rect
+          data-slot="dependency-graph-node-focus"
+          x={node.x - 6}
+          y={node.y - 6}
+          width={node.width + 12}
+          height={node.height + 12}
+          rx="12"
+          className="fill-transparent stroke-ring stroke-2"
+        />
+      ) : null}
+      <DependencyGraphNodeShape node={node} />
+      {resolvedActions.length ? (
+        <DependencyGraphNodeActions
+          actions={resolvedActions}
+          node={node}
+          placement={nodeActionPlacement}
+          onNodeActionSelect={onNodeActionSelect}
+        />
+      ) : null}
+    </g>
+  );
+}
+
+function DependencyGraphNodeActions({
+  actions,
+  node,
+  placement,
+  onNodeActionSelect,
+}: {
+  actions: readonly DependencyGraphNodeAction[];
+  node: PositionedDependencyGraphNode;
+  placement: DependencyGraphNodeActionPlacement;
+  onNodeActionSelect?: DependencyGraphProps["onNodeActionSelect"];
+}) {
+  const actionSize = 28;
+  const actionGap = 4;
+  const width = actions.length * actionSize + Math.max(0, actions.length - 1) * actionGap;
+  const x = node.x + node.width - width - 8;
+  const y =
+    placement === "outside-top-end"
+      ? node.y - actionSize - 4
+      : node.y + node.height - actionSize - 8;
+
+  return (
+    <foreignObject
+      data-slot="dependency-graph-node-actions"
+      data-placement={placement}
+      x={x}
+      y={y}
+      width={width}
+      height={actionSize}
+    >
+      <div className="flex gap-1">
+        {actions.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            data-slot="dependency-graph-node-action"
+            data-action-id={action.id}
+            data-destructive={action.destructive ? "true" : undefined}
+            aria-label={getDependencyGraphActionAccessibleLabel(action)}
+            disabled={action.disabled}
+            className={cn(
+              "inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-xs font-medium text-foreground shadow-sm outline-none transition-colors",
+              "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+              action.destructive &&
+                "text-destructive hover:bg-destructive/10 hover:text-destructive",
+              "[&_svg]:size-3.5",
+            )}
+            onClick={(event) => {
+              event.stopPropagation();
+              action.onSelect?.(node);
+              onNodeActionSelect?.(action, node);
+            }}
+          >
+            {action.icon ?? action.label}
+          </button>
+        ))}
+      </div>
+    </foreignObject>
   );
 }
 
@@ -311,6 +641,63 @@ function positionNodes(
       height,
     };
   });
+}
+
+function getDependencyGraphNodeCenter(node: PositionedDependencyGraphNode): DiagramPoint {
+  return {
+    x: node.x + node.width / 2,
+    y: node.y + node.height / 2,
+  };
+}
+
+function getNearestDependencyGraphNode(
+  currentNode: PositionedDependencyGraphNode,
+  candidates: PositionedDependencyGraphNode[],
+  key: "ArrowRight" | "ArrowLeft" | "ArrowDown" | "ArrowUp",
+): PositionedDependencyGraphNode | null {
+  const currentCenter = getDependencyGraphNodeCenter(currentNode);
+  const horizontal = key === "ArrowRight" || key === "ArrowLeft";
+  const forward = key === "ArrowRight" || key === "ArrowDown";
+
+  return (
+    candidates
+      .map((candidate) => {
+        const center = getDependencyGraphNodeCenter(candidate);
+        const primaryDelta = horizontal ? center.x - currentCenter.x : center.y - currentCenter.y;
+        const perpendicularDelta = horizontal
+          ? center.y - currentCenter.y
+          : center.x - currentCenter.x;
+
+        return {
+          candidate,
+          primaryDelta,
+          perpendicularDistance: Math.abs(perpendicularDelta),
+          totalDistance: Math.hypot(center.x - currentCenter.x, center.y - currentCenter.y),
+        };
+      })
+      .filter((item) => (forward ? item.primaryDelta > 0 : item.primaryDelta < 0))
+      .sort(
+        (first, second) =>
+          first.perpendicularDistance - second.perpendicularDistance ||
+          first.totalDistance - second.totalDistance,
+      )[0]?.candidate ?? null
+  );
+}
+
+function getDependencyGraphNodeAccessibleName(node: DependencyGraphNode) {
+  return typeof node.label === "string" || typeof node.label === "number"
+    ? String(node.label)
+    : node.id;
+}
+
+function getDependencyGraphActionAccessibleLabel(action: DependencyGraphNodeAction) {
+  return typeof action.label === "string" || typeof action.label === "number"
+    ? String(action.label)
+    : action.id;
+}
+
+function isActivationKey(event: React.KeyboardEvent) {
+  return event.key === "Enter" || event.key === " ";
 }
 
 export { DependencyGraph };

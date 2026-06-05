@@ -270,6 +270,21 @@ import {
   edges={[{ id: "app-pkg", source: "app", target: "pkg" }]}
 />;
 
+<DependencyGraph
+  selectedNodeId={selectedNodeId}
+  onNodeSelect={(node) => setSelectedNodeId(node.id)}
+  onNodeDeselect={() => setSelectedNodeId(null)}
+  nodeActions={[
+    { id: "inspect", label: "Inspect" },
+    { id: "remove", label: "Remove", destructive: true },
+  ]}
+  nodes={[
+    { id: "app", label: "App" },
+    { id: "pkg", label: "Package" },
+  ]}
+  edges={[{ id: "app-pkg", source: "app", target: "pkg" }]}
+/>;
+
 <ArchitectureDiagram
   nodes={[
     { id: "api", label: "API" },

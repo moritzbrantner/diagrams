@@ -1,4 +1,6 @@
-import { expect } from "storybook/test";
+import { InfoIcon, Trash2Icon } from "lucide-react";
+import * as React from "react";
+import { expect, userEvent } from "storybook/test";
 
 import {
   ArchitectureDiagram,
@@ -19,7 +21,6 @@ import {
 } from "./index";
 
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type React from "react";
 
 function StoryFrame({ children }: { children?: React.ReactNode }) {
   return <div className="mx-auto grid max-w-5xl gap-6 p-4">{children}</div>;
@@ -350,6 +351,61 @@ export const DependencyGraphStory: Story = {
     await expect(canvas.getByText("Diagrams")).toBeVisible();
   },
 };
+
+export const InteractiveDependencyGraphStory: Story = {
+  name: "Interactive Dependency Graph",
+  render: () => <InteractiveDependencyGraphDemo />,
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByText("Diagrams"));
+    await expect(canvas.getByRole("button", { name: "Inspect diagrams" })).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Inspect diagrams" }));
+  },
+};
+
+function InteractiveDependencyGraphDemo() {
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>("diagrams");
+
+  return (
+    <StoryFrame>
+      <DependencyGraph
+        ariaLabel="Interactive dependency graph"
+        selectedNodeId={selectedNodeId}
+        onNodeSelect={(node) => setSelectedNodeId(node.id)}
+        onNodeDeselect={() => setSelectedNodeId(null)}
+        nodeActions={(node) => [
+          {
+            id: "inspect",
+            label: `Inspect ${node.id}`,
+            icon: <InfoIcon aria-hidden="true" />,
+          },
+          {
+            id: "delete",
+            label: `Delete ${node.id}`,
+            destructive: true,
+            disabled: node.id === "app",
+            icon: <Trash2Icon aria-hidden="true" />,
+          },
+        ]}
+        nodes={[
+          { id: "app", label: "App", description: "Consumer app", x: 0, y: 90 },
+          {
+            id: "diagrams",
+            label: "Diagrams",
+            description: "Diagram package",
+            status: "active",
+            x: 280,
+            y: 0,
+          },
+          { id: "ui", label: "UI", description: "Peer package", status: "stable", x: 560, y: 90 },
+        ]}
+        edges={[
+          { id: "app-diagrams", source: "app", target: "diagrams", label: "imports" },
+          { id: "diagrams-ui", source: "diagrams", target: "ui", label: "peer", kind: "peer" },
+        ]}
+      />
+    </StoryFrame>
+  );
+}
 
 export const ArchitectureDiagramStory: Story = {
   name: "Architecture Diagram",

@@ -19,6 +19,7 @@ const storyIds = [
   "diagrams-components--sequence-diagram-story",
   "diagrams-components--swimlane-diagram-story",
   "diagrams-components--dependency-graph-story",
+  "diagrams-components--interactive-dependency-graph-story",
   "diagrams-components--architecture-diagram-story",
   "diagrams-components--entity-relationship-diagram-story",
   "diagrams-components--decision-tree-story",

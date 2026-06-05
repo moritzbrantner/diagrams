@@ -14,11 +14,19 @@ if (!existsSync(distEntry)) {
   process.exit(1);
 }
 
-const { GanttChart, RelationshipMap, UmlDiagram, getUmlDiagramBounds, getVisibleOrgChartNodes } =
-  await import(distEntry);
+const {
+  DependencyGraph,
+  GanttChart,
+  RelationshipMap,
+  UmlDiagram,
+  getUmlDiagramBounds,
+  getVisibleOrgChartNodes,
+} = await import(distEntry);
 
 const runFullMatrix = process.env.DIAGRAMS_BENCH_FULL === "1";
 const thresholdMs = Number(process.env.DIAGRAMS_BENCH_THRESHOLD_MS ?? 1_500);
+const dependencyNodeCount = runFullMatrix ? 1_000 : 500;
+const dependencyEdgeCount = runFullMatrix ? 2_000 : 1_000;
 const relationshipNodeCount = runFullMatrix ? 1_000 : 500;
 const relationshipEdgeCount = runFullMatrix ? 2_000 : 1_000;
 const umlNodeCount = runFullMatrix ? 1_000 : 500;
@@ -35,6 +43,39 @@ results.push(
     const visible = getVisibleOrgChartNodes(orgNodes, expandedIds);
 
     assert(visible.length > 100, "org benchmark should produce many visible nodes");
+  }),
+);
+
+const dependencyNodes = createPositionedNodes(dependencyNodeCount);
+const dependencyEdges = createDependencyEdges(dependencyEdgeCount, dependencyNodeCount);
+results.push(
+  benchmark("diagrams.dependency.render.large", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(DependencyGraph, {
+        ariaLabel: "Large dependency graph",
+        edges: dependencyEdges,
+        nodes: dependencyNodes,
+      }),
+    );
+
+    assertFiniteMarkup(markup);
+  }),
+);
+results.push(
+  benchmark("diagrams.dependency.render.interactive.large", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(DependencyGraph, {
+        ariaLabel: "Large interactive dependency graph",
+        defaultFocusedNodeId: "node-0",
+        edges: dependencyEdges,
+        nodeActions: [{ id: "inspect", label: "Inspect" }],
+        nodes: dependencyNodes,
+        onNodeSelect: () => undefined,
+        selectedNodeId: "node-1",
+      }),
+    );
+
+    assertFiniteMarkup(markup);
   }),
 );
 
@@ -113,6 +154,8 @@ const slowBenchmarks = results.filter(
   (result) =>
     [
       "diagrams.org.visible.large",
+      "diagrams.dependency.render.large",
+      "diagrams.dependency.render.interactive.large",
       "diagrams.relationship.render.large",
       "diagrams.uml.bounds.large",
       "diagrams.gantt.render.large",
@@ -179,6 +222,19 @@ function createEdges(count, nodeCount) {
     id: `edge-${index}`,
     kind: index % 5 === 0 ? "dependency" : "association",
     label: `Edge ${index}`,
+    source: `node-${index % nodeCount}`,
+    target: `node-${(index * 17 + 3) % nodeCount}`,
+  }));
+}
+
+function createDependencyEdges(count, nodeCount) {
+  const kinds = ["runtime", "build", "peer", "optional", "blocking"];
+
+  return Array.from({ length: count }, (_, index) => ({
+    direction: index % 3 === 0 ? "both" : "forward",
+    id: `dependency-edge-${index}`,
+    kind: kinds[index % kinds.length],
+    label: `Dependency ${index}`,
     source: `node-${index % nodeCount}`,
     target: `node-${(index * 17 + 3) % nodeCount}`,
   }));

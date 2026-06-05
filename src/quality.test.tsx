@@ -294,6 +294,16 @@ describe("diagram quality invariants", () => {
           ]}
           onNodeSelect={onUmlSelect}
         />
+        <DependencyGraph
+          ariaLabel="Focusable dependencies"
+          defaultFocusedNodeId="pkg"
+          getNodeDisabled={(node) => node.id === "pkg"}
+          nodes={[
+            { id: "app", label: "App", x: 0, y: 0 },
+            { id: "pkg", label: "Package", x: 260, y: 0 },
+          ]}
+          onNodeSelect={vi.fn()}
+        />
       </>,
     );
 
@@ -309,11 +319,19 @@ describe("diagram quality invariants", () => {
     const focusedUmlNode = container.querySelector(
       '[data-slot="uml-diagram-node-interaction"][data-focused="true"]',
     );
+    const disabledDependencyNode = container.querySelector(
+      '[data-slot="dependency-graph-node-interaction"][data-node-id="pkg"]',
+    );
+    const focusedDependencyNode = container.querySelector(
+      '[data-slot="dependency-graph-node-interaction"][data-focused="true"]',
+    );
 
     expect(disabledOrgNode?.getAttribute("data-disabled")).toBe("true");
     expect(focusedOrgNode?.getAttribute("data-disabled")).toBeNull();
     expect(disabledUmlNode?.getAttribute("data-disabled")).toBe("true");
     expect(focusedUmlNode?.getAttribute("data-disabled")).toBeNull();
+    expect(disabledDependencyNode?.getAttribute("data-disabled")).toBe("true");
+    expect(focusedDependencyNode?.getAttribute("data-disabled")).toBeNull();
   });
 });
 
