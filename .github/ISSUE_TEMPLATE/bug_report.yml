@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible problem in @moritzbrantner/diagrams.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please include enough detail for a maintainer to reproduce it.
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: Which version of @moritzbrantner/diagrams are you using?
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Runtime, bundler, browser, React, @moritzbrantner/ui, and TypeScript versions.
+      placeholder: "Bun 1.3.14, React 19.2, @moritzbrantner/ui 0.9, Vite 8"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Link to a minimal reproduction or paste the smallest code sample that demonstrates the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

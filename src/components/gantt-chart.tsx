@@ -271,9 +271,7 @@ function GanttChartTaskShape({
         rx="5"
         className={cn(taskToneClasses[isLate ? "danger" : (task.tone ?? "default")])}
       >
-        <title>
-          {formatDate(new Date(task.start))} - {formatDate(new Date(task.end))}
-        </title>
+        <title>{`${formatDate(new Date(task.start))} - ${formatDate(new Date(task.end))}`}</title>
       </rect>
       {progress > 0 ? (
         <rect
@@ -350,9 +348,7 @@ function GanttMarker({
         strokeWidth="2"
         markerEnd={markerEnd}
       >
-        <title>
-          {label}: {formatDate(new Date(timestamp))}
-        </title>
+        <title>{`${label}: ${formatDate(new Date(timestamp))}`}</title>
       </line>
       <text x={x + 5} y={y1 - 2} className={cn("text-[10px] font-medium", labelClassName)}>
         {label}
@@ -365,14 +361,17 @@ function prepareGanttTasks(tasks: readonly GanttChartTask[]) {
   return tasks
     .map((task) => {
       const start = toDayTimestamp(task.startDate);
-      const end = Math.max(start + DAY_MS, toDayTimestamp(task.endDate));
+      const requestedEnd = toDayTimestamp(task.endDate);
+      const end = Math.max(start + DAY_MS, requestedEnd);
+      const earliestStart = task.earliestStartDate ? toDayTimestamp(task.earliestStartDate) : NaN;
+      const deadline = task.deadlineDate ? toDayTimestamp(task.deadlineDate) : NaN;
 
       return {
         ...task,
         start,
         end,
-        earliestStart: task.earliestStartDate ? toDayTimestamp(task.earliestStartDate) : undefined,
-        deadline: task.deadlineDate ? toDayTimestamp(task.deadlineDate) : undefined,
+        earliestStart: Number.isFinite(earliestStart) ? earliestStart : undefined,
+        deadline: Number.isFinite(deadline) ? deadline : undefined,
       };
     })
     .filter((task) => Number.isFinite(task.start) && Number.isFinite(task.end));
@@ -392,8 +391,10 @@ function getGanttDomain(
   const now = toDayTimestamp(new Date());
   const minTaskDate = Math.min(...taskDates, now);
   const maxTaskDate = Math.max(...taskDates, now + DAY_MS);
-  const start = startDate ? toDayTimestamp(startDate) : minTaskDate;
-  const end = Math.max(endDate ? toDayTimestamp(endDate) : maxTaskDate, start + DAY_MS);
+  const requestedStart = startDate ? toDayTimestamp(startDate) : NaN;
+  const requestedEnd = endDate ? toDayTimestamp(endDate) : NaN;
+  const start = Number.isFinite(requestedStart) ? requestedStart : minTaskDate;
+  const end = Math.max(Number.isFinite(requestedEnd) ? requestedEnd : maxTaskDate, start + DAY_MS);
 
   return { start, end };
 }

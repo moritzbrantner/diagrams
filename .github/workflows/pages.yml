@@ -58,11 +58,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build example page
+      - name: Build example page and API docs
         run: BASE_PATH=/diagrams/ bun run build:examples
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist-examples
 

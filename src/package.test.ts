@@ -11,6 +11,11 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
   private?: boolean;
   scripts?: Record<string, string>;
 };
+const tsconfig = JSON.parse(readFileSync("tsconfig.json", "utf8")) as {
+  compilerOptions?: {
+    paths?: Record<string, string[]>;
+  };
+};
 
 describe("package contract", () => {
   test("is a public MIT package with expected peer contracts", () => {
@@ -26,6 +31,7 @@ describe("package contract", () => {
 
   test("omits chart package surfaces and density engine scripts", () => {
     expect(packageJson.exports?.["./charts"]).toBeUndefined();
+    expect(tsconfig.compilerOptions?.paths?.["@moritzbrantner/diagrams/charts"]).toBeUndefined();
     expect(packageJson.peerDependencies?.recharts).toBeUndefined();
     expect(packageJson.dependencies?.["@moritzbrantner/viz-engine"]).toBeUndefined();
     expect(packageJson.scripts?.["build:wasm"]).toBeUndefined();
@@ -63,6 +69,18 @@ describe("package contract", () => {
         import: "./dist/uml-diagram.js",
       },
       "./package.json": "./package.json",
+    });
+  });
+
+  test("exposes maturity and release scripts", () => {
+    expect(packageJson.scripts).toMatchObject({
+      "api:check": "bun run build && node ./scripts/check-api-report.mjs",
+      "audit:production": "bun audit --production",
+      "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
+      "quality:pages": "bun run test:unlighthouse",
+      "test:unlighthouse": "node ./scripts/run-unlighthouse.mjs",
+      "verify:release": "bun run verify && bun run bench:diagrams",
+      "version-packages": "changeset version",
     });
   });
 });

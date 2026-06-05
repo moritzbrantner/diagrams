@@ -5,6 +5,7 @@ docs/
 node_modules/
 playwright-report/
 storybook-static/
+temp/
 test-results/
 .unlighthouse/
 *.tgz

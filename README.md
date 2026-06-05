@@ -1,5 +1,10 @@
 # @moritzbrantner/diagrams
 
+[![CI](https://github.com/moritzbrantner/diagrams/actions/workflows/ci.yml/badge.svg)](https://github.com/moritzbrantner/diagrams/actions/workflows/ci.yml)
+[![Pages](https://github.com/moritzbrantner/diagrams/actions/workflows/pages.yml/badge.svg)](https://github.com/moritzbrantner/diagrams/actions/workflows/pages.yml)
+[![npm version](https://img.shields.io/npm/v/@moritzbrantner/diagrams.svg)](https://www.npmjs.com/package/@moritzbrantner/diagrams)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Diagram primitives for React 19 applications. This package is for authored structural diagrams,
 UML diagrams, process and Gantt-style flows, org structures, relationship maps, dependency graphs,
 and other graph-based visualizations.
@@ -7,7 +12,7 @@ and other graph-based visualizations.
 Use `@moritzbrantner/charts` for line, bar, area, donut, histogram, sparkline, Recharts wrappers,
 density-aware data visualizations, analytical chart controls, and chart data processing.
 
-## Install
+## Installation
 
 ```sh
 bun add @moritzbrantner/diagrams @moritzbrantner/ui react react-dom
@@ -18,6 +23,23 @@ Import the shared UI stylesheet once in your app:
 ```ts
 import "@moritzbrantner/ui/atlas/styles.css";
 ```
+
+The package is published to public npm.
+
+## Support Matrix
+
+| Dependency           | Supported range             | Notes                                                   |
+| -------------------- | --------------------------- | ------------------------------------------------------- |
+| React                | `^19.0.0`                   | Required for exported React diagram primitives.         |
+| React DOM            | `^19.0.0`                   | Required for examples and React rendering.              |
+| `@moritzbrantner/ui` | `^0.9.1`                    | Provides the shared Atlas stylesheet and design tokens. |
+| TypeScript           | Repository compiler version | Public types are checked from the generated package.    |
+
+## API Stability
+
+The package is pre-`1.0`. Public APIs may change, but intentional changes are tracked through
+Changesets, changelog entries, and the committed API report in `etc/diagrams.api.md`. Breaking
+changes should include migration notes.
 
 ## Example Page
 
@@ -34,6 +56,20 @@ bun run build:examples
 ```
 
 The deployed example is served from <https://moritzbrantner.github.io/diagrams/>.
+Generated API documentation is published under <https://moritzbrantner.github.io/diagrams/api/>.
+
+## API Overview
+
+- `BurndownChart` for sprint or scope burndown timelines.
+- `GanttChart` for scheduled tasks, progress, earliest-start markers, and deadlines.
+- `OrgChart`, `OrgChartNode`, `getVisibleOrgChartNodes`, `findOrgChartNode`,
+  `insertOrgChartNode`, `updateOrgChartNode`, and `removeOrgChartNode` for hierarchical org or
+  ownership structures.
+- `ProcessMap`, `ProcessMapStep`, and `ProcessMapConnector` for horizontal and vertical workflow
+  sequences.
+- `RelationshipMap` for node-and-edge dependency, stakeholder, ownership, or risk maps.
+- `UmlDiagram`, `UmlClassDiagram`, `UmlStateDiagram`, and `getUmlDiagramBounds` for generic UML,
+  class, and state diagrams.
 
 ## Relationship Map
 

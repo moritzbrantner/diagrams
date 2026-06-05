@@ -226,9 +226,7 @@ function BurndownChart({
                     className="fill-background stroke-primary"
                     strokeWidth="2"
                   >
-                    <title>
-                      {formatDate(new Date(point.timestamp))}: {formatValue(point.remaining)}
-                    </title>
+                    <title>{`${formatDate(new Date(point.timestamp))}: ${formatValue(point.remaining)}`}</title>
                   </circle>
                 );
               })}
@@ -318,8 +316,10 @@ function getBurndownDomain({
 }) {
   const pointStart = points[0]?.timestamp ?? toDayTimestamp(new Date());
   const pointEnd = points[points.length - 1]?.timestamp ?? pointStart + DAY_MS;
-  const start = startDate ? toDayTimestamp(startDate) : pointStart;
-  const end = Math.max(endDate ? toDayTimestamp(endDate) : pointEnd, start + DAY_MS);
+  const requestedStart = startDate ? toDayTimestamp(startDate) : NaN;
+  const requestedEnd = endDate ? toDayTimestamp(endDate) : NaN;
+  const start = Number.isFinite(requestedStart) ? requestedStart : pointStart;
+  const end = Math.max(Number.isFinite(requestedEnd) ? requestedEnd : pointEnd, start + DAY_MS);
   const maxPointValue = Math.max(...points.map((point) => point.remaining), 0);
   const resolvedTotalWork = Math.max(totalWork ?? maxPointValue, maxPointValue, targetRemaining, 1);
   const maxValue = getNiceMax(resolvedTotalWork);

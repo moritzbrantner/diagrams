@@ -54,8 +54,11 @@
     "registry": "https://registry.npmjs.org"
   },
   "scripts": {
+    "api:check": "bun run build && node ./scripts/check-api-report.mjs",
+    "audit:production": "bun audit --production",
+    "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
     "build": "tsup src/index.ts src/burndown-chart.ts src/gantt-chart.ts src/org-chart.ts src/process-map.ts src/relationship-map.ts src/uml-diagram.ts --format esm --dts --clean --out-dir dist",
-    "build:examples": "vite build --outDir ../dist-examples --emptyOutDir",
+    "build:examples": "vite build --outDir ../dist-examples --emptyOutDir && bun run docs && node ./scripts/copy-docs-to-examples.mjs",
     "build:storybook": "storybook build --output-dir storybook-static",
     "changeset": "changeset",
     "check-types": "tsc --noEmit",
@@ -67,14 +70,18 @@
     "lint": "eslint . --max-warnings 0",
     "pack:check": "bun run build && publint --pack bun --strict && node ./scripts/check-packed-artifact.mjs",
     "prepack": "bun run build",
+    "quality:pages": "bun run test:unlighthouse",
     "release": "changeset publish",
     "storybook": "storybook dev -p 6006",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:storybook": "playwright test -c playwright.storybook.config.ts",
+    "test:unlighthouse": "node ./scripts/run-unlighthouse.mjs",
     "test:visual": "playwright test -c playwright.visual.config.ts",
-    "verify": "bun run check-types && bun run lint && bun run format:check && bun run docs:check && bun run test:coverage && bun run build:examples && bun run pack:check && bun run test:e2e && bun run build:storybook && bun run test:storybook && bun run test:visual"
+    "verify": "bun run check-types && bun run lint && bun run format:check && bun run docs:check && bun run test:coverage && bun run api:check && bun run build:examples && bun run pack:check && bun run test:e2e && bun run build:storybook && bun run test:storybook && bun run test:visual && bun run test:unlighthouse",
+    "verify:release": "bun run verify && bun run bench:diagrams",
+    "version-packages": "changeset version"
   },
   "dependencies": {
     "@tanstack/react-query": "5.101.0",

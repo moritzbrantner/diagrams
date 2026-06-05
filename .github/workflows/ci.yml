@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+      - release/**
+    tags:
+      - v*
+  schedule:
+    - cron: "21 3 * * 1"
 
 permissions:
   contents: read
@@ -12,6 +17,9 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  BUN_VERSION: 1.3.14
 
 jobs:
   workflow-validation:
@@ -26,10 +34,24 @@ jobs:
         with:
           args: -color
 
-  fast-validation:
-    name: Fast Validation
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v5
+
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: workflow-validation
     permissions:
       contents: read
       packages: read
@@ -42,7 +64,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -60,25 +82,32 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Check formatting
-        run: bun run format:check
+      - name: Check types
+        run: bun run check-types
 
       - name: Lint
         run: bun run lint
 
-      - name: Typecheck
-        run: bun run check-types
+      - name: Check formatting
+        run: bun run format:check
 
-      - name: Build docs, examples, and package
-        run: bun run docs:check && bun run build:examples && bun run pack:check
+      - name: Check docs
+        run: bun run docs:check
 
-      - name: Run unit tests
+      - name: Test with coverage
         run: bun run test:coverage
 
-  e2e-validation:
-    name: E2E Validation
+      - name: Check public API report
+        run: bun run api:check
+
+      - name: Production dependency audit
+        run: bun run audit:production
+
+  package:
+    name: Package
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: quality
     permissions:
       contents: read
       packages: read
@@ -91,7 +120,54 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Cache Bun
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Build examples and docs
+        run: bun run build:examples
+
+      - name: Build Storybook
+        run: bun run build:storybook
+
+      - name: Check package artifact
+        run: bun run pack:check
+
+  browser:
+    name: Browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: quality
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || github.token }}
+      NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -115,20 +191,31 @@ jobs:
       - name: Run e2e tests
         run: bun run test:e2e
 
-      - name: Upload failure artifacts
+      - name: Build Storybook
+        run: bun run build:storybook
+
+      - name: Run Storybook interaction tests
+        run: bun run test:storybook
+
+      - name: Run visual checks
+        run: bun run test:visual
+
+      - name: Upload browser artifacts
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-validation-artifacts
+          name: browser-artifacts
           if-no-files-found: ignore
           path: |
+            storybook-static
             playwright-report
             test-results
 
-  storybook-validation:
-    name: Storybook Validation
+  page-quality:
+    name: Page Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
+    needs: package
     permissions:
       contents: read
       packages: read
@@ -141,7 +228,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -159,25 +246,15 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: bunx playwright install --with-deps
+      - name: Install Playwright browser
+        run: bunx playwright install --with-deps chromium
 
-      - name: Build Storybook
-        run: bun run build:storybook
+      - name: Run Unlighthouse
+        run: bun run test:unlighthouse
 
-      - name: Run Storybook interaction tests
-        run: bun run test:storybook
-
-      - name: Run visual checks
-        run: bun run test:visual
-
-      - name: Upload failure artifacts
+      - name: Upload page-quality artifacts
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: storybook-validation-artifacts
-          if-no-files-found: ignore
-          path: |
-            storybook-static
-            playwright-report
-            test-results
+          name: page-quality-artifacts
+          path: .unlighthouse/
