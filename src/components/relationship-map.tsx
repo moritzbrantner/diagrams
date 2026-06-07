@@ -3,6 +3,16 @@
 import * as React from "react";
 
 import { cn } from "@moritzbrantner/ui";
+import {
+  getHullRoute,
+  getNearestDiagramItem,
+  getReactNodeAccessibleName,
+  getSpatialBounds,
+  isActivationKey,
+  pointsToPath,
+  useControlledSetState,
+  type DiagramPoint,
+} from "./diagram-utils";
 
 type RelationshipMapEdgeKind = "default" | "dependency" | "blocking" | "success" | "risk";
 type RelationshipMapDirection = "forward" | "backward" | "both" | "none";
@@ -18,6 +28,7 @@ type RelationshipMapNode = {
   label: React.ReactNode;
   description?: React.ReactNode;
   group?: React.ReactNode;
+  groupId?: string;
   x?: number;
   y?: number;
   width?: number;
@@ -33,6 +44,16 @@ type RelationshipMapEdge = {
   kind?: RelationshipMapEdgeKind;
   direction?: RelationshipMapDirection;
   points?: RelationshipMapPoint[];
+  waypoints?: readonly DiagramPoint[];
+};
+
+type RelationshipMapNodeAction = {
+  id: string;
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  destructive?: boolean;
+  onSelect?: (node: PositionedRelationshipMapNode) => void;
 };
 
 type PositionedRelationshipMapNode = RelationshipMapNode &
@@ -49,7 +70,35 @@ type RelationshipMapProps = Omit<React.ComponentProps<"figure">, "children"> & {
   emptyMessage?: React.ReactNode;
   padding?: number;
   autoLayoutColumns?: number;
+  selectedNodeId?: string | null;
+  focusedNodeId?: string | null;
+  defaultFocusedNodeId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getNodeDisabled?: (node: PositionedRelationshipMapNode) => boolean;
+  renderNodeSelection?: (node: PositionedRelationshipMapNode) => React.ReactNode;
+  nodeActions?:
+    | readonly RelationshipMapNodeAction[]
+    | ((node: PositionedRelationshipMapNode) => readonly RelationshipMapNodeAction[]);
+  onNodeSelect?: (node: PositionedRelationshipMapNode) => void;
+  onNodeDeselect?: () => void;
+  onFocusedNodeIdChange?: (node: PositionedRelationshipMapNode | null) => void;
+  onNodeActionSelect?: (
+    action: RelationshipMapNodeAction,
+    node: PositionedRelationshipMapNode,
+  ) => void;
+  collapsedGroupIds?: readonly string[];
+  defaultCollapsedGroupIds?: readonly string[];
+  onCollapsedGroupIdsChange?: (groupIds: string[], groupId: string, collapsed: boolean) => void;
 };
+
+type RenderRelationshipMapNode = PositionedRelationshipMapNode & {
+  summary?: {
+    groupId: string;
+    hiddenNodes: readonly PositionedRelationshipMapNode[];
+  };
+};
+
+const GROUP_SUMMARY_PREFIX = "__relationship-map-group-summary-";
 
 const DEFAULT_NODE_WIDTH = 184;
 const DEFAULT_NODE_HEIGHT = 92;
@@ -80,20 +129,193 @@ function RelationshipMap({
   emptyMessage = "No relationships to display.",
   padding = 32,
   autoLayoutColumns,
+  selectedNodeId,
+  focusedNodeId,
+  defaultFocusedNodeId,
+  keyboardMode,
+  getNodeDisabled,
+  renderNodeSelection,
+  nodeActions,
+  onNodeSelect,
+  onNodeDeselect,
+  onFocusedNodeIdChange,
+  onNodeActionSelect,
+  collapsedGroupIds,
+  defaultCollapsedGroupIds,
+  onCollapsedGroupIdsChange,
   className,
   ...props
 }: RelationshipMapProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
-  const positionedNodes = React.useMemo(
+  const originalPositionedNodes = React.useMemo(
     () => getPositionedNodes(nodes, autoLayoutColumns),
     [nodes, autoLayoutColumns],
+  );
+  const [internalCollapsedGroups, setInternalCollapsedGroups] = useControlledSetState({
+    value: collapsedGroupIds,
+    defaultValue: defaultCollapsedGroupIds,
+  });
+  const projection = React.useMemo(
+    () => getRelationshipMapGroupProjection(originalPositionedNodes, internalCollapsedGroups),
+    [internalCollapsedGroups, originalPositionedNodes],
+  );
+  const positionedNodes = React.useMemo<RenderRelationshipMapNode[]>(
+    () => [
+      ...originalPositionedNodes.filter((node) => !projection.hiddenNodeToProxyId.has(node.id)),
+      ...projection.summaryNodes,
+    ],
+    [originalPositionedNodes, projection.hiddenNodeToProxyId, projection.summaryNodes],
   );
   const nodeMap = React.useMemo(
     () => new Map(positionedNodes.map((node) => [node.id, node])),
     [positionedNodes],
   );
-  const validEdges = edges.filter((edge) => nodeMap.has(edge.source) && nodeMap.has(edge.target));
-  const bounds = getBounds(positionedNodes, validEdges);
+  const validEdges = edges
+    .map((edge) => ({
+      ...edge,
+      source: projection.hiddenNodeToProxyId.get(edge.source) ?? edge.source,
+      target: projection.hiddenNodeToProxyId.get(edge.target) ?? edge.target,
+    }))
+    .filter((edge) => edge.source !== edge.target || nodeMap.has(edge.source))
+    .filter((edge) => nodeMap.has(edge.source) && nodeMap.has(edge.target));
+  const resolvedKeyboardMode = keyboardMode ?? (onNodeSelect || nodeActions ? "nodes" : "none");
+  const nodeRefs = React.useRef(new Map<string, SVGGElement>());
+  const [internalFocusedNodeId, setInternalFocusedNodeId] = React.useState<string | null>(
+    () => defaultFocusedNodeId ?? null,
+  );
+  const enabledNodes = React.useMemo(
+    () => positionedNodes.filter((node) => !getNodeDisabled?.(node)),
+    [getNodeDisabled, positionedNodes],
+  );
+  const requestedFocusedNodeId =
+    focusedNodeId !== undefined ? focusedNodeId : internalFocusedNodeId;
+  const effectiveFocusedNodeId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledNodes.find((node) => node.id === requestedFocusedNodeId)?.id ??
+        enabledNodes[0]?.id ??
+        null)
+      : null;
+  const setNodeRef = React.useCallback((nodeId: string, element: SVGGElement | null) => {
+    if (element) {
+      nodeRefs.current.set(nodeId, element);
+    } else {
+      nodeRefs.current.delete(nodeId);
+    }
+  }, []);
+  const focusNodeById = React.useCallback(
+    (nodeId: string | null, shouldFocusElement = true) => {
+      const nextNode = nodeId ? (nodeMap.get(nodeId) ?? null) : null;
+
+      if (focusedNodeId === undefined) {
+        setInternalFocusedNodeId(nodeId);
+      }
+
+      onFocusedNodeIdChange?.(nextNode);
+
+      if (nodeId && shouldFocusElement) {
+        queueMicrotask(() => nodeRefs.current.get(nodeId)?.focus());
+      }
+    },
+    [focusedNodeId, nodeMap, onFocusedNodeIdChange],
+  );
+  const handleNodeFocus = React.useCallback(
+    (node: PositionedRelationshipMapNode) => {
+      if (getNodeDisabled?.(node)) {
+        return;
+      }
+
+      if (focusedNodeId === undefined) {
+        setInternalFocusedNodeId(node.id);
+      }
+
+      onFocusedNodeIdChange?.(node);
+    },
+    [focusedNodeId, getNodeDisabled, onFocusedNodeIdChange],
+  );
+  const handleNodeKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<SVGGElement>, node: PositionedRelationshipMapNode) => {
+      if (resolvedKeyboardMode === "none" || getNodeDisabled?.(node)) {
+        return;
+      }
+
+      if (isActivationKey(event)) {
+        event.preventDefault();
+        onNodeSelect?.(node);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (selectedNodeId != null && onNodeDeselect) {
+          event.preventDefault();
+          onNodeDeselect();
+        }
+
+        return;
+      }
+
+      if (
+        event.key !== "ArrowRight" &&
+        event.key !== "ArrowLeft" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const nextNode = getNearestDiagramItem(
+        node,
+        enabledNodes.filter((item) => item.id !== node.id),
+        event.key,
+      );
+
+      if (nextNode) {
+        focusNodeById(nextNode.id);
+      }
+    },
+    [
+      enabledNodes,
+      focusNodeById,
+      getNodeDisabled,
+      onNodeDeselect,
+      onNodeSelect,
+      resolvedKeyboardMode,
+      selectedNodeId,
+    ],
+  );
+  const toggleGroup = React.useCallback(
+    (groupId: string, collapsed: boolean) => {
+      const nextGroupIds = collapsed
+        ? Array.from(new Set([...internalCollapsedGroups, groupId]))
+        : Array.from(internalCollapsedGroups).filter((id) => id !== groupId);
+
+      setInternalCollapsedGroups(nextGroupIds);
+      onCollapsedGroupIdsChange?.(nextGroupIds, groupId, collapsed);
+    },
+    [internalCollapsedGroups, onCollapsedGroupIdsChange, setInternalCollapsedGroups],
+  );
+  const routePoints = validEdges.flatMap((edge, edgeIndex) => {
+    const source = nodeMap.get(edge.source);
+    const target = nodeMap.get(edge.target);
+
+    return source && target
+      ? getHullRoute({
+          source,
+          target,
+          edgeIndex,
+          points: edge.points,
+          waypoints: edge.waypoints,
+          selfLoop: source.id === target.id,
+        }).points
+      : [];
+  });
+  const bounds = getSpatialBounds(positionedNodes, routePoints, {
+    x: 0,
+    y: 0,
+    width: 640,
+    height: 320,
+  });
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
@@ -118,7 +340,7 @@ function RelationshipMap({
       >
         <svg
           data-slot="relationship-map-svg"
-          role="img"
+          role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
           viewBox={viewBox}
           className="block min-h-72 w-full min-w-160 text-foreground"
@@ -150,7 +372,24 @@ function RelationshipMap({
               </g>
               <g data-slot="relationship-map-nodes">
                 {positionedNodes.map((node) => (
-                  <RelationshipMapNodeShape key={node.id} node={node} />
+                  <RelationshipMapInteractiveNode
+                    key={node.id}
+                    node={node}
+                    selected={selectedNodeId === node.id}
+                    focused={effectiveFocusedNodeId === node.id}
+                    disabled={Boolean(getNodeDisabled?.(node))}
+                    keyboardMode={resolvedKeyboardMode}
+                    nodeActions={nodeActions}
+                    renderNodeSelection={renderNodeSelection}
+                    onNodeSelect={onNodeSelect}
+                    onNodeFocus={handleNodeFocus}
+                    onNodeKeyDown={handleNodeKeyDown}
+                    onNodeActionSelect={onNodeActionSelect}
+                    onToggleGroup={
+                      node.summary ? () => toggleGroup(node.summary!.groupId, false) : undefined
+                    }
+                    setNodeRef={setNodeRef}
+                  />
                 ))}
               </g>
             </>
@@ -187,7 +426,7 @@ function RelationshipMapEdgeShape({
   edgeIndex,
 }: {
   edge: RelationshipMapEdge;
-  nodes: Map<string, PositionedRelationshipMapNode>;
+  nodes: Map<string, RenderRelationshipMapNode>;
   markerId: string;
   edgeIndex: number;
 }) {
@@ -198,10 +437,18 @@ function RelationshipMapEdgeShape({
     return null;
   }
 
-  const points = edge.points?.length ? edge.points : getRoutePoints(source, target, edgeIndex);
+  const route = getHullRoute({
+    source,
+    target,
+    edgeIndex,
+    points: edge.points,
+    waypoints: edge.waypoints,
+    selfLoop: source.id === target.id,
+  });
+  const points = route.points;
   const path = pointsToPath(points);
   const direction = edge.direction ?? "forward";
-  const labelPoint = points[Math.floor(points.length / 2)] ?? points[0];
+  const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
   const markerUrl = `url(#${markerId})`;
 
   return (
@@ -228,6 +475,174 @@ function RelationshipMapEdgeShape({
         </foreignObject>
       ) : null}
     </g>
+  );
+}
+
+function RelationshipMapInteractiveNode({
+  node,
+  selected,
+  focused,
+  disabled,
+  keyboardMode,
+  nodeActions,
+  renderNodeSelection,
+  onNodeSelect,
+  onNodeFocus,
+  onNodeKeyDown,
+  onNodeActionSelect,
+  onToggleGroup,
+  setNodeRef,
+}: {
+  node: RenderRelationshipMapNode;
+  selected: boolean;
+  focused: boolean;
+  disabled: boolean;
+  keyboardMode: "nodes" | "none";
+  nodeActions?: RelationshipMapProps["nodeActions"];
+  renderNodeSelection?: RelationshipMapProps["renderNodeSelection"];
+  onNodeSelect?: RelationshipMapProps["onNodeSelect"];
+  onNodeFocus: (node: PositionedRelationshipMapNode) => void;
+  onNodeKeyDown: (
+    event: React.KeyboardEvent<SVGGElement>,
+    node: PositionedRelationshipMapNode,
+  ) => void;
+  onNodeActionSelect?: RelationshipMapProps["onNodeActionSelect"];
+  onToggleGroup?: () => void;
+  setNodeRef: (nodeId: string, element: SVGGElement | null) => void;
+}) {
+  const resolvedActions =
+    typeof nodeActions === "function" ? nodeActions(node) : (nodeActions ?? []);
+  const accessibleName = getReactNodeAccessibleName(node.label, node.id);
+
+  return (
+    <g
+      data-slot="relationship-map-node-interaction"
+      data-node-id={node.id}
+      data-selected={selected ? "true" : undefined}
+      data-focused={focused ? "true" : undefined}
+      data-disabled={disabled ? "true" : undefined}
+      role={onNodeSelect && !resolvedActions.length ? "button" : undefined}
+      aria-label={onNodeSelect && !resolvedActions.length ? accessibleName : undefined}
+      aria-pressed={onNodeSelect && !resolvedActions.length ? selected : undefined}
+      aria-disabled={onNodeSelect && !resolvedActions.length ? disabled || undefined : undefined}
+      tabIndex={keyboardMode === "nodes" && focused && !disabled ? 0 : -1}
+      className={cn(
+        "outline-none",
+        onNodeSelect &&
+          "cursor-pointer focus-visible:[&_[data-slot='relationship-map-node-focus']]:stroke-ring",
+        disabled && "opacity-60",
+      )}
+      onClick={
+        onNodeSelect && !disabled
+          ? () => {
+              onNodeSelect(node);
+            }
+          : undefined
+      }
+      onFocus={() => onNodeFocus(node)}
+      onKeyDown={(event) => onNodeKeyDown(event, node)}
+      ref={(element) => setNodeRef(node.id, element)}
+    >
+      {selected ? (
+        (renderNodeSelection?.(node) ?? (
+          <rect
+            data-slot="relationship-map-node-focus"
+            x={node.x - 6}
+            y={node.y - 6}
+            width={node.width + 12}
+            height={node.height + 12}
+            rx="12"
+            className="fill-transparent stroke-primary stroke-2"
+          />
+        ))
+      ) : focused ? (
+        <rect
+          data-slot="relationship-map-node-focus"
+          x={node.x - 6}
+          y={node.y - 6}
+          width={node.width + 12}
+          height={node.height + 12}
+          rx="12"
+          className="fill-transparent stroke-ring stroke-2"
+        />
+      ) : null}
+      <RelationshipMapNodeShape node={node} />
+      {onToggleGroup ? (
+        <foreignObject x={node.x + node.width - 52} y={node.y + 8} width={44} height={28}>
+          <button
+            type="button"
+            data-slot="relationship-map-node-action"
+            aria-label={`Expand ${accessibleName}`}
+            className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleGroup();
+            }}
+          >
+            Show
+          </button>
+        </foreignObject>
+      ) : null}
+      {resolvedActions.length ? (
+        <RelationshipMapNodeActions
+          actions={resolvedActions}
+          node={node}
+          onNodeActionSelect={onNodeActionSelect}
+        />
+      ) : null}
+    </g>
+  );
+}
+
+function RelationshipMapNodeActions({
+  actions,
+  node,
+  onNodeActionSelect,
+}: {
+  actions: readonly RelationshipMapNodeAction[];
+  node: PositionedRelationshipMapNode;
+  onNodeActionSelect?: RelationshipMapProps["onNodeActionSelect"];
+}) {
+  const actionSize = 28;
+  const actionGap = 4;
+  const width = actions.length * actionSize + Math.max(0, actions.length - 1) * actionGap;
+
+  return (
+    <foreignObject
+      data-slot="relationship-map-node-actions"
+      x={node.x + node.width - width - 8}
+      y={node.y + node.height - actionSize - 8}
+      width={width}
+      height={actionSize}
+    >
+      <div className="flex gap-1">
+        {actions.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            data-slot="relationship-map-node-action"
+            data-action-id={action.id}
+            data-destructive={action.destructive ? "true" : undefined}
+            aria-label={getReactNodeAccessibleName(action.label, action.id)}
+            disabled={action.disabled}
+            className={cn(
+              "inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-xs font-medium text-foreground shadow-sm outline-none transition-colors",
+              "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+              action.destructive &&
+                "text-destructive hover:bg-destructive/10 hover:text-destructive",
+              "[&_svg]:size-3.5",
+            )}
+            onClick={(event) => {
+              event.stopPropagation();
+              action.onSelect?.(node);
+              onNodeActionSelect?.(action, node);
+            }}
+          >
+            {action.icon ?? action.label}
+          </button>
+        ))}
+      </div>
+    </foreignObject>
   );
 }
 
@@ -327,30 +742,63 @@ function getBounds(
   };
 }
 
-function getRoutePoints(
-  source: PositionedRelationshipMapNode,
-  target: PositionedRelationshipMapNode,
-  edgeIndex: number,
+function getRelationshipMapGroupProjection(
+  nodes: readonly PositionedRelationshipMapNode[],
+  collapsedGroupIds: ReadonlySet<string>,
 ) {
-  const sourcePoint = {
-    x: source.x + source.width,
-    y: source.y + source.height / 2,
-  };
-  const targetPoint = { x: target.x, y: target.y + target.height / 2 };
-  const offset = (edgeIndex % 3) * 12;
-  const midX = (sourcePoint.x + targetPoint.x) / 2 + offset;
+  const hiddenNodeToProxyId = new Map<string, string>();
+  const summaryNodes: RenderRelationshipMapNode[] = [];
+  const groups = new Map<string, PositionedRelationshipMapNode[]>();
 
-  return [sourcePoint, { x: midX, y: sourcePoint.y }, { x: midX, y: targetPoint.y }, targetPoint];
-}
+  for (const node of nodes) {
+    const groupId = getRelationshipMapNodeGroupId(node);
 
-function pointsToPath(points: readonly RelationshipMapPoint[]) {
-  const [first, ...rest] = points;
-
-  if (!first) {
-    return "";
+    if (groupId) {
+      groups.set(groupId, [...(groups.get(groupId) ?? []), node]);
+    }
   }
 
-  return `M ${first.x} ${first.y} ${rest.map((point) => `L ${point.x} ${point.y}`).join(" ")}`;
+  for (const [groupId, groupNodes] of groups) {
+    if (!collapsedGroupIds.has(groupId) || !groupNodes.length) {
+      continue;
+    }
+
+    const bounds = getSpatialBounds(groupNodes);
+    const width = Math.max(150, Math.min(220, bounds.width));
+    const height = 82;
+    const label = groupNodes[0]?.group ?? groupId;
+    const summaryNode: RenderRelationshipMapNode = {
+      id: `${GROUP_SUMMARY_PREFIX}${groupId}`,
+      label,
+      description: `${groupNodes.length} ${groupNodes.length === 1 ? "node" : "nodes"}`,
+      group: "Collapsed group",
+      groupId,
+      tone: "muted",
+      width,
+      height,
+      x: bounds.x + bounds.width / 2 - width / 2,
+      y: bounds.y + bounds.height / 2 - height / 2,
+      summary: { groupId, hiddenNodes: groupNodes },
+    };
+
+    summaryNodes.push(summaryNode);
+
+    for (const node of groupNodes) {
+      hiddenNodeToProxyId.set(node.id, summaryNode.id);
+    }
+  }
+
+  return { hiddenNodeToProxyId, summaryNodes };
+}
+
+function getRelationshipMapNodeGroupId(node: RelationshipMapNode) {
+  if (node.groupId) {
+    return node.groupId;
+  }
+
+  return typeof node.group === "string" || typeof node.group === "number"
+    ? String(node.group)
+    : undefined;
 }
 
 export { RelationshipMap };
@@ -360,6 +808,8 @@ export type {
   RelationshipMapEdge,
   RelationshipMapEdgeKind,
   RelationshipMapDirection,
+  RelationshipMapNodeAction,
   RelationshipMapPoint,
   RelationshipMapTone,
+  PositionedRelationshipMapNode,
 };

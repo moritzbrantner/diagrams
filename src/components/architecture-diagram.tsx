@@ -14,13 +14,19 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  DiagramSvgItemInteraction,
+  type DiagramItemAction,
   defaultEdgeToneClasses,
   defaultToneClasses,
   defaultSvgToneClasses,
   getAutoGridPosition,
-  getOrthogonalRoute,
+  getHullRoute,
+  getNearestDiagramItem,
+  getReactNodeAccessibleName,
   getSpatialBounds,
+  isActivationKey,
   pointsToPath,
+  useControlledSetState,
   type DiagramDirection,
   type DiagramPoint,
   type DiagramTone,
@@ -69,7 +75,10 @@ export type ArchitectureDiagramConnection = {
   kind?: ArchitectureDiagramConnectionKind;
   direction?: DiagramDirection;
   points?: readonly DiagramPoint[];
+  waypoints?: readonly DiagramPoint[];
 };
+
+export type ArchitectureDiagramNodeAction = DiagramItemAction<PositionedArchitectureDiagramNode>;
 
 export type ArchitectureDiagramProps = Omit<React.ComponentProps<"figure">, "children"> & {
   nodes: readonly ArchitectureDiagramNode[];
@@ -80,6 +89,31 @@ export type ArchitectureDiagramProps = Omit<React.ComponentProps<"figure">, "chi
   emptyMessage?: React.ReactNode;
   padding?: number;
   autoLayoutColumns?: number;
+  selectedNodeId?: string | null;
+  focusedNodeId?: string | null;
+  defaultFocusedNodeId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getNodeDisabled?: (node: PositionedArchitectureDiagramNode) => boolean;
+  renderNodeSelection?: (node: PositionedArchitectureDiagramNode) => React.ReactNode;
+  nodeActions?:
+    | readonly ArchitectureDiagramNodeAction[]
+    | ((node: PositionedArchitectureDiagramNode) => readonly ArchitectureDiagramNodeAction[]);
+  onNodeSelect?: (node: PositionedArchitectureDiagramNode) => void;
+  onNodeDeselect?: () => void;
+  onFocusedNodeIdChange?: (node: PositionedArchitectureDiagramNode | null) => void;
+  onNodeActionSelect?: (
+    action: ArchitectureDiagramNodeAction,
+    node: PositionedArchitectureDiagramNode,
+  ) => void;
+  selectedBoundaryId?: string | null;
+  onBoundarySelect?: (boundary: PositionedArchitectureDiagramBoundary) => void;
+  collapsedBoundaryIds?: readonly string[];
+  defaultCollapsedBoundaryIds?: readonly string[];
+  onCollapsedBoundaryIdsChange?: (
+    boundaryIds: string[],
+    boundary: ArchitectureDiagramBoundary,
+    collapsed: boolean,
+  ) => void;
 };
 
 type PositionedArchitectureDiagramNode = ArchitectureDiagramNode &
@@ -88,11 +122,19 @@ type PositionedArchitectureDiagramNode = ArchitectureDiagramNode &
     height: number;
   };
 
+type RenderArchitectureDiagramNode = PositionedArchitectureDiagramNode & {
+  summary?: {
+    boundary: ArchitectureDiagramBoundary;
+    hiddenNodes: readonly PositionedArchitectureDiagramNode[];
+  };
+};
+
 type PositionedArchitectureDiagramBoundary = ArchitectureDiagramBoundary &
   Required<Pick<ArchitectureDiagramBoundary, "x" | "y" | "width" | "height">>;
 
 const DEFAULT_NODE_WIDTH = 188;
 const DEFAULT_NODE_HEIGHT = 104;
+const BOUNDARY_SUMMARY_PREFIX = "__architecture-diagram-boundary-summary-";
 const connectionTone: Record<ArchitectureDiagramConnectionKind, DiagramTone> = {
   sync: "accent",
   async: "success",
@@ -122,31 +164,205 @@ function ArchitectureDiagram({
   emptyMessage = "No architecture nodes.",
   padding = 32,
   autoLayoutColumns = 3,
+  selectedNodeId,
+  focusedNodeId,
+  defaultFocusedNodeId,
+  keyboardMode,
+  getNodeDisabled,
+  renderNodeSelection,
+  nodeActions,
+  onNodeSelect,
+  onNodeDeselect,
+  onFocusedNodeIdChange,
+  onNodeActionSelect,
+  selectedBoundaryId,
+  onBoundarySelect,
+  collapsedBoundaryIds,
+  defaultCollapsedBoundaryIds,
+  onCollapsedBoundaryIdsChange,
   className,
   ...props
 }: ArchitectureDiagramProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
-  const positionedNodes = React.useMemo(
+  const originalPositionedNodes = React.useMemo(
     () => positionNodes(nodes, autoLayoutColumns),
     [autoLayoutColumns, nodes],
   );
   const positionedBoundaries = React.useMemo(
-    () => positionBoundaries(boundaries, positionedNodes),
-    [boundaries, positionedNodes],
+    () => positionBoundaries(boundaries, originalPositionedNodes),
+    [boundaries, originalPositionedNodes],
+  );
+  const [internalCollapsedBoundaryIds, setInternalCollapsedBoundaryIds] = useControlledSetState({
+    value: collapsedBoundaryIds,
+    defaultValue: defaultCollapsedBoundaryIds,
+  });
+  const boundaryProjection = React.useMemo(
+    () =>
+      getArchitectureBoundaryProjection(
+        positionedBoundaries,
+        originalPositionedNodes,
+        internalCollapsedBoundaryIds,
+      ),
+    [internalCollapsedBoundaryIds, originalPositionedNodes, positionedBoundaries],
+  );
+  const positionedNodes = React.useMemo<RenderArchitectureDiagramNode[]>(
+    () => [
+      ...originalPositionedNodes.filter(
+        (node) => !boundaryProjection.hiddenNodeToProxyId.has(node.id),
+      ),
+      ...boundaryProjection.summaryNodes,
+    ],
+    [
+      boundaryProjection.hiddenNodeToProxyId,
+      boundaryProjection.summaryNodes,
+      originalPositionedNodes,
+    ],
   );
   const nodeMap = React.useMemo(
     () => new Map(positionedNodes.map((node) => [node.id, node])),
     [positionedNodes],
   );
-  const validConnections = connections.filter(
-    (connection) => nodeMap.has(connection.source) && nodeMap.has(connection.target),
+  const validConnections = connections
+    .map((connection) => ({
+      ...connection,
+      source: boundaryProjection.hiddenNodeToProxyId.get(connection.source) ?? connection.source,
+      target: boundaryProjection.hiddenNodeToProxyId.get(connection.target) ?? connection.target,
+    }))
+    .filter((connection) => nodeMap.has(connection.source) && nodeMap.has(connection.target));
+  const resolvedKeyboardMode = keyboardMode ?? (onNodeSelect || nodeActions ? "nodes" : "none");
+  const nodeRefs = React.useRef(new Map<string, SVGGElement>());
+  const [internalFocusedNodeId, setInternalFocusedNodeId] = React.useState<string | null>(
+    () => defaultFocusedNodeId ?? null,
   );
-  const routePoints = validConnections.flatMap((connection, index) =>
-    connection.points?.length
-      ? connection.points
-      : getOrthogonalRoute(nodeMap.get(connection.source)!, nodeMap.get(connection.target)!, index),
+  const enabledNodes = React.useMemo(
+    () => positionedNodes.filter((node) => !getNodeDisabled?.(node)),
+    [getNodeDisabled, positionedNodes],
   );
-  const bounds = getSpatialBounds([...positionedBoundaries, ...positionedNodes], routePoints);
+  const requestedFocusedNodeId =
+    focusedNodeId !== undefined ? focusedNodeId : internalFocusedNodeId;
+  const effectiveFocusedNodeId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledNodes.find((node) => node.id === requestedFocusedNodeId)?.id ??
+        enabledNodes[0]?.id ??
+        null)
+      : null;
+  const setNodeRef = React.useCallback((nodeId: string, element: SVGGElement | null) => {
+    if (element) {
+      nodeRefs.current.set(nodeId, element);
+    } else {
+      nodeRefs.current.delete(nodeId);
+    }
+  }, []);
+  const focusNodeById = React.useCallback(
+    (nodeId: string | null, shouldFocusElement = true) => {
+      const nextNode = nodeId ? (nodeMap.get(nodeId) ?? null) : null;
+
+      if (focusedNodeId === undefined) {
+        setInternalFocusedNodeId(nodeId);
+      }
+
+      onFocusedNodeIdChange?.(nextNode);
+
+      if (nodeId && shouldFocusElement) {
+        queueMicrotask(() => nodeRefs.current.get(nodeId)?.focus());
+      }
+    },
+    [focusedNodeId, nodeMap, onFocusedNodeIdChange],
+  );
+  const handleNodeKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<SVGGElement>, node: PositionedArchitectureDiagramNode) => {
+      if (resolvedKeyboardMode === "none" || getNodeDisabled?.(node)) {
+        return;
+      }
+
+      if (isActivationKey(event)) {
+        event.preventDefault();
+        onNodeSelect?.(node);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (selectedNodeId != null && onNodeDeselect) {
+          event.preventDefault();
+          onNodeDeselect();
+        }
+        return;
+      }
+
+      if (
+        event.key !== "ArrowRight" &&
+        event.key !== "ArrowLeft" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      const nextNode = getNearestDiagramItem(
+        node,
+        enabledNodes.filter((item) => item.id !== node.id),
+        event.key,
+      );
+
+      if (nextNode) {
+        focusNodeById(nextNode.id);
+      }
+    },
+    [
+      enabledNodes,
+      focusNodeById,
+      getNodeDisabled,
+      onNodeDeselect,
+      onNodeSelect,
+      resolvedKeyboardMode,
+      selectedNodeId,
+    ],
+  );
+  const handleNodeFocus = React.useCallback(
+    (node: PositionedArchitectureDiagramNode) => {
+      if (getNodeDisabled?.(node)) {
+        return;
+      }
+
+      if (focusedNodeId === undefined) {
+        setInternalFocusedNodeId(node.id);
+      }
+
+      onFocusedNodeIdChange?.(node);
+    },
+    [focusedNodeId, getNodeDisabled, onFocusedNodeIdChange],
+  );
+  const toggleBoundary = React.useCallback(
+    (boundary: ArchitectureDiagramBoundary, collapsed: boolean) => {
+      const nextBoundaryIds = collapsed
+        ? Array.from(new Set([...internalCollapsedBoundaryIds, boundary.id]))
+        : Array.from(internalCollapsedBoundaryIds).filter((id) => id !== boundary.id);
+
+      setInternalCollapsedBoundaryIds(nextBoundaryIds);
+      onCollapsedBoundaryIdsChange?.(nextBoundaryIds, boundary, collapsed);
+    },
+    [internalCollapsedBoundaryIds, onCollapsedBoundaryIdsChange, setInternalCollapsedBoundaryIds],
+  );
+  const routePoints = validConnections.flatMap((connection, index) => {
+    const source = nodeMap.get(connection.source);
+    const target = nodeMap.get(connection.target);
+
+    return source && target
+      ? getHullRoute({
+          source,
+          target,
+          edgeIndex: index,
+          points: connection.points,
+          waypoints: connection.waypoints,
+          selfLoop: source.id === target.id,
+        }).points
+      : [];
+  });
+  const bounds = getSpatialBounds(
+    [...boundaryProjection.expandedBoundaries, ...positionedNodes],
+    routePoints,
+  );
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
@@ -172,7 +388,7 @@ function ArchitectureDiagram({
         </button>
         <svg
           data-slot="architecture-diagram-svg"
-          role="img"
+          role={onNodeSelect || nodeActions || onBoundarySelect ? "group" : "img"}
           aria-label={ariaLabel}
           viewBox={viewBox}
           className="block min-h-80 w-full min-w-160 text-foreground"
@@ -192,11 +408,31 @@ function ArchitectureDiagram({
           {positionedNodes.length ? (
             <>
               <g data-slot="architecture-diagram-boundaries">
-                {positionedBoundaries.map((boundary) => (
+                {boundaryProjection.expandedBoundaries.map((boundary) => (
                   <g
                     key={boundary.id}
                     data-slot="architecture-diagram-boundary"
                     data-tone={boundary.tone ?? "muted"}
+                    data-selected={selectedBoundaryId === boundary.id ? "true" : undefined}
+                    role={onBoundarySelect ? "button" : undefined}
+                    aria-label={
+                      onBoundarySelect
+                        ? getReactNodeAccessibleName(boundary.label, boundary.id)
+                        : undefined
+                    }
+                    tabIndex={onBoundarySelect ? 0 : undefined}
+                    className={onBoundarySelect ? "cursor-pointer outline-none" : undefined}
+                    onClick={onBoundarySelect ? () => onBoundarySelect(boundary) : undefined}
+                    onKeyDown={
+                      onBoundarySelect
+                        ? (event) => {
+                            if (isActivationKey(event)) {
+                              event.preventDefault();
+                              onBoundarySelect(boundary);
+                            }
+                          }
+                        : undefined
+                    }
                   >
                     <rect
                       x={boundary.x}
@@ -214,6 +450,29 @@ function ArchitectureDiagram({
                     >
                       {boundary.label}
                     </text>
+                    {onCollapsedBoundaryIdsChange ||
+                    collapsedBoundaryIds ||
+                    defaultCollapsedBoundaryIds ? (
+                      <foreignObject
+                        x={boundary.x + boundary.width - 64}
+                        y={boundary.y + 8}
+                        width={56}
+                        height={28}
+                      >
+                        <button
+                          type="button"
+                          data-slot="architecture-diagram-boundary-action"
+                          aria-label={`Collapse ${getReactNodeAccessibleName(boundary.label, boundary.id)}`}
+                          className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleBoundary(boundary, true);
+                          }}
+                        >
+                          Hide
+                        </button>
+                      </foreignObject>
+                    ) : null}
                   </g>
                 ))}
               </g>
@@ -230,7 +489,47 @@ function ArchitectureDiagram({
               </g>
               <g data-slot="architecture-diagram-nodes">
                 {positionedNodes.map((node) => (
-                  <ArchitectureNodeShape key={node.id} node={node} />
+                  <DiagramSvgItemInteraction
+                    key={node.id}
+                    item={node}
+                    slot="architecture-diagram-node"
+                    selected={selectedNodeId === node.id}
+                    focused={effectiveFocusedNodeId === node.id}
+                    disabled={Boolean(getNodeDisabled?.(node))}
+                    keyboardMode={resolvedKeyboardMode}
+                    actions={
+                      typeof nodeActions === "function" ? nodeActions(node) : (nodeActions ?? [])
+                    }
+                    renderSelection={renderNodeSelection}
+                    onSelect={onNodeSelect}
+                    onFocus={handleNodeFocus}
+                    onKeyDown={handleNodeKeyDown}
+                    onActionSelect={onNodeActionSelect}
+                    setItemRef={setNodeRef}
+                  >
+                    <ArchitectureNodeShape node={node} />
+                    {node.summary ? (
+                      <foreignObject
+                        x={node.x + node.width - 52}
+                        y={node.y + 8}
+                        width={44}
+                        height={28}
+                      >
+                        <button
+                          type="button"
+                          data-slot="architecture-diagram-node-action"
+                          aria-label={`Expand ${getReactNodeAccessibleName(node.label, node.id)}`}
+                          className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleBoundary(node.summary!.boundary, false);
+                          }}
+                        >
+                          Show
+                        </button>
+                      </foreignObject>
+                    ) : null}
+                  </DiagramSvgItemInteraction>
                 ))}
               </g>
             </>
@@ -263,7 +562,7 @@ function ArchitectureConnectionShape({
   connectionIndex,
 }: {
   connection: ArchitectureDiagramConnection;
-  nodes: Map<string, PositionedArchitectureDiagramNode>;
+  nodes: Map<string, RenderArchitectureDiagramNode>;
   markerId: string;
   connectionIndex: number;
 }) {
@@ -274,12 +573,18 @@ function ArchitectureConnectionShape({
     return null;
   }
 
-  const points = connection.points?.length
-    ? connection.points
-    : getOrthogonalRoute(source, target, connectionIndex);
+  const route = getHullRoute({
+    source,
+    target,
+    edgeIndex: connectionIndex,
+    points: connection.points,
+    waypoints: connection.waypoints,
+    selfLoop: source.id === target.id,
+  });
+  const points = route.points;
   const direction = connection.direction ?? "forward";
   const markerUrl = `url(#${markerId})`;
-  const labelPoint = points[Math.floor(points.length / 2)] ?? points[0];
+  const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
   const tone = connectionTone[connection.kind ?? "sync"];
 
   return (
@@ -344,6 +649,47 @@ function ArchitectureNodeShape({ node }: { node: PositionedArchitectureDiagramNo
       </div>
     </foreignObject>
   );
+}
+
+function getArchitectureBoundaryProjection(
+  boundaries: readonly PositionedArchitectureDiagramBoundary[],
+  nodes: readonly PositionedArchitectureDiagramNode[],
+  collapsedBoundaryIds: ReadonlySet<string>,
+) {
+  const hiddenNodeToProxyId = new Map<string, string>();
+  const summaryNodes: RenderArchitectureDiagramNode[] = [];
+  const expandedBoundaries: PositionedArchitectureDiagramBoundary[] = [];
+
+  for (const boundary of boundaries) {
+    const boundaryNodes = nodes.filter((node) => node.boundaryId === boundary.id);
+
+    if (!collapsedBoundaryIds.has(boundary.id)) {
+      expandedBoundaries.push(boundary);
+      continue;
+    }
+
+    const summaryNode: RenderArchitectureDiagramNode = {
+      id: `${BOUNDARY_SUMMARY_PREFIX}${boundary.id}`,
+      label: boundary.label,
+      description: `${boundaryNodes.length} ${boundaryNodes.length === 1 ? "node" : "nodes"}`,
+      kind: "gateway",
+      boundaryId: boundary.id,
+      tone: boundary.tone ?? "muted",
+      x: boundary.x + boundary.width / 2 - 84,
+      y: boundary.y + boundary.height / 2 - 42,
+      width: 168,
+      height: 84,
+      summary: { boundary, hiddenNodes: boundaryNodes },
+    };
+
+    summaryNodes.push(summaryNode);
+
+    for (const node of boundaryNodes) {
+      hiddenNodeToProxyId.set(node.id, summaryNode.id);
+    }
+  }
+
+  return { expandedBoundaries, hiddenNodeToProxyId, summaryNodes };
 }
 
 function positionNodes(

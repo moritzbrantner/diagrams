@@ -5,10 +5,17 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  DiagramSvgItemInteraction,
+  type DiagramItemAction,
   defaultEdgeToneClasses,
   defaultToneClasses,
+  getBoundaryPoint,
+  getNearestDiagramItem,
+  getReactNodeAccessibleName,
   getSpatialBounds,
+  isActivationKey,
   type DiagramTone,
+  useControlledSetState,
 } from "./diagram-utils";
 
 export type MindMapNode = {
@@ -31,6 +38,8 @@ export type MindMapFlatNode = {
 
 export type MindMapLayout = "radial" | "tree";
 
+export type MindMapNodeAction = DiagramItemAction<PositionedMindMapNode>;
+
 export type MindMapProps = Omit<React.ComponentProps<"figure">, "children"> & {
   root?: MindMapNode;
   nodes?: readonly MindMapFlatNode[];
@@ -39,6 +48,26 @@ export type MindMapProps = Omit<React.ComponentProps<"figure">, "children"> & {
   caption?: React.ReactNode;
   emptyMessage?: React.ReactNode;
   padding?: number;
+  selectedNodeId?: string | null;
+  focusedNodeId?: string | null;
+  defaultFocusedNodeId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getNodeDisabled?: (node: PositionedMindMapNode) => boolean;
+  renderNodeSelection?: (node: PositionedMindMapNode) => React.ReactNode;
+  nodeActions?:
+    | readonly MindMapNodeAction[]
+    | ((node: PositionedMindMapNode) => readonly MindMapNodeAction[]);
+  onNodeSelect?: (node: PositionedMindMapNode) => void;
+  onNodeDeselect?: () => void;
+  onFocusedNodeIdChange?: (node: PositionedMindMapNode | null) => void;
+  onNodeActionSelect?: (action: MindMapNodeAction, node: PositionedMindMapNode) => void;
+  expandedNodeIds?: readonly string[];
+  defaultExpandedNodeIds?: readonly string[];
+  onExpandedNodeIdsChange?: (
+    nodeIds: string[],
+    node: PositionedMindMapNode,
+    expanded: boolean,
+  ) => void;
 };
 
 type PositionedMindMapNode = MindMapFlatNode & {
@@ -59,10 +88,33 @@ function MindMap({
   caption,
   emptyMessage = "No mind map nodes.",
   padding = 32,
+  selectedNodeId,
+  focusedNodeId,
+  defaultFocusedNodeId,
+  keyboardMode,
+  getNodeDisabled,
+  renderNodeSelection,
+  nodeActions,
+  onNodeSelect,
+  onNodeDeselect,
+  onFocusedNodeIdChange,
+  onNodeActionSelect,
+  expandedNodeIds,
+  defaultExpandedNodeIds,
+  onExpandedNodeIdsChange,
   className,
   ...props
 }: MindMapProps) {
-  const flatNodes = React.useMemo(() => (root ? flattenRoot(root) : [...nodes]), [nodes, root]);
+  const allFlatNodes = React.useMemo(() => (root ? flattenRoot(root) : [...nodes]), [nodes, root]);
+  const allNodeIds = React.useMemo(() => allFlatNodes.map((node) => node.id), [allFlatNodes]);
+  const [internalExpandedNodeIds, setInternalExpandedNodeIds] = useControlledSetState({
+    value: expandedNodeIds,
+    defaultValue: defaultExpandedNodeIds ?? allNodeIds,
+  });
+  const flatNodes = React.useMemo(
+    () => filterExpandedMindMapNodes(allFlatNodes, internalExpandedNodeIds),
+    [allFlatNodes, internalExpandedNodeIds],
+  );
   const positionedNodes = React.useMemo(
     () => positionNodes(flatNodes, layout),
     [flatNodes, layout],
@@ -74,6 +126,121 @@ function MindMap({
   const edges = positionedNodes
     .filter((node) => node.parentId && nodeMap.has(node.parentId))
     .map((node) => ({ source: nodeMap.get(node.parentId!)!, target: node }));
+  const resolvedKeyboardMode = keyboardMode ?? (onNodeSelect || nodeActions ? "nodes" : "none");
+  const nodeRefs = React.useRef(new Map<string, SVGGElement>());
+  const [internalFocusedNodeId, setInternalFocusedNodeId] = React.useState<string | null>(
+    () => defaultFocusedNodeId ?? null,
+  );
+  const enabledNodes = React.useMemo(
+    () => positionedNodes.filter((node) => !getNodeDisabled?.(node)),
+    [getNodeDisabled, positionedNodes],
+  );
+  const requestedFocusedNodeId =
+    focusedNodeId !== undefined ? focusedNodeId : internalFocusedNodeId;
+  const effectiveFocusedNodeId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledNodes.find((node) => node.id === requestedFocusedNodeId)?.id ??
+        enabledNodes[0]?.id ??
+        null)
+      : null;
+  const setNodeRef = React.useCallback((nodeId: string, element: SVGGElement | null) => {
+    if (element) {
+      nodeRefs.current.set(nodeId, element);
+    } else {
+      nodeRefs.current.delete(nodeId);
+    }
+  }, []);
+  const focusNodeById = React.useCallback(
+    (nodeId: string | null) => {
+      const nextNode = nodeId ? (nodeMap.get(nodeId) ?? null) : null;
+
+      if (focusedNodeId === undefined) {
+        setInternalFocusedNodeId(nodeId);
+      }
+
+      onFocusedNodeIdChange?.(nextNode);
+
+      if (nodeId) {
+        queueMicrotask(() => nodeRefs.current.get(nodeId)?.focus());
+      }
+    },
+    [focusedNodeId, nodeMap, onFocusedNodeIdChange],
+  );
+  const handleNodeFocus = React.useCallback(
+    (node: PositionedMindMapNode) => {
+      if (getNodeDisabled?.(node)) {
+        return;
+      }
+
+      if (focusedNodeId === undefined) {
+        setInternalFocusedNodeId(node.id);
+      }
+
+      onFocusedNodeIdChange?.(node);
+    },
+    [focusedNodeId, getNodeDisabled, onFocusedNodeIdChange],
+  );
+  const handleNodeKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<SVGGElement>, node: PositionedMindMapNode) => {
+      if (resolvedKeyboardMode === "none" || getNodeDisabled?.(node)) {
+        return;
+      }
+
+      if (isActivationKey(event)) {
+        event.preventDefault();
+        onNodeSelect?.(node);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (selectedNodeId != null && onNodeDeselect) {
+          event.preventDefault();
+          onNodeDeselect();
+        }
+        return;
+      }
+
+      if (
+        event.key !== "ArrowRight" &&
+        event.key !== "ArrowLeft" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      const nextNode = getNearestDiagramItem(
+        node,
+        enabledNodes.filter((item) => item.id !== node.id),
+        event.key,
+      );
+
+      if (nextNode) {
+        focusNodeById(nextNode.id);
+      }
+    },
+    [
+      enabledNodes,
+      focusNodeById,
+      getNodeDisabled,
+      onNodeDeselect,
+      onNodeSelect,
+      resolvedKeyboardMode,
+      selectedNodeId,
+    ],
+  );
+  const toggleExpanded = React.useCallback(
+    (node: PositionedMindMapNode, expanded: boolean) => {
+      const nextNodeIds = expanded
+        ? Array.from(new Set([...internalExpandedNodeIds, node.id]))
+        : Array.from(internalExpandedNodeIds).filter((id) => id !== node.id);
+
+      setInternalExpandedNodeIds(nextNodeIds);
+      onExpandedNodeIdsChange?.(nextNodeIds, node, expanded);
+    },
+    [internalExpandedNodeIds, onExpandedNodeIdsChange, setInternalExpandedNodeIds],
+  );
   const bounds = getSpatialBounds(positionedNodes);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
@@ -100,7 +267,7 @@ function MindMap({
         </button>
         <svg
           data-slot="mind-map-svg"
-          role="img"
+          role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
           viewBox={viewBox}
           className="block min-h-80 w-full min-w-160 text-foreground"
@@ -109,19 +276,54 @@ function MindMap({
             <>
               <g data-slot="mind-map-edges">
                 {edges.map((edge) => (
-                  <path
-                    key={`${edge.source.id}-${edge.target.id}`}
-                    data-slot="mind-map-edge"
-                    d={`M ${edge.source.x + NODE_WIDTH / 2} ${edge.source.y + NODE_HEIGHT / 2} C ${(edge.source.x + edge.target.x) / 2} ${edge.source.y + NODE_HEIGHT / 2}, ${(edge.source.x + edge.target.x) / 2} ${edge.target.y + NODE_HEIGHT / 2}, ${edge.target.x + NODE_WIDTH / 2} ${edge.target.y + NODE_HEIGHT / 2}`}
-                    fill="none"
-                    strokeWidth={2}
-                    className={defaultEdgeToneClasses.muted}
-                  />
+                  <MindMapEdgeShape key={`${edge.source.id}-${edge.target.id}`} edge={edge} />
                 ))}
               </g>
               <g data-slot="mind-map-nodes">
                 {positionedNodes.map((node) => (
-                  <MindMapNodeShape key={node.id} node={node} />
+                  <DiagramSvgItemInteraction
+                    key={node.id}
+                    item={node}
+                    slot="mind-map-node"
+                    selected={selectedNodeId === node.id}
+                    focused={effectiveFocusedNodeId === node.id}
+                    disabled={Boolean(getNodeDisabled?.(node))}
+                    keyboardMode={resolvedKeyboardMode}
+                    actions={
+                      typeof nodeActions === "function" ? nodeActions(node) : (nodeActions ?? [])
+                    }
+                    renderSelection={renderNodeSelection}
+                    onSelect={onNodeSelect}
+                    onFocus={handleNodeFocus}
+                    onKeyDown={handleNodeKeyDown}
+                    onActionSelect={onNodeActionSelect}
+                    setItemRef={setNodeRef}
+                  >
+                    <MindMapNodeShape node={node} />
+                    {onExpandedNodeIdsChange || expandedNodeIds || defaultExpandedNodeIds ? (
+                      allFlatNodes.some((item) => item.parentId === node.id) ? (
+                        <foreignObject
+                          x={node.x + node.width - 64}
+                          y={node.y + 8}
+                          width={56}
+                          height={28}
+                        >
+                          <button
+                            type="button"
+                            data-slot="mind-map-node-action"
+                            aria-label={`${internalExpandedNodeIds.has(node.id) ? "Collapse" : "Expand"} ${getReactNodeAccessibleName(node.label, node.id)}`}
+                            className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleExpanded(node, !internalExpandedNodeIds.has(node.id));
+                            }}
+                          >
+                            {internalExpandedNodeIds.has(node.id) ? "Hide" : "Show"}
+                          </button>
+                        </foreignObject>
+                      ) : null
+                    ) : null}
+                  </DiagramSvgItemInteraction>
                 ))}
               </g>
             </>
@@ -144,6 +346,33 @@ function MindMap({
         </figcaption>
       ) : null}
     </figure>
+  );
+}
+
+function MindMapEdgeShape({
+  edge,
+}: {
+  edge: { source: PositionedMindMapNode; target: PositionedMindMapNode };
+}) {
+  const sourceCenter = {
+    x: edge.source.x + edge.source.width / 2,
+    y: edge.source.y + edge.source.height / 2,
+  };
+  const targetCenter = {
+    x: edge.target.x + edge.target.width / 2,
+    y: edge.target.y + edge.target.height / 2,
+  };
+  const source = getBoundaryPoint(edge.source, targetCenter);
+  const target = getBoundaryPoint(edge.target, sourceCenter);
+
+  return (
+    <path
+      data-slot="mind-map-edge"
+      d={`M ${source.x} ${source.y} C ${(source.x + target.x) / 2} ${source.y}, ${(source.x + target.x) / 2} ${target.y}, ${target.x} ${target.y}`}
+      fill="none"
+      strokeWidth={2}
+      className={defaultEdgeToneClasses.muted}
+    />
   );
 }
 
@@ -253,6 +482,39 @@ function positionNodes(
       height: NODE_HEIGHT,
     };
   });
+}
+
+function filterExpandedMindMapNodes(
+  nodes: readonly MindMapFlatNode[],
+  expandedNodeIds: ReadonlySet<string>,
+) {
+  const rootNode = nodes.find((node) => !node.parentId) ?? nodes[0];
+
+  if (!rootNode) {
+    return [];
+  }
+
+  const visibleNodeIds = new Set<string>();
+  const queue = [rootNode.id];
+
+  while (queue.length) {
+    const nodeId = queue.shift()!;
+    if (visibleNodeIds.has(nodeId)) {
+      continue;
+    }
+
+    visibleNodeIds.add(nodeId);
+
+    if (!expandedNodeIds.has(nodeId)) {
+      continue;
+    }
+
+    for (const child of nodes.filter((node) => node.parentId === nodeId)) {
+      queue.push(child.id);
+    }
+  }
+
+  return nodes.filter((node) => visibleNodeIds.has(node.id));
 }
 
 export { MindMap };

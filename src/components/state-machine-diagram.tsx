@@ -5,12 +5,18 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  DiagramSvgItemInteraction,
+  type DiagramItemAction,
   defaultEdgeToneClasses,
   defaultToneClasses,
   getAutoGridPosition,
-  getOrthogonalRoute,
+  getHullRoute,
+  getNearestDiagramItem,
+  getReactNodeAccessibleName,
   getSpatialBounds,
+  isActivationKey,
   pointsToPath,
+  type DiagramDirection,
   type DiagramPoint,
   type DiagramTone,
 } from "./diagram-utils";
@@ -40,8 +46,12 @@ export type StateMachineTransition = {
   guard?: React.ReactNode;
   action?: React.ReactNode;
   kind?: StateMachineTransitionKind;
+  direction?: DiagramDirection;
   points?: readonly DiagramPoint[];
+  waypoints?: readonly DiagramPoint[];
 };
+
+export type StateMachineStateAction = DiagramItemAction<PositionedStateMachineState>;
 
 export type StateMachineDiagramProps = Omit<React.ComponentProps<"figure">, "children"> & {
   states: readonly StateMachineState[];
@@ -51,6 +61,24 @@ export type StateMachineDiagramProps = Omit<React.ComponentProps<"figure">, "chi
   emptyMessage?: React.ReactNode;
   padding?: number;
   autoLayoutColumns?: number;
+  selectedStateId?: string | null;
+  focusedStateId?: string | null;
+  defaultFocusedStateId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getStateDisabled?: (state: PositionedStateMachineState) => boolean;
+  renderStateSelection?: (state: PositionedStateMachineState) => React.ReactNode;
+  stateActions?:
+    | readonly StateMachineStateAction[]
+    | ((state: PositionedStateMachineState) => readonly StateMachineStateAction[]);
+  onStateSelect?: (state: PositionedStateMachineState) => void;
+  onStateDeselect?: () => void;
+  onFocusedStateIdChange?: (state: PositionedStateMachineState | null) => void;
+  onStateActionSelect?: (
+    action: StateMachineStateAction,
+    state: PositionedStateMachineState,
+  ) => void;
+  selectedTransitionId?: string | null;
+  onTransitionSelect?: (transition: StateMachineTransition) => void;
 };
 
 type PositionedStateMachineState = StateMachineState &
@@ -76,6 +104,19 @@ function StateMachineDiagram({
   emptyMessage = "No states to display.",
   padding = 32,
   autoLayoutColumns = 3,
+  selectedStateId,
+  focusedStateId,
+  defaultFocusedStateId,
+  keyboardMode,
+  getStateDisabled,
+  renderStateSelection,
+  stateActions,
+  onStateSelect,
+  onStateDeselect,
+  onFocusedStateIdChange,
+  onStateActionSelect,
+  selectedTransitionId,
+  onTransitionSelect,
   className,
   ...props
 }: StateMachineDiagramProps) {
@@ -91,15 +132,125 @@ function StateMachineDiagram({
   const validTransitions = transitions.filter(
     (transition) => stateMap.has(transition.source) && stateMap.has(transition.target),
   );
-  const routePoints = validTransitions.flatMap((transition, index) =>
-    transition.points?.length
-      ? transition.points
-      : getOrthogonalRoute(
-          stateMap.get(transition.source)!,
-          stateMap.get(transition.target)!,
-          index,
-        ),
+  const resolvedKeyboardMode = keyboardMode ?? (onStateSelect || stateActions ? "nodes" : "none");
+  const stateRefs = React.useRef(new Map<string, SVGGElement>());
+  const [internalFocusedStateId, setInternalFocusedStateId] = React.useState<string | null>(
+    () => defaultFocusedStateId ?? null,
   );
+  const enabledStates = React.useMemo(
+    () => positionedStates.filter((state) => !getStateDisabled?.(state)),
+    [getStateDisabled, positionedStates],
+  );
+  const requestedFocusedStateId =
+    focusedStateId !== undefined ? focusedStateId : internalFocusedStateId;
+  const effectiveFocusedStateId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledStates.find((state) => state.id === requestedFocusedStateId)?.id ??
+        enabledStates[0]?.id ??
+        null)
+      : null;
+  const setStateRef = React.useCallback((stateId: string, element: SVGGElement | null) => {
+    if (element) {
+      stateRefs.current.set(stateId, element);
+    } else {
+      stateRefs.current.delete(stateId);
+    }
+  }, []);
+  const focusStateById = React.useCallback(
+    (stateId: string | null) => {
+      const nextState = stateId ? (stateMap.get(stateId) ?? null) : null;
+
+      if (focusedStateId === undefined) {
+        setInternalFocusedStateId(stateId);
+      }
+
+      onFocusedStateIdChange?.(nextState);
+
+      if (stateId) {
+        queueMicrotask(() => stateRefs.current.get(stateId)?.focus());
+      }
+    },
+    [focusedStateId, onFocusedStateIdChange, stateMap],
+  );
+  const handleStateFocus = React.useCallback(
+    (state: PositionedStateMachineState) => {
+      if (getStateDisabled?.(state)) {
+        return;
+      }
+
+      if (focusedStateId === undefined) {
+        setInternalFocusedStateId(state.id);
+      }
+
+      onFocusedStateIdChange?.(state);
+    },
+    [focusedStateId, getStateDisabled, onFocusedStateIdChange],
+  );
+  const handleStateKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<SVGGElement>, state: PositionedStateMachineState) => {
+      if (resolvedKeyboardMode === "none" || getStateDisabled?.(state)) {
+        return;
+      }
+
+      if (isActivationKey(event)) {
+        event.preventDefault();
+        onStateSelect?.(state);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (selectedStateId != null && onStateDeselect) {
+          event.preventDefault();
+          onStateDeselect();
+        }
+        return;
+      }
+
+      if (
+        event.key !== "ArrowRight" &&
+        event.key !== "ArrowLeft" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      const nextState = getNearestDiagramItem(
+        state,
+        enabledStates.filter((item) => item.id !== state.id),
+        event.key,
+      );
+
+      if (nextState) {
+        focusStateById(nextState.id);
+      }
+    },
+    [
+      enabledStates,
+      focusStateById,
+      getStateDisabled,
+      onStateDeselect,
+      onStateSelect,
+      resolvedKeyboardMode,
+      selectedStateId,
+    ],
+  );
+  const routePoints = validTransitions.flatMap((transition, index) => {
+    const source = stateMap.get(transition.source);
+    const target = stateMap.get(transition.target);
+
+    return source && target
+      ? getHullRoute({
+          source,
+          target,
+          edgeIndex: index,
+          points: transition.points,
+          waypoints: transition.waypoints,
+          selfLoop: source.id === target.id,
+        }).points
+      : [];
+  });
   const bounds = getSpatialBounds(positionedStates, routePoints);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
@@ -126,7 +277,7 @@ function StateMachineDiagram({
         </button>
         <svg
           data-slot="state-machine-diagram-svg"
-          role="img"
+          role={onStateSelect || stateActions || onTransitionSelect ? "group" : "img"}
           aria-label={ariaLabel}
           viewBox={viewBox}
           className="block min-h-80 w-full min-w-160 text-foreground"
@@ -153,12 +304,35 @@ function StateMachineDiagram({
                     states={stateMap}
                     markerId={markerId}
                     transitionIndex={index}
+                    selected={selectedTransitionId === transition.id}
+                    onTransitionSelect={onTransitionSelect}
                   />
                 ))}
               </g>
               <g data-slot="state-machine-diagram-states">
                 {positionedStates.map((state) => (
-                  <StateShape key={state.id} state={state} />
+                  <DiagramSvgItemInteraction
+                    key={state.id}
+                    item={state}
+                    slot="state-machine-diagram-state"
+                    selected={selectedStateId === state.id}
+                    focused={effectiveFocusedStateId === state.id}
+                    disabled={Boolean(getStateDisabled?.(state))}
+                    keyboardMode={resolvedKeyboardMode}
+                    actions={
+                      typeof stateActions === "function"
+                        ? stateActions(state)
+                        : (stateActions ?? [])
+                    }
+                    renderSelection={renderStateSelection}
+                    onSelect={onStateSelect}
+                    onFocus={handleStateFocus}
+                    onKeyDown={handleStateKeyDown}
+                    onActionSelect={onStateActionSelect}
+                    setItemRef={setStateRef}
+                  >
+                    <StateShape state={state} />
+                  </DiagramSvgItemInteraction>
                 ))}
               </g>
             </>
@@ -189,11 +363,15 @@ function TransitionShape({
   states,
   markerId,
   transitionIndex,
+  selected,
+  onTransitionSelect,
 }: {
   transition: StateMachineTransition;
   states: Map<string, PositionedStateMachineState>;
   markerId: string;
   transitionIndex: number;
+  selected: boolean;
+  onTransitionSelect?: StateMachineDiagramProps["onTransitionSelect"];
 }) {
   const source = states.get(transition.source);
   const target = states.get(transition.target);
@@ -202,20 +380,53 @@ function TransitionShape({
     return null;
   }
 
-  const points = transition.points?.length
-    ? transition.points
-    : getOrthogonalRoute(source, target, transitionIndex);
-  const labelPoint = points[Math.floor(points.length / 2)] ?? points[0];
+  const route = getHullRoute({
+    source,
+    target,
+    edgeIndex: transitionIndex,
+    points: transition.points,
+    waypoints: transition.waypoints,
+    selfLoop: source.id === target.id,
+  });
+  const points = route.points;
+  const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
+  const direction = transition.direction ?? "forward";
+  const markerUrl = `url(#${markerId})`;
+  const accessibleLabel = getReactNodeAccessibleName(
+    transition.event ?? transition.guard ?? transition.action,
+    transition.id,
+  );
 
   return (
-    <g data-slot="state-machine-diagram-transition" data-kind={transition.kind ?? "transition"}>
+    <g
+      data-slot="state-machine-diagram-transition"
+      data-kind={transition.kind ?? "transition"}
+      data-selected={selected ? "true" : undefined}
+      role={onTransitionSelect ? "button" : undefined}
+      aria-label={onTransitionSelect ? accessibleLabel : undefined}
+      aria-pressed={onTransitionSelect ? selected : undefined}
+      tabIndex={onTransitionSelect ? 0 : undefined}
+      className={onTransitionSelect ? "cursor-pointer outline-none" : undefined}
+      onClick={onTransitionSelect ? () => onTransitionSelect(transition) : undefined}
+      onKeyDown={
+        onTransitionSelect
+          ? (event) => {
+              if (isActivationKey(event)) {
+                event.preventDefault();
+                onTransitionSelect(transition);
+              }
+            }
+          : undefined
+      }
+    >
       <path
         d={pointsToPath(points)}
         fill="none"
-        strokeWidth={2}
+        strokeWidth={selected ? 3 : 2}
         strokeDasharray={transition.kind === "internal" ? "6 6" : undefined}
         className={defaultEdgeToneClasses[transitionTone[transition.kind ?? "transition"]]}
-        markerEnd={`url(#${markerId})`}
+        markerStart={direction === "backward" || direction === "both" ? markerUrl : undefined}
+        markerEnd={direction === "forward" || direction === "both" ? markerUrl : undefined}
       />
       {(transition.event || transition.guard || transition.action) && labelPoint ? (
         <foreignObject x={labelPoint.x - 82} y={labelPoint.y - 30} width={164} height={52}>

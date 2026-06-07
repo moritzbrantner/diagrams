@@ -9,6 +9,7 @@ export {
   ArchitectureDiagramConnection,
   ArchitectureDiagramConnectionKind,
   ArchitectureDiagramNode,
+  ArchitectureDiagramNodeAction,
   ArchitectureDiagramNodeKind,
   ArchitectureDiagramProps,
   PositionedArchitectureDiagramBoundary,
@@ -18,15 +19,19 @@ export {
   BurndownChart,
   BurndownChartDate,
   BurndownChartPoint,
+  BurndownChartPointAction,
   BurndownChartProps,
+  PreparedBurndownPoint,
 } from "./burndown-chart.js";
 export {
   DecisionTree,
   DecisionTreeBranch,
+  DecisionTreeBranchAction,
   DecisionTreeEdge,
   DecisionTreeFlatNode,
   DecisionTreeLayout,
   DecisionTreeNode,
+  DecisionTreeNodeAction,
   DecisionTreeNodeKind,
   DecisionTreeProps,
   PositionedDecisionTreeNode,
@@ -50,6 +55,7 @@ export {
   EntityRelationshipDiagram,
   EntityRelationshipDiagramProps,
   EntityRelationshipEntity,
+  EntityRelationshipEntityAction,
   EntityRelationshipField,
   EntityRelationshipRelation,
   PositionedEntityRelationshipEntity,
@@ -59,21 +65,26 @@ export {
   GanttChartDate,
   GanttChartProps,
   GanttChartTask,
+  GanttChartTaskAction,
   GanttChartTone,
+  PreparedGanttTask,
 } from "./gantt-chart.js";
 export {
   JourneyMap,
   JourneyMapItem,
+  JourneyMapItemAction,
   JourneyMapLane,
   JourneyMapPhase,
   JourneyMapProps,
   JourneyMapTouchpoint,
+  JourneyMapTouchpointAction,
 } from "./journey-map.js";
 export {
   MindMap,
   MindMapFlatNode,
   MindMapLayout,
   MindMapNode,
+  MindMapNodeAction,
   MindMapProps,
   PositionedMindMapNode,
 } from "./mind-map.js";
@@ -101,27 +112,33 @@ export {
   ProcessMapProps,
   ProcessMapStatus,
   ProcessMapStep,
+  ProcessMapStepAction,
   ProcessMapStepData,
   ProcessMapStepProps,
   ProcessMapTone,
 } from "./process-map.js";
 export {
+  PositionedRelationshipMapNode,
   RelationshipMap,
   RelationshipMapDirection,
   RelationshipMapEdge,
   RelationshipMapEdgeKind,
   RelationshipMapNode,
+  RelationshipMapNodeAction,
   RelationshipMapPoint,
   RelationshipMapProps,
   RelationshipMapTone,
 } from "./relationship-map.js";
 export {
+  PositionedParticipant,
   SequenceDiagram,
   SequenceDiagramActivation,
   SequenceDiagramMessage,
+  SequenceDiagramMessageAction,
   SequenceDiagramMessageKind,
   SequenceDiagramNote,
   SequenceDiagramParticipant,
+  SequenceDiagramParticipantAction,
   SequenceDiagramProps,
 } from "./sequence-diagram.js";
 export {
@@ -129,6 +146,7 @@ export {
   StateMachineDiagram,
   StateMachineDiagramProps,
   StateMachineState,
+  StateMachineStateAction,
   StateMachineStateKind,
   StateMachineTransition,
   StateMachineTransitionKind,
@@ -144,11 +162,14 @@ export {
   SwimlaneDiagramProps,
   SwimlaneDiagramStatus,
   SwimlaneDiagramStep,
+  SwimlaneDiagramStepAction,
 } from "./swimlane-diagram.js";
 export {
+  PositionedTimelineItem,
   TimelineDiagram,
   TimelineDiagramDate,
   TimelineDiagramItem,
+  TimelineDiagramItemAction,
   TimelineDiagramItemKind,
   TimelineDiagramOrientation,
   TimelineDiagramProps,
@@ -202,6 +223,6 @@ export {
   a as SwimlaneDiagramPoint,
   b as SwimlaneDiagramTone,
   b as TimelineDiagramTone,
-} from "./diagram-utils-D6h6XIUK.js";
+} from "./diagram-utils-BlCnT5F3.js";
 import "react";
 ```

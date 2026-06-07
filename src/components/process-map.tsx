@@ -8,6 +8,15 @@ type ProcessMapOrientation = "horizontal" | "vertical";
 type ProcessMapTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";
 type ProcessMapStatus = "pending" | "active" | "done" | "blocked" | "warning";
 
+type ProcessMapStepAction = {
+  id: string;
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  destructive?: boolean;
+  onSelect?: (step: ProcessMapStepData) => void;
+};
+
 type ProcessMapStepData = {
   id: string;
   label: React.ReactNode;
@@ -21,10 +30,27 @@ type ProcessMapStepData = {
 type ProcessMapProps = React.ComponentProps<"div"> & {
   steps?: readonly ProcessMapStepData[];
   orientation?: ProcessMapOrientation;
+  selectedStepId?: string | null;
+  focusedStepId?: string | null;
+  defaultFocusedStepId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getStepDisabled?: (step: ProcessMapStepData) => boolean;
+  stepActions?:
+    | readonly ProcessMapStepAction[]
+    | ((step: ProcessMapStepData) => readonly ProcessMapStepAction[]);
+  onStepSelect?: (step: ProcessMapStepData) => void;
+  onStepDeselect?: () => void;
+  onFocusedStepIdChange?: (step: ProcessMapStepData | null) => void;
+  onStepActionSelect?: (action: ProcessMapStepAction, step: ProcessMapStepData) => void;
 };
 
 export type ProcessMapStepProps = React.ComponentProps<"div"> & {
   step?: ProcessMapStepData;
+  selected?: boolean;
+  focused?: boolean;
+  disabled?: boolean;
+  actions?: readonly ProcessMapStepAction[];
+  onActionSelect?: (action: ProcessMapStepAction, step: ProcessMapStepData) => void;
 };
 
 export type ProcessMapConnectorProps = React.ComponentProps<"div"> & {
@@ -43,11 +69,101 @@ const toneClasses: Record<ProcessMapTone, string> = {
 function ProcessMap({
   steps,
   orientation = "horizontal",
+  selectedStepId,
+  focusedStepId,
+  defaultFocusedStepId,
+  keyboardMode,
+  getStepDisabled,
+  stepActions,
+  onStepSelect,
+  onStepDeselect,
+  onFocusedStepIdChange,
+  onStepActionSelect,
   children,
   className,
   ...props
 }: ProcessMapProps) {
   const isDataDriven = Boolean(steps?.length);
+  const resolvedKeyboardMode = keyboardMode ?? (onStepSelect || stepActions ? "nodes" : "none");
+  const stepRefs = React.useRef(new Map<string, HTMLDivElement>());
+  const enabledSteps = React.useMemo(
+    () => (steps ?? []).filter((step) => !getStepDisabled?.(step)),
+    [getStepDisabled, steps],
+  );
+  const [internalFocusedStepId, setInternalFocusedStepId] = React.useState<string | null>(
+    () => defaultFocusedStepId ?? null,
+  );
+  const requestedFocusedStepId =
+    focusedStepId !== undefined ? focusedStepId : internalFocusedStepId;
+  const effectiveFocusedStepId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledSteps.find((step) => step.id === requestedFocusedStepId)?.id ??
+        enabledSteps[0]?.id ??
+        null)
+      : null;
+  const focusStepById = React.useCallback(
+    (stepId: string | null) => {
+      const nextStep = stepId ? ((steps ?? []).find((step) => step.id === stepId) ?? null) : null;
+
+      if (focusedStepId === undefined) {
+        setInternalFocusedStepId(stepId);
+      }
+
+      onFocusedStepIdChange?.(nextStep);
+
+      if (stepId) {
+        queueMicrotask(() => stepRefs.current.get(stepId)?.focus());
+      }
+    },
+    [focusedStepId, onFocusedStepIdChange, steps],
+  );
+  const handleStepKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>, step: ProcessMapStepData) => {
+      if (resolvedKeyboardMode === "none" || getStepDisabled?.(step)) {
+        return;
+      }
+
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onStepSelect?.(step);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (selectedStepId != null && onStepDeselect) {
+          event.preventDefault();
+          onStepDeselect();
+        }
+        return;
+      }
+
+      const currentIndex = enabledSteps.findIndex((item) => item.id === step.id);
+      const forwardKeys =
+        orientation === "vertical" ? ["ArrowDown", "ArrowRight"] : ["ArrowRight", "ArrowDown"];
+      const backwardKeys =
+        orientation === "vertical" ? ["ArrowUp", "ArrowLeft"] : ["ArrowLeft", "ArrowUp"];
+
+      if (forwardKeys.includes(event.key)) {
+        event.preventDefault();
+        focusStepById(
+          enabledSteps[Math.min(enabledSteps.length - 1, currentIndex + 1)]?.id ?? null,
+        );
+      } else if (backwardKeys.includes(event.key)) {
+        event.preventDefault();
+        focusStepById(enabledSteps[Math.max(0, currentIndex - 1)]?.id ?? null);
+      }
+    },
+    [
+      enabledSteps,
+      focusStepById,
+      getStepDisabled,
+      onStepDeselect,
+      onStepSelect,
+      orientation,
+      resolvedKeyboardMode,
+      selectedStepId,
+    ],
+  );
 
   return (
     <div
@@ -72,7 +188,43 @@ function ProcessMap({
         {isDataDriven
           ? steps?.map((step, index) => (
               <React.Fragment key={step.id}>
-                <ProcessMapStep step={step} role="listitem" />
+                <ProcessMapStep
+                  step={step}
+                  role={onStepSelect ? "button" : "listitem"}
+                  aria-pressed={onStepSelect ? selectedStepId === step.id : undefined}
+                  aria-disabled={getStepDisabled?.(step) || undefined}
+                  selected={selectedStepId === step.id}
+                  focused={effectiveFocusedStepId === step.id}
+                  disabled={Boolean(getStepDisabled?.(step))}
+                  actions={
+                    typeof stepActions === "function" ? stepActions(step) : (stepActions ?? [])
+                  }
+                  tabIndex={
+                    resolvedKeyboardMode === "nodes" &&
+                    effectiveFocusedStepId === step.id &&
+                    !getStepDisabled?.(step)
+                      ? 0
+                      : -1
+                  }
+                  onFocus={() => {
+                    if (focusedStepId === undefined) {
+                      setInternalFocusedStepId(step.id);
+                    }
+                    onFocusedStepIdChange?.(step);
+                  }}
+                  onKeyDown={(event) => handleStepKeyDown(event, step)}
+                  onClick={
+                    onStepSelect && !getStepDisabled?.(step) ? () => onStepSelect(step) : undefined
+                  }
+                  onActionSelect={onStepActionSelect}
+                  ref={(element) => {
+                    if (element) {
+                      stepRefs.current.set(step.id, element);
+                    } else {
+                      stepRefs.current.delete(step.id);
+                    }
+                  }}
+                />
                 {index < steps.length - 1 ? (
                   <ProcessMapConnector orientation={orientation} />
                 ) : null}
@@ -84,7 +236,17 @@ function ProcessMap({
   );
 }
 
-function ProcessMapStep({ step, children, className, ...props }: ProcessMapStepProps) {
+function ProcessMapStep({
+  step,
+  selected,
+  focused,
+  disabled,
+  actions = [],
+  onActionSelect,
+  children,
+  className,
+  ...props
+}: ProcessMapStepProps) {
   const Icon = step?.icon;
   const tone = step?.tone ?? "default";
 
@@ -93,9 +255,15 @@ function ProcessMapStep({ step, children, className, ...props }: ProcessMapStepP
       data-slot="process-map-step"
       data-status={step?.status}
       data-tone={tone}
+      data-selected={selected ? "true" : undefined}
+      data-focused={focused ? "true" : undefined}
+      data-disabled={disabled ? "true" : undefined}
       className={cn(
-        "grid min-h-28 w-full min-w-0 gap-2 rounded-md border p-4 md:w-56 md:min-w-56",
+        "grid min-h-28 w-full min-w-0 gap-2 rounded-md border p-4 outline-none md:w-56 md:min-w-56",
         toneClasses[tone],
+        selected && "ring-2 ring-primary",
+        focused && !selected && "ring-2 ring-ring/70",
+        disabled && "opacity-60",
         className,
       )}
       {...props}
@@ -111,6 +279,31 @@ function ProcessMapStep({ step, children, className, ...props }: ProcessMapStepP
                 data-slot="process-map-step-icon"
                 className="mt-0.5 size-4 shrink-0 text-muted-foreground"
               />
+            ) : null}
+            {actions.length ? (
+              <div className="flex shrink-0 gap-1">
+                {actions.map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    data-slot="process-map-step-action"
+                    data-action-id={action.id}
+                    disabled={action.disabled}
+                    aria-label={getAccessibleName(action.label, action.id)}
+                    className={cn(
+                      "inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+                      action.destructive && "text-destructive",
+                    )}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      action.onSelect?.(step);
+                      onActionSelect?.(action, step);
+                    }}
+                  >
+                    {action.icon ?? action.label}
+                  </button>
+                ))}
+              </div>
             ) : null}
           </div>
           {step.description ? (
@@ -135,6 +328,10 @@ function ProcessMapStep({ step, children, className, ...props }: ProcessMapStepP
       )}
     </div>
   );
+}
+
+function getAccessibleName(value: React.ReactNode, fallback: string) {
+  return typeof value === "string" || typeof value === "number" ? String(value) : fallback;
 }
 
 function ProcessMapConnector({
@@ -163,5 +360,6 @@ export type {
   ProcessMapStepData,
   ProcessMapOrientation,
   ProcessMapStatus,
+  ProcessMapStepAction,
   ProcessMapTone,
 };

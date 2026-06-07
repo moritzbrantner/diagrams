@@ -248,6 +248,60 @@ describe("RelationshipMap", () => {
     rerender(<RelationshipMap nodes={[]} emptyMessage="No dependencies" />);
     expect(screen.getByText("No dependencies")).toBeTruthy();
   });
+
+  test("supports node selection, actions, disabled nodes, waypoints, and group collapse", () => {
+    const onNodeSelect = vi.fn();
+    const onNodeActionSelect = vi.fn();
+    const relationshipNodes = [
+      { id: "product", label: "Product", groupId: "team", group: "Team", x: 0, y: 0 },
+      { id: "sales", label: "Sales", groupId: "team", group: "Team", x: 260, y: 0 },
+      { id: "support", label: "Support", x: 520, y: 0 },
+    ];
+    const { container, rerender } = render(
+      <RelationshipMap
+        ariaLabel="Interactive stakeholder map"
+        nodes={relationshipNodes}
+        edges={[
+          {
+            id: "waypoint",
+            source: "product",
+            target: "support",
+            waypoints: [{ x: 260, y: 160 }],
+          },
+        ]}
+        selectedNodeId="product"
+        onNodeSelect={onNodeSelect}
+        getNodeDisabled={(node) => node.id === "sales"}
+        nodeActions={[{ id: "inspect", label: "Inspect" }]}
+        onNodeActionSelect={onNodeActionSelect}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Interactive stakeholder map" })).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Inspect" })[0]);
+    expect(onNodeActionSelect).toHaveBeenCalled();
+    expect(onNodeSelect).not.toHaveBeenCalled();
+    expect(
+      container
+        .querySelector('[data-node-id="sales"]')
+        ?.closest("g")
+        ?.getAttribute("data-disabled"),
+    ).toBe("true");
+    expect(
+      container.querySelector('[data-slot="relationship-map-edge"] path')?.getAttribute("d"),
+    ).toContain("260 160");
+
+    rerender(
+      <RelationshipMap
+        nodes={relationshipNodes}
+        edges={[{ id: "remap", source: "product", target: "support" }]}
+        collapsedGroupIds={["team"]}
+        onCollapsedGroupIdsChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Product")).toBeNull();
+    expect(screen.getByText("Team")).toBeTruthy();
+  });
 });
 
 describe("Next diagram primitives", () => {
@@ -410,5 +464,138 @@ describe("Next diagram primitives", () => {
     expect(screen.getByText("Workflow")).toBeTruthy();
     expect(decisionRoot).toEqual(decisionSnapshot);
     expect(mindRoot).toEqual(mindSnapshot);
+  });
+});
+
+describe("Interactive diagram additions", () => {
+  test("collapses architecture boundaries and hierarchical branches", () => {
+    const { rerender } = render(
+      <ArchitectureDiagram
+        nodes={[
+          { id: "api", label: "API", boundaryId: "platform", x: 0, y: 0 },
+          { id: "db", label: "DB", boundaryId: "platform", x: 260, y: 0 },
+          { id: "user", label: "User", x: 520, y: 0 },
+        ]}
+        boundaries={[{ id: "platform", label: "Platform" }]}
+        connections={[{ id: "user-api", source: "user", target: "api" }]}
+        collapsedBoundaryIds={["platform"]}
+      />,
+    );
+
+    expect(screen.queryByText("API")).toBeNull();
+    expect(screen.getByText("Platform")).toBeTruthy();
+
+    rerender(
+      <DecisionTree
+        expandedNodeIds={["root"]}
+        root={{
+          id: "root",
+          label: "Launch?",
+          children: [
+            {
+              id: "root-yes",
+              label: "Yes",
+              target: {
+                id: "yes",
+                label: "Yes",
+                children: [
+                  { id: "yes-ship", label: "Ship", target: { id: "ship", label: "Ship" } },
+                ],
+              },
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getAllByText("Yes").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Ship")).toBeNull();
+
+    rerender(
+      <MindMap
+        expandedNodeIds={["root"]}
+        root={{
+          id: "root",
+          label: "Release",
+          children: [{ id: "scope", label: "Scope", children: [{ id: "risk", label: "Risk" }] }],
+        }}
+      />,
+    );
+    expect(screen.getByText("Scope")).toBeTruthy();
+    expect(screen.queryByText("Risk")).toBeNull();
+  });
+
+  test("selects workflow and timeline domain items without invalid geometry", () => {
+    const onStepSelect = vi.fn();
+    const onMessageSelect = vi.fn();
+    const onTaskSelect = vi.fn();
+    const onPointSelect = vi.fn();
+    const onTimelineSelect = vi.fn();
+    const onJourneyItemSelect = vi.fn();
+    const { container } = render(
+      <>
+        <ProcessMap
+          steps={[
+            { id: "plan", label: "Plan" },
+            { id: "ship", label: "Ship" },
+          ]}
+          onStepSelect={onStepSelect}
+        />
+        <SequenceDiagram
+          participants={[
+            { id: "client", label: "Client" },
+            { id: "api", label: "API" },
+          ]}
+          messages={[{ id: "request", from: "client", to: "api", label: "Request" }]}
+          onMessageSelect={onMessageSelect}
+        />
+        <GanttChart
+          tasks={[
+            {
+              id: "brief",
+              label: "Brief",
+              startDate: "2026-04-01",
+              endDate: "2026-04-03",
+            },
+          ]}
+          onTaskSelect={onTaskSelect}
+          todayDate="2026-04-02"
+        />
+        <BurndownChart
+          points={[{ id: "day-1", date: "2026-04-01", remaining: 10 }]}
+          totalWork={10}
+          onPointSelect={onPointSelect}
+          showVariance
+        />
+        <TimelineDiagram
+          items={[{ id: "release", date: "2026-04-01", label: "Release" }]}
+          onItemSelect={onTimelineSelect}
+          visibleRange={{ startDate: "2026-01-01", endDate: "2026-12-31" }}
+          groupBy="month"
+        />
+        <JourneyMap
+          phases={[{ id: "buy", label: "Buy" }]}
+          lanes={[{ id: "ops", label: "Ops" }]}
+          items={[{ id: "handoff", phaseId: "buy", laneId: "ops", label: "Handoff" }]}
+          onItemSelect={onJourneyItemSelect}
+        />
+      </>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Request" }));
+    fireEvent.click(screen.getByRole("button", { name: "Brief" }));
+    fireEvent.click(screen.getByRole("button", { name: /Apr 1/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Release" }));
+    fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
+
+    expect(onStepSelect).toHaveBeenCalled();
+    expect(onMessageSelect).toHaveBeenCalled();
+    expect(onTaskSelect).toHaveBeenCalled();
+    expect(onPointSelect).toHaveBeenCalled();
+    expect(onTimelineSelect).toHaveBeenCalled();
+    expect(onJourneyItemSelect).toHaveBeenCalled();
+    expect(container.innerHTML).not.toContain("NaN");
+    expect(container.querySelector('[data-slot="gantt-chart-today"]')).toBeTruthy();
+    expect(container.querySelector('[data-slot="burndown-chart-variance"]')).toBeTruthy();
   });
 });

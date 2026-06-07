@@ -7,6 +7,8 @@ import {
   clampFiniteNumber,
   defaultEdgeToneClasses,
   defaultToneClasses,
+  getReactNodeAccessibleName,
+  isActivationKey,
   type DiagramDirection,
   type DiagramTone,
 } from "./diagram-utils";
@@ -47,6 +49,24 @@ export type SequenceDiagramNote = {
   tone?: DiagramTone;
 };
 
+export type SequenceDiagramMessageAction = {
+  id: string;
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  destructive?: boolean;
+  onSelect?: (message: SequenceDiagramMessage) => void;
+};
+
+export type SequenceDiagramParticipantAction = {
+  id: string;
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  destructive?: boolean;
+  onSelect?: (participant: PositionedParticipant) => void;
+};
+
 export type SequenceDiagramProps = Omit<React.ComponentProps<"figure">, "children"> & {
   participants: readonly SequenceDiagramParticipant[];
   messages?: readonly SequenceDiagramMessage[];
@@ -56,6 +76,32 @@ export type SequenceDiagramProps = Omit<React.ComponentProps<"figure">, "childre
   caption?: React.ReactNode;
   emptyMessage?: React.ReactNode;
   padding?: number;
+  selectedMessageId?: string | null;
+  selectedParticipantId?: string | null;
+  focusedMessageId?: string | null;
+  focusedParticipantId?: string | null;
+  defaultFocusedMessageId?: string | null;
+  defaultFocusedParticipantId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getMessageDisabled?: (message: SequenceDiagramMessage) => boolean;
+  getParticipantDisabled?: (participant: PositionedParticipant) => boolean;
+  messageActions?:
+    | readonly SequenceDiagramMessageAction[]
+    | ((message: SequenceDiagramMessage) => readonly SequenceDiagramMessageAction[]);
+  participantActions?:
+    | readonly SequenceDiagramParticipantAction[]
+    | ((participant: PositionedParticipant) => readonly SequenceDiagramParticipantAction[]);
+  onMessageSelect?: (message: SequenceDiagramMessage) => void;
+  onParticipantSelect?: (participant: PositionedParticipant) => void;
+  onMessageActionSelect?: (
+    action: SequenceDiagramMessageAction,
+    message: SequenceDiagramMessage,
+  ) => void;
+  onParticipantActionSelect?: (
+    action: SequenceDiagramParticipantAction,
+    participant: PositionedParticipant,
+  ) => void;
+  hiddenParticipantIds?: readonly string[];
 };
 
 type PositionedParticipant = SequenceDiagramParticipant & {
@@ -78,13 +124,33 @@ function SequenceDiagram({
   caption,
   emptyMessage = "No sequence participants.",
   padding = 32,
+  selectedMessageId,
+  selectedParticipantId,
+  focusedMessageId,
+  focusedParticipantId,
+  defaultFocusedMessageId,
+  defaultFocusedParticipantId,
+  keyboardMode,
+  getMessageDisabled,
+  getParticipantDisabled,
+  messageActions,
+  participantActions,
+  onMessageSelect,
+  onParticipantSelect,
+  onMessageActionSelect,
+  onParticipantActionSelect,
+  hiddenParticipantIds,
   className,
   ...props
 }: SequenceDiagramProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
+  const visibleParticipants = React.useMemo(
+    () => participants.filter((participant) => !hiddenParticipantIds?.includes(participant.id)),
+    [hiddenParticipantIds, participants],
+  );
   const positionedParticipants = React.useMemo(
-    () => positionParticipants(participants),
-    [participants],
+    () => positionParticipants(visibleParticipants),
+    [visibleParticipants],
   );
   const participantMap = React.useMemo(
     () => new Map(positionedParticipants.map((participant) => [participant.id, participant])),
@@ -93,6 +159,49 @@ function SequenceDiagram({
   const validMessages = messages.filter(
     (message) => participantMap.has(message.from) && participantMap.has(message.to),
   );
+  const resolvedKeyboardMode =
+    keyboardMode ??
+    (onMessageSelect || onParticipantSelect || messageActions || participantActions
+      ? "nodes"
+      : "none");
+  const messageRefs = React.useRef(new Map<string, SVGGElement>());
+  const participantRefs = React.useRef(new Map<string, SVGGElement>());
+  const [internalFocusedMessageId, setInternalFocusedMessageId] = React.useState<string | null>(
+    () => defaultFocusedMessageId ?? null,
+  );
+  const [internalFocusedParticipantId, setInternalFocusedParticipantId] = React.useState<
+    string | null
+  >(() => defaultFocusedParticipantId ?? null);
+  const enabledMessages = React.useMemo(
+    () => validMessages.filter((message) => !getMessageDisabled?.(message)),
+    [getMessageDisabled, validMessages],
+  );
+  const enabledParticipants = React.useMemo(
+    () => positionedParticipants.filter((participant) => !getParticipantDisabled?.(participant)),
+    [getParticipantDisabled, positionedParticipants],
+  );
+  const effectiveFocusedMessageId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledMessages.find(
+          (message) =>
+            message.id ===
+            (focusedMessageId !== undefined ? focusedMessageId : internalFocusedMessageId),
+        )?.id ??
+        enabledMessages[0]?.id ??
+        null)
+      : null;
+  const effectiveFocusedParticipantId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledParticipants.find(
+          (participant) =>
+            participant.id ===
+            (focusedParticipantId !== undefined
+              ? focusedParticipantId
+              : internalFocusedParticipantId),
+        )?.id ??
+        enabledParticipants[0]?.id ??
+        null)
+      : null;
   const messageY = React.useMemo(
     () =>
       new Map(
@@ -138,7 +247,11 @@ function SequenceDiagram({
         </button>
         <svg
           data-slot="sequence-diagram-svg"
-          role="img"
+          role={
+            onMessageSelect || onParticipantSelect || messageActions || participantActions
+              ? "group"
+              : "img"
+          }
           aria-label={ariaLabel}
           viewBox={`${-padding} ${-padding} ${width + padding * 2} ${height + padding * 2}`}
           className="block min-h-80 w-full min-w-160 text-foreground"
@@ -163,6 +276,56 @@ function SequenceDiagram({
                     key={participant.id}
                     participant={participant}
                     height={height}
+                    selected={selectedParticipantId === participant.id}
+                    focused={effectiveFocusedParticipantId === participant.id}
+                    disabled={Boolean(getParticipantDisabled?.(participant))}
+                    keyboardMode={resolvedKeyboardMode}
+                    actions={
+                      typeof participantActions === "function"
+                        ? participantActions(participant)
+                        : (participantActions ?? [])
+                    }
+                    onParticipantSelect={onParticipantSelect}
+                    onParticipantActionSelect={onParticipantActionSelect}
+                    onParticipantFocus={(item) => {
+                      if (focusedParticipantId === undefined) {
+                        setInternalFocusedParticipantId(item.id);
+                      }
+                    }}
+                    onParticipantKeyDown={(event, item) => {
+                      if (resolvedKeyboardMode === "none" || getParticipantDisabled?.(item)) {
+                        return;
+                      }
+                      if (isActivationKey(event)) {
+                        event.preventDefault();
+                        onParticipantSelect?.(item);
+                        return;
+                      }
+                      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+                        return;
+                      }
+                      event.preventDefault();
+                      const index = enabledParticipants.findIndex(
+                        (participantItem) => participantItem.id === item.id,
+                      );
+                      const next =
+                        event.key === "ArrowRight"
+                          ? enabledParticipants[Math.min(enabledParticipants.length - 1, index + 1)]
+                          : enabledParticipants[Math.max(0, index - 1)];
+                      if (next) {
+                        if (focusedParticipantId === undefined) {
+                          setInternalFocusedParticipantId(next.id);
+                        }
+                        queueMicrotask(() => participantRefs.current.get(next.id)?.focus());
+                      }
+                    }}
+                    setParticipantRef={(participantId, element) => {
+                      if (element) {
+                        participantRefs.current.set(participantId, element);
+                      } else {
+                        participantRefs.current.delete(participantId);
+                      }
+                    }}
                   />
                 ))}
               </g>
@@ -184,6 +347,56 @@ function SequenceDiagram({
                     participants={participantMap}
                     y={messageY.get(message.id) ?? HEADER_HEIGHT}
                     markerId={markerId}
+                    selected={selectedMessageId === message.id}
+                    focused={effectiveFocusedMessageId === message.id}
+                    disabled={Boolean(getMessageDisabled?.(message))}
+                    keyboardMode={resolvedKeyboardMode}
+                    actions={
+                      typeof messageActions === "function"
+                        ? messageActions(message)
+                        : (messageActions ?? [])
+                    }
+                    onMessageSelect={onMessageSelect}
+                    onMessageActionSelect={onMessageActionSelect}
+                    onMessageFocus={(item) => {
+                      if (focusedMessageId === undefined) {
+                        setInternalFocusedMessageId(item.id);
+                      }
+                    }}
+                    onMessageKeyDown={(event, item) => {
+                      if (resolvedKeyboardMode === "none" || getMessageDisabled?.(item)) {
+                        return;
+                      }
+                      if (isActivationKey(event)) {
+                        event.preventDefault();
+                        onMessageSelect?.(item);
+                        return;
+                      }
+                      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
+                        return;
+                      }
+                      event.preventDefault();
+                      const index = enabledMessages.findIndex(
+                        (messageItem) => messageItem.id === item.id,
+                      );
+                      const next =
+                        event.key === "ArrowDown"
+                          ? enabledMessages[Math.min(enabledMessages.length - 1, index + 1)]
+                          : enabledMessages[Math.max(0, index - 1)];
+                      if (next) {
+                        if (focusedMessageId === undefined) {
+                          setInternalFocusedMessageId(next.id);
+                        }
+                        queueMicrotask(() => messageRefs.current.get(next.id)?.focus());
+                      }
+                    }}
+                    setMessageRef={(messageId, element) => {
+                      if (element) {
+                        messageRefs.current.set(messageId, element);
+                      } else {
+                        messageRefs.current.delete(messageId);
+                      }
+                    }}
                   />
                 ))}
               </g>
@@ -224,14 +437,72 @@ function SequenceDiagram({
 function ParticipantShape({
   participant,
   height,
+  selected,
+  focused,
+  disabled,
+  keyboardMode,
+  actions,
+  onParticipantSelect,
+  onParticipantActionSelect,
+  onParticipantFocus,
+  onParticipantKeyDown,
+  setParticipantRef,
 }: {
   participant: PositionedParticipant;
   height: number;
+  selected: boolean;
+  focused: boolean;
+  disabled: boolean;
+  keyboardMode: "nodes" | "none";
+  actions: readonly SequenceDiagramParticipantAction[];
+  onParticipantSelect?: SequenceDiagramProps["onParticipantSelect"];
+  onParticipantActionSelect?: SequenceDiagramProps["onParticipantActionSelect"];
+  onParticipantFocus: (participant: PositionedParticipant) => void;
+  onParticipantKeyDown: (
+    event: React.KeyboardEvent<SVGGElement>,
+    participant: PositionedParticipant,
+  ) => void;
+  setParticipantRef: (participantId: string, element: SVGGElement | null) => void;
 }) {
   const centerX = participant.x + participant.width / 2;
 
   return (
-    <g data-slot="sequence-diagram-participant" data-participant-id={participant.id}>
+    <g
+      data-slot="sequence-diagram-participant"
+      data-participant-id={participant.id}
+      data-selected={selected ? "true" : undefined}
+      data-focused={focused ? "true" : undefined}
+      data-disabled={disabled ? "true" : undefined}
+      role={onParticipantSelect && !actions.length ? "button" : undefined}
+      aria-label={
+        onParticipantSelect && !actions.length
+          ? getReactNodeAccessibleName(participant.label, participant.id)
+          : undefined
+      }
+      aria-pressed={onParticipantSelect && !actions.length ? selected : undefined}
+      tabIndex={keyboardMode === "nodes" && focused && !disabled ? 0 : -1}
+      className={cn(
+        "outline-none",
+        onParticipantSelect && "cursor-pointer",
+        disabled && "opacity-60",
+      )}
+      onClick={
+        onParticipantSelect && !disabled ? () => onParticipantSelect(participant) : undefined
+      }
+      onFocus={() => onParticipantFocus(participant)}
+      onKeyDown={(event) => onParticipantKeyDown(event, participant)}
+      ref={(element) => setParticipantRef(participant.id, element)}
+    >
+      {selected || focused ? (
+        <rect
+          x={participant.x - 6}
+          y={TOP_PADDING - 6}
+          width={participant.width + 12}
+          height={HEADER_HEIGHT + 12}
+          rx={12}
+          className={cn("fill-transparent stroke-2", selected ? "stroke-primary" : "stroke-ring")}
+        />
+      ) : null}
       <line
         x1={centerX}
         x2={centerX}
@@ -259,6 +530,17 @@ function ParticipantShape({
           ) : null}
         </div>
       </foreignObject>
+      {actions.length ? (
+        <SequenceActions
+          actions={actions}
+          x={participant.x + participant.width - actions.length * 32 - 8}
+          y={TOP_PADDING + HEADER_HEIGHT - 36}
+          onAction={(action) => {
+            action.onSelect?.(participant);
+            onParticipantActionSelect?.(action, participant);
+          }}
+        />
+      ) : null}
     </g>
   );
 }
@@ -268,11 +550,34 @@ function MessageShape({
   participants,
   y,
   markerId,
+  selected,
+  focused,
+  disabled,
+  keyboardMode,
+  actions,
+  onMessageSelect,
+  onMessageActionSelect,
+  onMessageFocus,
+  onMessageKeyDown,
+  setMessageRef,
 }: {
   message: SequenceDiagramMessage;
   participants: Map<string, PositionedParticipant>;
   y: number;
   markerId: string;
+  selected: boolean;
+  focused: boolean;
+  disabled: boolean;
+  keyboardMode: "nodes" | "none";
+  actions: readonly SequenceDiagramMessageAction[];
+  onMessageSelect?: SequenceDiagramProps["onMessageSelect"];
+  onMessageActionSelect?: SequenceDiagramProps["onMessageActionSelect"];
+  onMessageFocus: (message: SequenceDiagramMessage) => void;
+  onMessageKeyDown: (
+    event: React.KeyboardEvent<SVGGElement>,
+    message: SequenceDiagramMessage,
+  ) => void;
+  setMessageRef: (messageId: string, element: SVGGElement | null) => void;
 }) {
   const from = participants.get(message.from);
   const to = participants.get(message.to);
@@ -287,7 +592,37 @@ function MessageShape({
   const markerUrl = `url(#${markerId})`;
 
   return (
-    <g data-slot="sequence-diagram-message" data-kind={message.kind ?? "sync"}>
+    <g
+      data-slot="sequence-diagram-message"
+      data-kind={message.kind ?? "sync"}
+      data-message-id={message.id}
+      data-selected={selected ? "true" : undefined}
+      data-focused={focused ? "true" : undefined}
+      data-disabled={disabled ? "true" : undefined}
+      role={onMessageSelect && !actions.length ? "button" : undefined}
+      aria-label={
+        onMessageSelect && !actions.length
+          ? getReactNodeAccessibleName(message.label, message.id)
+          : undefined
+      }
+      aria-pressed={onMessageSelect && !actions.length ? selected : undefined}
+      tabIndex={keyboardMode === "nodes" && focused && !disabled ? 0 : -1}
+      className={cn("outline-none", onMessageSelect && "cursor-pointer", disabled && "opacity-60")}
+      onClick={onMessageSelect && !disabled ? () => onMessageSelect(message) : undefined}
+      onFocus={() => onMessageFocus(message)}
+      onKeyDown={(event) => onMessageKeyDown(event, message)}
+      ref={(element) => setMessageRef(message.id, element)}
+    >
+      {selected || focused ? (
+        <rect
+          x={Math.min(x1, x2) - 12}
+          y={y - 48}
+          width={Math.abs(x2 - x1) + 24}
+          height={56}
+          rx={10}
+          className={cn("fill-transparent stroke-2", selected ? "stroke-primary" : "stroke-ring")}
+        />
+      ) : null}
       <line
         x1={x1}
         x2={x2}
@@ -307,7 +642,65 @@ function MessageShape({
           {message.description ? <span>{message.description}</span> : null}
         </div>
       </foreignObject>
+      {actions.length ? (
+        <SequenceActions
+          actions={actions}
+          x={(x1 + x2) / 2 + 94}
+          y={y - 36}
+          onAction={(action) => {
+            action.onSelect?.(message);
+            onMessageActionSelect?.(action, message);
+          }}
+        />
+      ) : null}
     </g>
+  );
+}
+
+function SequenceActions<
+  TAction extends {
+    id: string;
+    label: React.ReactNode;
+    icon?: React.ReactNode;
+    disabled?: boolean;
+    destructive?: boolean;
+  },
+>({
+  actions,
+  x,
+  y,
+  onAction,
+}: {
+  actions: readonly TAction[];
+  x: number;
+  y: number;
+  onAction: (action: TAction) => void;
+}) {
+  return (
+    <foreignObject x={x} y={y} width={actions.length * 32} height={28}>
+      <div className="flex gap-1">
+        {actions.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            data-slot="sequence-diagram-action"
+            data-action-id={action.id}
+            disabled={action.disabled}
+            aria-label={getReactNodeAccessibleName(action.label, action.id)}
+            className={cn(
+              "inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+              action.destructive && "text-destructive",
+            )}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAction(action);
+            }}
+          >
+            {action.icon ?? action.label}
+          </button>
+        ))}
+      </div>
+    </foreignObject>
   );
 }
 
@@ -396,4 +789,8 @@ function positionParticipants(
 }
 
 export { SequenceDiagram };
-export type { DiagramDirection as SequenceDiagramDirection, DiagramTone as SequenceDiagramTone };
+export type {
+  DiagramDirection as SequenceDiagramDirection,
+  DiagramTone as SequenceDiagramTone,
+  PositionedParticipant,
+};

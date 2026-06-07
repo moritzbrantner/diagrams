@@ -4,12 +4,23 @@ import * as React from "react";
 
 import { cn } from "@moritzbrantner/ui";
 
+import { getReactNodeAccessibleName, isActivationKey } from "./diagram-utils";
+
 type BurndownChartDate = Date | number | string;
 
 type BurndownChartPoint = {
   id?: string;
   date: BurndownChartDate;
   remaining: number;
+};
+
+type BurndownChartPointAction = {
+  id: string;
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  destructive?: boolean;
+  onSelect?: (point: PreparedBurndownPoint) => void;
 };
 
 type BurndownChartProps = Omit<React.ComponentProps<"figure">, "children"> & {
@@ -26,10 +37,24 @@ type BurndownChartProps = Omit<React.ComponentProps<"figure">, "children"> & {
   yTickCount?: number;
   formatDate?: (date: Date) => string;
   formatValue?: (value: number) => string;
+  selectedPointId?: string | null;
+  focusedPointId?: string | null;
+  defaultFocusedPointId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getPointDisabled?: (point: PreparedBurndownPoint) => boolean;
+  onPointSelect?: (point: PreparedBurndownPoint) => void;
+  onPointDeselect?: () => void;
+  onFocusedPointIdChange?: (point: PreparedBurndownPoint | null) => void;
+  pointActions?:
+    | readonly BurndownChartPointAction[]
+    | ((point: PreparedBurndownPoint) => readonly BurndownChartPointAction[]);
+  onPointActionSelect?: (action: BurndownChartPointAction, point: PreparedBurndownPoint) => void;
+  showVariance?: boolean;
 };
 
 type PreparedBurndownPoint = BurndownChartPoint & {
   timestamp: number;
+  id: string;
 };
 
 const BURNDOWN_WIDTH = 760;
@@ -56,6 +81,17 @@ function BurndownChart({
   yTickCount = 5,
   formatDate = formatShortDate,
   formatValue = formatWorkValue,
+  selectedPointId,
+  focusedPointId,
+  defaultFocusedPointId,
+  keyboardMode,
+  getPointDisabled,
+  onPointSelect,
+  onPointDeselect,
+  onFocusedPointIdChange,
+  pointActions,
+  onPointActionSelect,
+  showVariance = false,
   className,
   ...props
 }: BurndownChartProps) {
@@ -95,6 +131,31 @@ function BurndownChart({
         },
       ])
     : "";
+  const resolvedKeyboardMode = keyboardMode ?? (onPointSelect || pointActions ? "nodes" : "none");
+  const pointRefs = React.useRef(new Map<string, SVGCircleElement>());
+  const [internalFocusedPointId, setInternalFocusedPointId] = React.useState<string | null>(
+    () => defaultFocusedPointId ?? null,
+  );
+  const enabledPoints = React.useMemo(
+    () => preparedPoints.filter((point) => !getPointDisabled?.(point)),
+    [getPointDisabled, preparedPoints],
+  );
+  const effectiveFocusedPointId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledPoints.find(
+          (point) =>
+            point.id === (focusedPointId !== undefined ? focusedPointId : internalFocusedPointId),
+        )?.id ??
+        enabledPoints[0]?.id ??
+        null)
+      : null;
+  const getIdealRemaining = React.useCallback(
+    (timestamp: number) => {
+      const ratio = (timestamp - domain.start) / Math.max(1, domain.end - domain.start);
+      return domain.totalWork + (targetRemaining - domain.totalWork) * ratio;
+    },
+    [domain.end, domain.start, domain.totalWork, targetRemaining],
+  );
 
   return (
     <figure
@@ -114,7 +175,7 @@ function BurndownChart({
       >
         <svg
           data-slot="burndown-chart-svg"
-          role="img"
+          role={onPointSelect || pointActions ? "group" : "img"}
           aria-label={ariaLabel}
           viewBox={`0 0 ${BURNDOWN_WIDTH} ${height}`}
           className="block w-full min-w-180 text-foreground"
@@ -206,6 +267,45 @@ function BurndownChart({
                 strokeLinejoin="round"
                 strokeWidth="3"
               />
+              {showVariance
+                ? preparedPoints.map((point) => {
+                    const x = scaleTime(
+                      point.timestamp,
+                      domain.start,
+                      domain.end,
+                      plot.x,
+                      plot.width,
+                    );
+                    const actualY = scaleNumber(
+                      point.remaining,
+                      domain.minValue,
+                      domain.maxValue,
+                      plot.y,
+                      plot.height,
+                    );
+                    const idealY = scaleNumber(
+                      getIdealRemaining(point.timestamp),
+                      domain.minValue,
+                      domain.maxValue,
+                      plot.y,
+                      plot.height,
+                    );
+
+                    return (
+                      <line
+                        key={`variance-${point.id}`}
+                        data-slot="burndown-chart-variance"
+                        x1={x}
+                        x2={x}
+                        y1={idealY}
+                        y2={actualY}
+                        className="stroke-amber-500"
+                        strokeDasharray="4 4"
+                        strokeWidth="1.5"
+                      />
+                    );
+                  })
+                : null}
               {preparedPoints.map((point) => {
                 const x = scaleTime(point.timestamp, domain.start, domain.end, plot.x, plot.width);
                 const y = scaleNumber(
@@ -218,16 +318,145 @@ function BurndownChart({
 
                 return (
                   <circle
-                    key={point.id ?? `${point.timestamp}-${point.remaining}`}
+                    key={point.id}
                     data-slot="burndown-chart-point"
+                    data-point-id={point.id}
+                    data-selected={selectedPointId === point.id ? "true" : undefined}
+                    data-focused={effectiveFocusedPointId === point.id ? "true" : undefined}
+                    data-disabled={getPointDisabled?.(point) ? "true" : undefined}
+                    role={onPointSelect ? "button" : undefined}
+                    aria-label={
+                      onPointSelect
+                        ? `${formatDate(new Date(point.timestamp))}: ${formatValue(point.remaining)}`
+                        : undefined
+                    }
+                    aria-pressed={onPointSelect ? selectedPointId === point.id : undefined}
+                    tabIndex={
+                      resolvedKeyboardMode === "nodes" &&
+                      effectiveFocusedPointId === point.id &&
+                      !getPointDisabled?.(point)
+                        ? 0
+                        : -1
+                    }
                     cx={x}
                     cy={y}
-                    r="4"
-                    className="fill-background stroke-primary"
-                    strokeWidth="2"
+                    r={selectedPointId === point.id || effectiveFocusedPointId === point.id ? 6 : 4}
+                    className={cn(
+                      "fill-background outline-none",
+                      selectedPointId === point.id ? "stroke-primary" : "stroke-primary",
+                      getPointDisabled?.(point) && "opacity-60",
+                      onPointSelect && "cursor-pointer",
+                    )}
+                    strokeWidth={selectedPointId === point.id ? 3 : 2}
+                    onClick={
+                      onPointSelect && !getPointDisabled?.(point)
+                        ? () => onPointSelect(point)
+                        : undefined
+                    }
+                    onFocus={() => {
+                      if (focusedPointId === undefined) {
+                        setInternalFocusedPointId(point.id);
+                      }
+                      onFocusedPointIdChange?.(point);
+                    }}
+                    onKeyDown={(event) => {
+                      if (resolvedKeyboardMode === "none" || getPointDisabled?.(point)) {
+                        return;
+                      }
+                      if (isActivationKey(event)) {
+                        event.preventDefault();
+                        onPointSelect?.(point);
+                        return;
+                      }
+                      if (event.key === "Escape") {
+                        if (selectedPointId != null && onPointDeselect) {
+                          event.preventDefault();
+                          onPointDeselect();
+                        }
+                        return;
+                      }
+                      if (
+                        event.key !== "ArrowRight" &&
+                        event.key !== "ArrowDown" &&
+                        event.key !== "ArrowLeft" &&
+                        event.key !== "ArrowUp"
+                      ) {
+                        return;
+                      }
+                      event.preventDefault();
+                      const index = enabledPoints.findIndex(
+                        (enabledPoint) => enabledPoint.id === point.id,
+                      );
+                      const next =
+                        event.key === "ArrowRight" || event.key === "ArrowDown"
+                          ? enabledPoints[Math.min(enabledPoints.length - 1, index + 1)]
+                          : enabledPoints[Math.max(0, index - 1)];
+                      if (next) {
+                        if (focusedPointId === undefined) {
+                          setInternalFocusedPointId(next.id);
+                        }
+                        onFocusedPointIdChange?.(next);
+                        queueMicrotask(() => pointRefs.current.get(next.id)?.focus());
+                      }
+                    }}
+                    ref={(element) => {
+                      if (element) {
+                        pointRefs.current.set(point.id, element);
+                      } else {
+                        pointRefs.current.delete(point.id);
+                      }
+                    }}
                   >
                     <title>{`${formatDate(new Date(point.timestamp))}: ${formatValue(point.remaining)}`}</title>
                   </circle>
+                );
+              })}
+              {preparedPoints.map((point) => {
+                const actions =
+                  typeof pointActions === "function" ? pointActions(point) : (pointActions ?? []);
+                if (!actions.length || point.id !== (selectedPointId ?? effectiveFocusedPointId)) {
+                  return null;
+                }
+                const x = scaleTime(point.timestamp, domain.start, domain.end, plot.x, plot.width);
+                const y = scaleNumber(
+                  point.remaining,
+                  domain.minValue,
+                  domain.maxValue,
+                  plot.y,
+                  plot.height,
+                );
+
+                return (
+                  <foreignObject
+                    key={`actions-${point.id}`}
+                    x={x + 10}
+                    y={y - 14}
+                    width={actions.length * 32}
+                    height={28}
+                  >
+                    <div className="flex gap-1">
+                      {actions.map((action) => (
+                        <button
+                          key={action.id}
+                          type="button"
+                          data-slot="burndown-chart-point-action"
+                          aria-label={getReactNodeAccessibleName(action.label, action.id)}
+                          disabled={action.disabled}
+                          className={cn(
+                            "inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+                            action.destructive && "text-destructive",
+                          )}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            action.onSelect?.(point);
+                            onPointActionSelect?.(action, point);
+                          }}
+                        >
+                          {action.icon ?? action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </foreignObject>
                 );
               })}
               <g data-slot="burndown-chart-legend">
@@ -292,8 +521,9 @@ function BurndownChart({
 
 function prepareBurndownPoints(points: readonly BurndownChartPoint[]) {
   return points
-    .map((point) => ({
+    .map((point, index) => ({
       ...point,
+      id: point.id ?? `${toDayTimestamp(point.date)}-${index}`,
       timestamp: toDayTimestamp(point.date),
       remaining: Math.max(0, point.remaining),
     }))
@@ -398,4 +628,10 @@ function formatWorkValue(value: number) {
 }
 
 export { BurndownChart };
-export type { BurndownChartDate, BurndownChartPoint, BurndownChartProps };
+export type {
+  BurndownChartDate,
+  BurndownChartPoint,
+  BurndownChartPointAction,
+  BurndownChartProps,
+  PreparedBurndownPoint,
+};

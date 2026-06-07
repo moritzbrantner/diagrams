@@ -641,3 +641,248 @@ export const MindMapStory: Story = {
     await expect(canvas.getByText("Workflow")).toBeVisible();
   },
 };
+
+export const InteractiveRelationshipMapStory: Story = {
+  name: "Interactive Relationship Map",
+  render: () => <InteractiveRelationshipMapDemo />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("group", { name: "Interactive relationship map" })).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Inspect product" }));
+  },
+};
+
+function InteractiveRelationshipMapDemo() {
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>("product");
+
+  return (
+    <StoryFrame>
+      <RelationshipMap
+        ariaLabel="Interactive relationship map"
+        selectedNodeId={selectedNodeId}
+        onNodeSelect={(node) => setSelectedNodeId(node.id)}
+        nodeActions={(node) => [
+          { id: "inspect", label: `Inspect ${node.id}`, icon: <InfoIcon aria-hidden="true" /> },
+        ]}
+        nodes={[
+          { id: "product", label: "Product", groupId: "team", group: "Team", x: 0, y: 80 },
+          { id: "design", label: "Design", groupId: "team", group: "Team", x: 280, y: 0 },
+          { id: "engineering", label: "Engineering", x: 280, y: 160 },
+        ]}
+        edges={[
+          { id: "product-design", source: "product", target: "design", label: "briefs" },
+          { id: "product-engineering", source: "product", target: "engineering", label: "plans" },
+        ]}
+      />
+    </StoryFrame>
+  );
+}
+
+export const InteractiveArchitectureDiagramStory: Story = {
+  name: "Interactive Architecture Diagram",
+  render: () => <InteractiveArchitectureDiagramDemo />,
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("group", { name: "Interactive architecture diagram" }),
+    ).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Expand Platform" }));
+  },
+};
+
+function InteractiveArchitectureDiagramDemo() {
+  const [collapsedBoundaryIds, setCollapsedBoundaryIds] = React.useState<string[]>(["platform"]);
+
+  return (
+    <StoryFrame>
+      <ArchitectureDiagram
+        ariaLabel="Interactive architecture diagram"
+        collapsedBoundaryIds={collapsedBoundaryIds}
+        onCollapsedBoundaryIdsChange={setCollapsedBoundaryIds}
+        boundaries={[{ id: "platform", label: "Platform" }]}
+        nodes={[
+          { id: "gateway", label: "Gateway", kind: "gateway", boundaryId: "platform", x: 0, y: 40 },
+          { id: "orders", label: "Orders", kind: "service", boundaryId: "platform", x: 260, y: 40 },
+          { id: "user", label: "User", kind: "user", x: 560, y: 40 },
+        ]}
+        connections={[{ id: "user-gateway", source: "user", target: "gateway", label: "uses" }]}
+        selectedNodeId="user"
+        onNodeSelect={() => undefined}
+        nodeActions={[
+          { id: "inspect", label: "Inspect node", icon: <InfoIcon aria-hidden="true" /> },
+        ]}
+      />
+    </StoryFrame>
+  );
+}
+
+export const InteractiveStateMachineDiagramStory: Story = {
+  name: "Interactive State Machine Diagram",
+  render: () => <InteractiveStateMachineDiagramDemo />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("group", { name: "Interactive state machine" })).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Inspect draft" }));
+  },
+};
+
+function InteractiveStateMachineDiagramDemo() {
+  const [selectedStateId, setSelectedStateId] = React.useState<string | null>("draft");
+
+  return (
+    <StoryFrame>
+      <StateMachineDiagram
+        ariaLabel="Interactive state machine"
+        selectedStateId={selectedStateId}
+        onStateSelect={(state) => setSelectedStateId(state.id)}
+        stateActions={(state) => [
+          { id: "inspect", label: `Inspect ${state.id}`, icon: <InfoIcon aria-hidden="true" /> },
+        ]}
+        states={[
+          { id: "draft", label: "Draft", x: 0, y: 0 },
+          { id: "review", label: "Review", x: 260, y: 0, tone: "accent" },
+        ]}
+        transitions={[
+          { id: "submit", source: "draft", target: "review", event: "submit" },
+          { id: "revise", source: "review", target: "review", event: "revise" },
+        ]}
+      />
+    </StoryFrame>
+  );
+}
+
+export const InteractiveDecisionTreeStory: Story = {
+  name: "Interactive Decision Tree",
+  render: () => <InteractiveDecisionTreeDemo />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("group", { name: "Interactive decision tree" })).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Inspect ready" }));
+  },
+};
+
+function InteractiveDecisionTreeDemo() {
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>("ready");
+  const [expandedNodeIds, setExpandedNodeIds] = React.useState<string[]>(["ready"]);
+
+  return (
+    <StoryFrame>
+      <DecisionTree
+        ariaLabel="Interactive decision tree"
+        selectedNodeId={selectedNodeId}
+        onNodeSelect={(node) => setSelectedNodeId(node.id)}
+        expandedNodeIds={expandedNodeIds}
+        onExpandedNodeIdsChange={setExpandedNodeIds}
+        nodeActions={(node) => [
+          { id: "inspect", label: `Inspect ${node.id}`, icon: <InfoIcon aria-hidden="true" /> },
+        ]}
+        root={{
+          id: "ready",
+          label: "Ready?",
+          children: [
+            {
+              id: "yes",
+              label: "Yes",
+              target: { id: "ship", label: "Ship", kind: "outcome" },
+            },
+          ],
+        }}
+      />
+    </StoryFrame>
+  );
+}
+
+export const InteractiveMindMapStory: Story = {
+  name: "Interactive Mind Map",
+  render: () => <InteractiveMindMapDemo />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("group", { name: "Interactive mind map" })).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Inspect diagrams" }));
+  },
+};
+
+function InteractiveMindMapDemo() {
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>("diagrams");
+
+  return (
+    <StoryFrame>
+      <MindMap
+        ariaLabel="Interactive mind map"
+        selectedNodeId={selectedNodeId}
+        onNodeSelect={(node) => setSelectedNodeId(node.id)}
+        nodeActions={(node) => [
+          { id: "inspect", label: `Inspect ${node.id}`, icon: <InfoIcon aria-hidden="true" /> },
+        ]}
+        root={{
+          id: "diagrams",
+          label: "Diagrams",
+          children: [
+            { id: "workflow", label: "Workflow" },
+            { id: "systems", label: "Systems" },
+          ],
+        }}
+      />
+    </StoryFrame>
+  );
+}
+
+export const InteractiveGanttChartStory: Story = {
+  name: "Interactive Gantt Chart",
+  render: () => <InteractiveGanttChartDemo />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("group", { name: "Interactive Gantt chart" })).toBeVisible();
+    await userEvent.click(canvas.getAllByRole("button", { name: "Inspect task" })[0]);
+  },
+};
+
+function InteractiveGanttChartDemo() {
+  const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>("brief");
+
+  return (
+    <StoryFrame>
+      <GanttChart
+        ariaLabel="Interactive Gantt chart"
+        selectedTaskId={selectedTaskId}
+        onTaskSelect={(task) => setSelectedTaskId(task.id)}
+        todayDate="2026-04-08"
+        taskActions={[
+          { id: "inspect", label: "Inspect task", icon: <InfoIcon aria-hidden="true" /> },
+        ]}
+        tasks={[
+          { id: "brief", label: "Brief", startDate: "2026-04-01", endDate: "2026-04-04" },
+          { id: "build", label: "Build", startDate: "2026-04-05", endDate: "2026-04-14" },
+        ]}
+        startDate="2026-04-01"
+        endDate="2026-04-20"
+      />
+    </StoryFrame>
+  );
+}
+
+export const InteractiveTimelineDiagramStory: Story = {
+  name: "Interactive Timeline Diagram",
+  render: () => <InteractiveTimelineDiagramDemo />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("group", { name: "Interactive timeline diagram" })).toBeVisible();
+    await userEvent.click(canvas.getAllByRole("button", { name: "Inspect item" })[0]);
+  },
+};
+
+function InteractiveTimelineDiagramDemo() {
+  const [selectedItemId, setSelectedItemId] = React.useState<string | null>("beta");
+
+  return (
+    <StoryFrame>
+      <TimelineDiagram
+        ariaLabel="Interactive timeline diagram"
+        selectedItemId={selectedItemId}
+        onItemSelect={(item) => setSelectedItemId(item.id)}
+        groupBy="month"
+        itemActions={[
+          { id: "inspect", label: "Inspect item", icon: <InfoIcon aria-hidden="true" /> },
+        ]}
+        items={[
+          { id: "scope", date: "2026-04-01", label: "Scope" },
+          { id: "beta", date: "2026-04-10", label: "Beta", tone: "accent" },
+          { id: "ga", date: "2026-04-24", label: "GA", tone: "success" },
+        ]}
+      />
+    </StoryFrame>
+  );
+}

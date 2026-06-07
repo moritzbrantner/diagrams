@@ -4,6 +4,8 @@ import * as React from "react";
 
 import { cn } from "@moritzbrantner/ui";
 
+import { getReactNodeAccessibleName, isActivationKey } from "./diagram-utils";
+
 type GanttChartDate = Date | number | string;
 type GanttChartTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";
 
@@ -19,6 +21,15 @@ type GanttChartTask = {
   tone?: GanttChartTone;
 };
 
+type GanttChartTaskAction = {
+  id: string;
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  destructive?: boolean;
+  onSelect?: (task: PreparedGanttTask) => void;
+};
+
 type GanttChartProps = Omit<React.ComponentProps<"figure">, "children"> & {
   tasks?: readonly GanttChartTask[];
   startDate?: GanttChartDate;
@@ -30,6 +41,21 @@ type GanttChartProps = Omit<React.ComponentProps<"figure">, "children"> & {
   width?: number;
   tickCount?: number;
   formatDate?: (date: Date) => string;
+  selectedTaskId?: string | null;
+  focusedTaskId?: string | null;
+  defaultFocusedTaskId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getTaskDisabled?: (task: PreparedGanttTask) => boolean;
+  taskActions?:
+    | readonly GanttChartTaskAction[]
+    | ((task: PreparedGanttTask) => readonly GanttChartTaskAction[]);
+  onTaskSelect?: (task: PreparedGanttTask) => void;
+  onTaskDeselect?: () => void;
+  onFocusedTaskIdChange?: (task: PreparedGanttTask | null) => void;
+  onTaskActionSelect?: (action: GanttChartTaskAction, task: PreparedGanttTask) => void;
+  visibleTaskIds?: readonly string[];
+  hiddenTaskIds?: readonly string[];
+  todayDate?: GanttChartDate;
 };
 
 type PreparedGanttTask = GanttChartTask & {
@@ -70,11 +96,34 @@ function GanttChart({
   width = DEFAULT_GANTT_WIDTH,
   tickCount = 6,
   formatDate = formatShortDate,
+  selectedTaskId,
+  focusedTaskId,
+  defaultFocusedTaskId,
+  keyboardMode,
+  getTaskDisabled,
+  taskActions,
+  onTaskSelect,
+  onTaskDeselect,
+  onFocusedTaskIdChange,
+  onTaskActionSelect,
+  visibleTaskIds,
+  hiddenTaskIds,
+  todayDate,
   className,
   ...props
 }: GanttChartProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
-  const preparedTasks = React.useMemo(() => prepareGanttTasks(tasks), [tasks]);
+  const preparedTasks = React.useMemo(
+    () =>
+      prepareGanttTasks(tasks).filter((task) => {
+        if (hiddenTaskIds?.includes(task.id)) {
+          return false;
+        }
+
+        return visibleTaskIds ? visibleTaskIds.includes(task.id) : true;
+      }),
+    [hiddenTaskIds, tasks, visibleTaskIds],
+  );
   const domain = React.useMemo(
     () => getGanttDomain(preparedTasks, startDate, endDate),
     [endDate, preparedTasks, startDate],
@@ -85,6 +134,25 @@ function GanttChart({
   const chartWidth = Math.max(220, width - chartX - GANTT_PADDING.right);
   const ticks = getDateTicks(domain.start, domain.end, tickCount);
   const markerId = `gantt-deadline-${markerPrefix}`;
+  const resolvedKeyboardMode = keyboardMode ?? (onTaskSelect || taskActions ? "nodes" : "none");
+  const taskRefs = React.useRef(new Map<string, SVGGElement>());
+  const [internalFocusedTaskId, setInternalFocusedTaskId] = React.useState<string | null>(
+    () => defaultFocusedTaskId ?? null,
+  );
+  const enabledTasks = React.useMemo(
+    () => preparedTasks.filter((task) => !getTaskDisabled?.(task)),
+    [getTaskDisabled, preparedTasks],
+  );
+  const effectiveFocusedTaskId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledTasks.find(
+          (task) =>
+            task.id === (focusedTaskId !== undefined ? focusedTaskId : internalFocusedTaskId),
+        )?.id ??
+        enabledTasks[0]?.id ??
+        null)
+      : null;
+  const todayTimestamp = todayDate ? toDayTimestamp(todayDate) : NaN;
 
   return (
     <figure
@@ -104,7 +172,7 @@ function GanttChart({
       >
         <svg
           data-slot="gantt-chart-svg"
-          role="img"
+          role={onTaskSelect || taskActions ? "group" : "img"}
           aria-label={ariaLabel}
           viewBox={`0 0 ${width} ${height}`}
           className="block w-full min-w-220 text-foreground"
@@ -155,6 +223,22 @@ function GanttChart({
               );
             })}
           </g>
+          {Number.isFinite(todayTimestamp) ? (
+            <GanttMarker
+              slot="gantt-chart-today"
+              timestamp={todayTimestamp}
+              domainStart={domain.start}
+              domainEnd={domain.end}
+              chartX={chartX}
+              chartWidth={chartWidth}
+              y1={GANTT_PADDING.top - 12}
+              y2={height - GANTT_PADDING.bottom}
+              className="stroke-primary"
+              label="Today"
+              labelClassName="fill-primary"
+              formatDate={formatDate}
+            />
+          ) : null}
           {preparedTasks.length ? (
             <g data-slot="gantt-chart-tasks">
               {preparedTasks.map((task, index) => (
@@ -169,6 +253,63 @@ function GanttChart({
                   domainEnd={domain.end}
                   markerId={markerId}
                   formatDate={formatDate}
+                  selected={selectedTaskId === task.id}
+                  focused={effectiveFocusedTaskId === task.id}
+                  disabled={Boolean(getTaskDisabled?.(task))}
+                  keyboardMode={resolvedKeyboardMode}
+                  actions={
+                    typeof taskActions === "function" ? taskActions(task) : (taskActions ?? [])
+                  }
+                  onTaskSelect={onTaskSelect}
+                  onTaskActionSelect={onTaskActionSelect}
+                  onTaskFocus={(item) => {
+                    if (focusedTaskId === undefined) {
+                      setInternalFocusedTaskId(item.id);
+                    }
+                    onFocusedTaskIdChange?.(item);
+                  }}
+                  onTaskKeyDown={(event, item) => {
+                    if (resolvedKeyboardMode === "none" || getTaskDisabled?.(item)) {
+                      return;
+                    }
+                    if (isActivationKey(event)) {
+                      event.preventDefault();
+                      onTaskSelect?.(item);
+                      return;
+                    }
+                    if (event.key === "Escape") {
+                      if (selectedTaskId != null && onTaskDeselect) {
+                        event.preventDefault();
+                        onTaskDeselect();
+                      }
+                      return;
+                    }
+                    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
+                      return;
+                    }
+                    event.preventDefault();
+                    const index = enabledTasks.findIndex(
+                      (enabledTask) => enabledTask.id === item.id,
+                    );
+                    const next =
+                      event.key === "ArrowDown"
+                        ? enabledTasks[Math.min(enabledTasks.length - 1, index + 1)]
+                        : enabledTasks[Math.max(0, index - 1)];
+                    if (next) {
+                      if (focusedTaskId === undefined) {
+                        setInternalFocusedTaskId(next.id);
+                      }
+                      onFocusedTaskIdChange?.(next);
+                      queueMicrotask(() => taskRefs.current.get(next.id)?.focus());
+                    }
+                  }}
+                  setTaskRef={(taskId, element) => {
+                    if (element) {
+                      taskRefs.current.set(taskId, element);
+                    } else {
+                      taskRefs.current.delete(taskId);
+                    }
+                  }}
                 />
               ))}
             </g>
@@ -208,6 +349,16 @@ function GanttChartTaskShape({
   domainEnd,
   markerId,
   formatDate,
+  selected,
+  focused,
+  disabled,
+  keyboardMode,
+  actions,
+  onTaskSelect,
+  onTaskActionSelect,
+  onTaskFocus,
+  onTaskKeyDown,
+  setTaskRef,
 }: {
   task: PreparedGanttTask;
   index: number;
@@ -218,6 +369,16 @@ function GanttChartTaskShape({
   domainEnd: number;
   markerId: string;
   formatDate: (date: Date) => string;
+  selected: boolean;
+  focused: boolean;
+  disabled: boolean;
+  keyboardMode: "nodes" | "none";
+  actions: readonly GanttChartTaskAction[];
+  onTaskSelect?: GanttChartProps["onTaskSelect"];
+  onTaskActionSelect?: GanttChartProps["onTaskActionSelect"];
+  onTaskFocus: (task: PreparedGanttTask) => void;
+  onTaskKeyDown: (event: React.KeyboardEvent<SVGGElement>, task: PreparedGanttTask) => void;
+  setTaskRef: (taskId: string, element: SVGGElement | null) => void;
 }) {
   const rowY = getRowY(index, rowHeight);
   const barHeight = Math.min(24, Math.max(16, rowHeight - 26));
@@ -229,7 +390,37 @@ function GanttChartTaskShape({
   const isLate = typeof task.deadline === "number" && task.end > task.deadline;
 
   return (
-    <g data-slot="gantt-chart-task" data-task-id={task.id} data-late={isLate || undefined}>
+    <g
+      data-slot="gantt-chart-task"
+      data-task-id={task.id}
+      data-late={isLate || undefined}
+      data-selected={selected ? "true" : undefined}
+      data-focused={focused ? "true" : undefined}
+      data-disabled={disabled ? "true" : undefined}
+      role={onTaskSelect && !actions.length ? "button" : undefined}
+      aria-label={
+        onTaskSelect && !actions.length
+          ? getReactNodeAccessibleName(task.label, task.id)
+          : undefined
+      }
+      aria-pressed={onTaskSelect && !actions.length ? selected : undefined}
+      tabIndex={keyboardMode === "nodes" && focused && !disabled ? 0 : -1}
+      className={cn("outline-none", onTaskSelect && "cursor-pointer", disabled && "opacity-60")}
+      onClick={onTaskSelect && !disabled ? () => onTaskSelect(task) : undefined}
+      onFocus={() => onTaskFocus(task)}
+      onKeyDown={(event) => onTaskKeyDown(event, task)}
+      ref={(element) => setTaskRef(task.id, element)}
+    >
+      {selected || focused ? (
+        <rect
+          x={GANTT_PADDING.left}
+          y={rowY + 4}
+          width={chartX + chartWidth - GANTT_PADDING.left}
+          height={rowHeight - 8}
+          rx={8}
+          className={cn("fill-transparent stroke-2", selected ? "stroke-primary" : "stroke-ring")}
+        />
+      ) : null}
       <foreignObject
         data-slot="gantt-chart-task-label"
         x={GANTT_PADDING.left}
@@ -300,6 +491,38 @@ function GanttChartTaskShape({
           markerEnd={`url(#${markerId})`}
           formatDate={formatDate}
         />
+      ) : null}
+      {actions.length ? (
+        <foreignObject
+          x={chartX + chartWidth - actions.length * 32}
+          y={rowY + 8}
+          width={actions.length * 32}
+          height={28}
+        >
+          <div className="flex gap-1">
+            {actions.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                data-slot="gantt-chart-task-action"
+                data-action-id={action.id}
+                aria-label={getReactNodeAccessibleName(action.label, action.id)}
+                disabled={action.disabled}
+                className={cn(
+                  "inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+                  action.destructive && "text-destructive",
+                )}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  action.onSelect?.(task);
+                  onTaskActionSelect?.(action, task);
+                }}
+              >
+                {action.icon ?? action.label}
+              </button>
+            ))}
+          </div>
+        </foreignObject>
       ) : null}
     </g>
   );
@@ -428,4 +651,11 @@ function formatShortDate(date: Date) {
 }
 
 export { GanttChart };
-export type { GanttChartDate, GanttChartProps, GanttChartTask, GanttChartTone };
+export type {
+  GanttChartDate,
+  GanttChartProps,
+  GanttChartTask,
+  GanttChartTaskAction,
+  GanttChartTone,
+  PreparedGanttTask,
+};

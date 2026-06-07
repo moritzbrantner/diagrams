@@ -81,6 +81,89 @@ Generated API documentation is published under <https://moritzbrantner.github.io
 - `UmlDiagram`, `UmlClassDiagram`, `UmlStateDiagram`, and `getUmlDiagramBounds` for generic UML,
   class, and state diagrams.
 
+## Interaction Pattern
+
+Interactive diagrams keep their static `role="img"` surface until selection, actions, or keyboard
+props are supplied. Node-like diagrams use the same controlled shape:
+
+```tsx
+import { RelationshipMap } from "@moritzbrantner/diagrams";
+
+export function InteractiveMap() {
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>("api");
+
+  return (
+    <RelationshipMap
+      ariaLabel="Service relationships"
+      selectedNodeId={selectedNodeId}
+      onNodeSelect={(node) => setSelectedNodeId(node.id)}
+      onNodeDeselect={() => setSelectedNodeId(null)}
+      nodeActions={[
+        {
+          id: "inspect",
+          label: "Inspect",
+          onSelect: (node) => console.log(node.id),
+        },
+      ]}
+      nodes={[
+        { id: "api", label: "API", x: 0, y: 0 },
+        { id: "db", label: "Database", x: 280, y: 0 },
+      ]}
+      edges={[{ id: "api-db", source: "api", target: "db", label: "reads" }]}
+    />
+  );
+}
+```
+
+When interaction is enabled, arrow keys move focus between enabled items and Enter or Space
+activates the focused item.
+
+## Collapse Controls
+
+Hierarchical and grouped diagrams expose controlled collapse state. Expansion defaults to fully
+expanded when no state is supplied.
+
+```tsx
+import { ArchitectureDiagram, DecisionTree } from "@moritzbrantner/diagrams";
+
+export function CollapsibleDiagrams() {
+  return (
+    <>
+      <DecisionTree
+        expandedNodeIds={["root"]}
+        root={{
+          id: "root",
+          label: "Launch?",
+          children: [
+            {
+              id: "yes",
+              label: "Yes",
+              target: {
+                id: "ship",
+                label: "Ship",
+                children: [
+                  { id: "announce", label: "Announce", target: { id: "done", label: "Done" } },
+                ],
+              },
+            },
+          ],
+        }}
+      />
+      <ArchitectureDiagram
+        collapsedBoundaryIds={["platform"]}
+        boundaries={[{ id: "platform", label: "Platform" }]}
+        nodes={[
+          { id: "api", label: "API", boundaryId: "platform" },
+          { id: "db", label: "Database", boundaryId: "platform" },
+          { id: "user", label: "User", x: 560, y: 0 },
+        ]}
+        connections={[{ id: "user-api", source: "user", target: "api" }]}
+      />
+    </>
+  );
+}
+```
+
 ## Relationship Map
 
 ```tsx

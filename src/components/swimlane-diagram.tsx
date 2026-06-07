@@ -5,12 +5,18 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  DiagramSvgItemInteraction,
+  type DiagramItemAction,
   defaultEdgeToneClasses,
   defaultToneClasses,
   defaultSvgToneClasses,
-  getOrthogonalRoute,
+  getHullRoute,
+  getNearestDiagramItem,
+  getReactNodeAccessibleName,
   getSpatialBounds,
+  isActivationKey,
   pointsToPath,
+  useControlledSetState,
   type DiagramDirection,
   type DiagramPoint,
   type DiagramTone,
@@ -54,7 +60,10 @@ export type SwimlaneDiagramConnector = {
   kind?: SwimlaneDiagramConnectorKind;
   direction?: DiagramDirection;
   points?: readonly DiagramPoint[];
+  waypoints?: readonly DiagramPoint[];
 };
+
+export type SwimlaneDiagramStepAction = DiagramItemAction<PositionedSwimlaneDiagramStep>;
 
 export type SwimlaneDiagramProps = Omit<React.ComponentProps<"figure">, "children"> & {
   lanes: readonly SwimlaneDiagramLane[];
@@ -65,6 +74,29 @@ export type SwimlaneDiagramProps = Omit<React.ComponentProps<"figure">, "childre
   caption?: React.ReactNode;
   emptyMessage?: React.ReactNode;
   padding?: number;
+  selectedStepId?: string | null;
+  focusedStepId?: string | null;
+  defaultFocusedStepId?: string | null;
+  keyboardMode?: "nodes" | "none";
+  getStepDisabled?: (step: PositionedSwimlaneDiagramStep) => boolean;
+  renderStepSelection?: (step: PositionedSwimlaneDiagramStep) => React.ReactNode;
+  stepActions?:
+    | readonly SwimlaneDiagramStepAction[]
+    | ((step: PositionedSwimlaneDiagramStep) => readonly SwimlaneDiagramStepAction[]);
+  onStepSelect?: (step: PositionedSwimlaneDiagramStep) => void;
+  onStepDeselect?: () => void;
+  onFocusedStepIdChange?: (step: PositionedSwimlaneDiagramStep | null) => void;
+  onStepActionSelect?: (
+    action: SwimlaneDiagramStepAction,
+    step: PositionedSwimlaneDiagramStep,
+  ) => void;
+  collapsedLaneIds?: readonly string[];
+  defaultCollapsedLaneIds?: readonly string[];
+  onCollapsedLaneIdsChange?: (
+    laneIds: string[],
+    lane: PositionedSwimlaneDiagramLane,
+    collapsed: boolean,
+  ) => void;
 };
 
 type PositionedSwimlaneDiagramStep = SwimlaneDiagramStep &
@@ -80,11 +112,19 @@ type PositionedSwimlaneDiagramLane = SwimlaneDiagramLane & {
   height: number;
 };
 
+type RenderSwimlaneDiagramStep = PositionedSwimlaneDiagramStep & {
+  summary?: {
+    lane: PositionedSwimlaneDiagramLane;
+    hiddenSteps: readonly PositionedSwimlaneDiagramStep[];
+  };
+};
+
 const STEP_WIDTH = 180;
 const STEP_HEIGHT = 96;
 const LANE_HEADER = 132;
 const LANE_SIZE = 168;
 const STEP_GAP = 72;
+const LANE_SUMMARY_PREFIX = "__swimlane-diagram-lane-summary-";
 const connectorTone: Record<SwimlaneDiagramConnectorKind, DiagramTone> = {
   default: "default",
   dependency: "accent",
@@ -109,6 +149,20 @@ function SwimlaneDiagram({
   caption,
   emptyMessage = "No swimlane steps.",
   padding = 32,
+  selectedStepId,
+  focusedStepId,
+  defaultFocusedStepId,
+  keyboardMode,
+  getStepDisabled,
+  renderStepSelection,
+  stepActions,
+  onStepSelect,
+  onStepDeselect,
+  onFocusedStepIdChange,
+  onStepActionSelect,
+  collapsedLaneIds,
+  defaultCollapsedLaneIds,
+  onCollapsedLaneIdsChange,
   className,
   ...props
 }: SwimlaneDiagramProps) {
@@ -127,19 +181,163 @@ function SwimlaneDiagram({
     () => positionSteps(validSteps, laneMap, orientation),
     [laneMap, orientation, validSteps],
   );
+  const [internalCollapsedLaneIds, setInternalCollapsedLaneIds] = useControlledSetState({
+    value: collapsedLaneIds,
+    defaultValue: defaultCollapsedLaneIds,
+  });
+  const laneProjection = React.useMemo(
+    () => getSwimlaneLaneProjection(positionedLanes, positionedSteps, internalCollapsedLaneIds),
+    [internalCollapsedLaneIds, positionedLanes, positionedSteps],
+  );
+  const renderSteps = React.useMemo<RenderSwimlaneDiagramStep[]>(
+    () => [
+      ...positionedSteps.filter((step) => !laneProjection.hiddenStepToProxyId.has(step.id)),
+      ...laneProjection.summarySteps,
+    ],
+    [laneProjection.hiddenStepToProxyId, laneProjection.summarySteps, positionedSteps],
+  );
   const stepMap = React.useMemo(
-    () => new Map(positionedSteps.map((step) => [step.id, step])),
-    [positionedSteps],
+    () => new Map(renderSteps.map((step) => [step.id, step])),
+    [renderSteps],
   );
-  const validConnectors = connectors.filter(
-    (connector) => stepMap.has(connector.source) && stepMap.has(connector.target),
+  const validConnectors = connectors
+    .map((connector) => ({
+      ...connector,
+      source: laneProjection.hiddenStepToProxyId.get(connector.source) ?? connector.source,
+      target: laneProjection.hiddenStepToProxyId.get(connector.target) ?? connector.target,
+    }))
+    .filter((connector) => stepMap.has(connector.source) && stepMap.has(connector.target));
+  const resolvedKeyboardMode = keyboardMode ?? (onStepSelect || stepActions ? "nodes" : "none");
+  const stepRefs = React.useRef(new Map<string, SVGGElement>());
+  const [internalFocusedStepId, setInternalFocusedStepId] = React.useState<string | null>(
+    () => defaultFocusedStepId ?? null,
   );
-  const routePoints = validConnectors.flatMap((connector, index) =>
-    connector.points?.length
-      ? connector.points
-      : getOrthogonalRoute(stepMap.get(connector.source)!, stepMap.get(connector.target)!, index),
+  const enabledSteps = React.useMemo(
+    () => renderSteps.filter((step) => !getStepDisabled?.(step)),
+    [getStepDisabled, renderSteps],
   );
-  const bounds = getSpatialBounds([...positionedLanes, ...positionedSteps], routePoints);
+  const requestedFocusedStepId =
+    focusedStepId !== undefined ? focusedStepId : internalFocusedStepId;
+  const effectiveFocusedStepId =
+    resolvedKeyboardMode === "nodes"
+      ? (enabledSteps.find((step) => step.id === requestedFocusedStepId)?.id ??
+        enabledSteps[0]?.id ??
+        null)
+      : null;
+  const setStepRef = React.useCallback((stepId: string, element: SVGGElement | null) => {
+    if (element) {
+      stepRefs.current.set(stepId, element);
+    } else {
+      stepRefs.current.delete(stepId);
+    }
+  }, []);
+  const focusStepById = React.useCallback(
+    (stepId: string | null) => {
+      const nextStep = stepId ? (stepMap.get(stepId) ?? null) : null;
+
+      if (focusedStepId === undefined) {
+        setInternalFocusedStepId(stepId);
+      }
+
+      onFocusedStepIdChange?.(nextStep);
+
+      if (stepId) {
+        queueMicrotask(() => stepRefs.current.get(stepId)?.focus());
+      }
+    },
+    [focusedStepId, onFocusedStepIdChange, stepMap],
+  );
+  const handleStepFocus = React.useCallback(
+    (step: RenderSwimlaneDiagramStep) => {
+      if (getStepDisabled?.(step)) {
+        return;
+      }
+
+      if (focusedStepId === undefined) {
+        setInternalFocusedStepId(step.id);
+      }
+
+      onFocusedStepIdChange?.(step);
+    },
+    [focusedStepId, getStepDisabled, onFocusedStepIdChange],
+  );
+  const handleStepKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<SVGGElement>, step: RenderSwimlaneDiagramStep) => {
+      if (resolvedKeyboardMode === "none" || getStepDisabled?.(step)) {
+        return;
+      }
+
+      if (isActivationKey(event)) {
+        event.preventDefault();
+        onStepSelect?.(step);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (selectedStepId != null && onStepDeselect) {
+          event.preventDefault();
+          onStepDeselect();
+        }
+        return;
+      }
+
+      if (
+        event.key !== "ArrowRight" &&
+        event.key !== "ArrowLeft" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      const nextStep = getNearestDiagramItem(
+        step,
+        enabledSteps.filter((item) => item.id !== step.id),
+        event.key,
+      );
+
+      if (nextStep) {
+        focusStepById(nextStep.id);
+      }
+    },
+    [
+      enabledSteps,
+      focusStepById,
+      getStepDisabled,
+      onStepDeselect,
+      onStepSelect,
+      resolvedKeyboardMode,
+      selectedStepId,
+    ],
+  );
+  const toggleLane = React.useCallback(
+    (lane: PositionedSwimlaneDiagramLane, collapsed: boolean) => {
+      const nextLaneIds = collapsed
+        ? Array.from(new Set([...internalCollapsedLaneIds, lane.id]))
+        : Array.from(internalCollapsedLaneIds).filter((id) => id !== lane.id);
+
+      setInternalCollapsedLaneIds(nextLaneIds);
+      onCollapsedLaneIdsChange?.(nextLaneIds, lane, collapsed);
+    },
+    [internalCollapsedLaneIds, onCollapsedLaneIdsChange, setInternalCollapsedLaneIds],
+  );
+  const routePoints = validConnectors.flatMap((connector, index) => {
+    const source = stepMap.get(connector.source);
+    const target = stepMap.get(connector.target);
+
+    return source && target
+      ? getHullRoute({
+          source,
+          target,
+          edgeIndex: index,
+          points: connector.points,
+          waypoints: connector.waypoints,
+          selfLoop: source.id === target.id,
+        }).points
+      : [];
+  });
+  const bounds = getSpatialBounds([...positionedLanes, ...renderSteps], routePoints);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
@@ -166,7 +364,7 @@ function SwimlaneDiagram({
         </button>
         <svg
           data-slot="swimlane-diagram-svg"
-          role="img"
+          role={onStepSelect || stepActions ? "group" : "img"}
           aria-label={ariaLabel}
           viewBox={viewBox}
           className="block min-h-80 w-full min-w-160 text-foreground"
@@ -183,7 +381,7 @@ function SwimlaneDiagram({
               <path d="M 0 0 L 10 5 L 0 10 z" className="fill-current text-muted-foreground" />
             </marker>
           </defs>
-          {positionedLanes.length && positionedSteps.length ? (
+          {positionedLanes.length && renderSteps.length ? (
             <>
               <g data-slot="swimlane-diagram-lanes">
                 {positionedLanes.map((lane) => (
@@ -214,6 +412,27 @@ function SwimlaneDiagram({
                         ) : null}
                       </div>
                     </foreignObject>
+                    {onCollapsedLaneIdsChange || collapsedLaneIds || defaultCollapsedLaneIds ? (
+                      <foreignObject
+                        x={lane.x + lane.width - 64}
+                        y={lane.y + 12}
+                        width={56}
+                        height={28}
+                      >
+                        <button
+                          type="button"
+                          data-slot="swimlane-diagram-lane-action"
+                          aria-label={`${internalCollapsedLaneIds.has(lane.id) ? "Expand" : "Collapse"} ${getReactNodeAccessibleName(lane.label, lane.id)}`}
+                          className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleLane(lane, !internalCollapsedLaneIds.has(lane.id));
+                          }}
+                        >
+                          {internalCollapsedLaneIds.has(lane.id) ? "Show" : "Hide"}
+                        </button>
+                      </foreignObject>
+                    ) : null}
                   </g>
                 ))}
               </g>
@@ -229,8 +448,48 @@ function SwimlaneDiagram({
                 ))}
               </g>
               <g data-slot="swimlane-diagram-steps">
-                {positionedSteps.map((step) => (
-                  <SwimlaneStepShape key={step.id} step={step} />
+                {renderSteps.map((step) => (
+                  <DiagramSvgItemInteraction
+                    key={step.id}
+                    item={step}
+                    slot="swimlane-diagram-step"
+                    selected={selectedStepId === step.id}
+                    focused={effectiveFocusedStepId === step.id}
+                    disabled={Boolean(getStepDisabled?.(step))}
+                    keyboardMode={resolvedKeyboardMode}
+                    actions={
+                      typeof stepActions === "function" ? stepActions(step) : (stepActions ?? [])
+                    }
+                    renderSelection={renderStepSelection}
+                    onSelect={onStepSelect}
+                    onFocus={handleStepFocus}
+                    onKeyDown={handleStepKeyDown}
+                    onActionSelect={onStepActionSelect}
+                    setItemRef={setStepRef}
+                  >
+                    <SwimlaneStepShape step={step} />
+                    {step.summary ? (
+                      <foreignObject
+                        x={step.x + step.width - 52}
+                        y={step.y + 8}
+                        width={44}
+                        height={28}
+                      >
+                        <button
+                          type="button"
+                          data-slot="swimlane-diagram-step-action"
+                          aria-label={`Expand ${getReactNodeAccessibleName(step.summary.lane.label, step.summary.lane.id)}`}
+                          className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleLane(step.summary!.lane, false);
+                          }}
+                        >
+                          Show
+                        </button>
+                      </foreignObject>
+                    ) : null}
+                  </DiagramSvgItemInteraction>
                 ))}
               </g>
             </>
@@ -263,7 +522,7 @@ function SwimlaneConnectorShape({
   connectorIndex,
 }: {
   connector: SwimlaneDiagramConnector;
-  steps: Map<string, PositionedSwimlaneDiagramStep>;
+  steps: Map<string, RenderSwimlaneDiagramStep>;
   markerId: string;
   connectorIndex: number;
 }) {
@@ -274,12 +533,18 @@ function SwimlaneConnectorShape({
     return null;
   }
 
-  const points = connector.points?.length
-    ? connector.points
-    : getOrthogonalRoute(source, target, connectorIndex);
+  const route = getHullRoute({
+    source,
+    target,
+    edgeIndex: connectorIndex,
+    points: connector.points,
+    waypoints: connector.waypoints,
+    selfLoop: source.id === target.id,
+  });
+  const points = route.points;
   const direction = connector.direction ?? "forward";
   const markerUrl = `url(#${markerId})`;
-  const labelPoint = points[Math.floor(points.length / 2)] ?? points[0];
+  const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
 
   return (
     <g data-slot="swimlane-diagram-connector" data-kind={connector.kind ?? "default"}>
@@ -302,7 +567,7 @@ function SwimlaneConnectorShape({
   );
 }
 
-function SwimlaneStepShape({ step }: { step: PositionedSwimlaneDiagramStep }) {
+function SwimlaneStepShape({ step }: { step: RenderSwimlaneDiagramStep }) {
   const tone = step.tone ?? (step.status ? statusTone[step.status] : "default");
 
   return (
@@ -323,7 +588,11 @@ function SwimlaneStepShape({ step }: { step: PositionedSwimlaneDiagramStep }) {
         )}
       >
         <div className="font-medium leading-5">{step.label}</div>
-        {step.description ? (
+        {step.summary ? (
+          <div className="line-clamp-2 text-xs leading-4 text-muted-foreground">
+            {step.summary.hiddenSteps.length} steps hidden
+          </div>
+        ) : step.description ? (
           <div className="line-clamp-2 text-xs leading-4 text-muted-foreground">
             {step.description}
           </div>
@@ -334,6 +603,47 @@ function SwimlaneStepShape({ step }: { step: PositionedSwimlaneDiagramStep }) {
       </div>
     </foreignObject>
   );
+}
+
+function getSwimlaneLaneProjection(
+  lanes: readonly PositionedSwimlaneDiagramLane[],
+  steps: readonly PositionedSwimlaneDiagramStep[],
+  collapsedLaneIds: ReadonlySet<string>,
+) {
+  const hiddenStepToProxyId = new Map<string, string>();
+  const summarySteps: RenderSwimlaneDiagramStep[] = [];
+
+  for (const lane of lanes) {
+    if (!collapsedLaneIds.has(lane.id)) {
+      continue;
+    }
+
+    const laneSteps = steps.filter((step) => step.laneId === lane.id);
+    if (!laneSteps.length) {
+      continue;
+    }
+
+    const summaryStep: RenderSwimlaneDiagramStep = {
+      id: `${LANE_SUMMARY_PREFIX}${lane.id}`,
+      laneId: lane.id,
+      label: lane.label,
+      description: `${laneSteps.length} ${laneSteps.length === 1 ? "step" : "steps"}`,
+      tone: lane.tone ?? "muted",
+      x: lane.x + lane.width / 2 - STEP_WIDTH / 2,
+      y: lane.y + lane.height / 2 - STEP_HEIGHT / 2,
+      width: STEP_WIDTH,
+      height: STEP_HEIGHT,
+      summary: { lane, hiddenSteps: laneSteps },
+    };
+
+    summarySteps.push(summaryStep);
+
+    for (const step of laneSteps) {
+      hiddenStepToProxyId.set(step.id, summaryStep.id);
+    }
+  }
+
+  return { hiddenStepToProxyId, summarySteps };
 }
 
 function positionLanes(
