@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { cn } from "../lib/cn";
+import { cn } from "@moritzbrantner/ui";
 
 type GanttChartDate = Date | number | string;
 type GanttChartTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";

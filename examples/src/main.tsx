@@ -1,3 +1,12 @@
+import {
+  Button,
+  Card,
+  CardContent,
+  Stat,
+  StatGroup,
+  StatLabel,
+  StatValue,
+} from "@moritzbrantner/ui";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { BoxesIcon, GitBranchIcon, NetworkIcon, WorkflowIcon } from "lucide-react";
 import { StrictMode, useMemo, useState } from "react";
@@ -576,15 +585,16 @@ function ShowcaseButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       aria-pressed={active}
       onClick={onClick}
-      className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+      className="min-w-0"
     >
       <Icon className="size-4 shrink-0" />
       <span className="truncate">{label}</span>
-    </button>
+    </Button>
   );
 }
 
@@ -602,28 +612,30 @@ function InsightStrip({ data }: { data: ShowcaseData }) {
   ];
 
   return (
-    <dl className="grid gap-3 sm:grid-cols-3">
+    <StatGroup className="grid gap-3 sm:grid-cols-3">
       {stats.map((stat) => (
-        <div key={stat.label} className="rounded-md border bg-card px-4 py-3 text-card-foreground">
-          <dt className="text-xs font-medium uppercase text-muted-foreground">{stat.label}</dt>
-          <dd className="mt-1 text-2xl font-semibold tracking-normal">{stat.value}</dd>
-        </div>
+        <Stat key={stat.label}>
+          <StatLabel>{stat.label}</StatLabel>
+          <StatValue>{stat.value}</StatValue>
+        </Stat>
       ))}
-    </dl>
+    </StatGroup>
   );
 }
 
 function SnippetPanel({ activeDiagram }: { activeDiagram: DiagramKey }) {
   return (
-    <div className="grid min-w-0 content-start gap-3 rounded-md border bg-card p-4 text-card-foreground">
-      <div className="flex items-center gap-2">
-        <BoxesIcon className="size-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold tracking-normal">API shape</h2>
-      </div>
-      <pre className="min-w-0 whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
-        <code>{snippets[activeDiagram]}</code>
-      </pre>
-    </div>
+    <Card className="grid min-w-0 content-start gap-3 p-4">
+      <CardContent className="grid gap-3 p-0">
+        <div className="flex items-center gap-2">
+          <BoxesIcon className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold tracking-normal">API shape</h2>
+        </div>
+        <pre className="min-w-0 whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
+          <code>{snippets[activeDiagram]}</code>
+        </pre>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -774,11 +786,7 @@ function ShowcasePreview({
     return <MindMap ariaLabel="Diagram mind map" root={data.mindMapRoot} />;
   }, [activeDiagram, data]);
 
-  return (
-    <div className="grid min-w-0 gap-4 rounded-md border bg-card p-4 text-card-foreground">
-      {preview}
-    </div>
-  );
+  return <Card className="grid min-w-0 gap-4 p-4">{preview}</Card>;
 }
 
 function ShowcaseApp({ data }: { data: ShowcaseData }) {
@@ -937,9 +945,7 @@ function AppContent() {
   if (isLoading || !data) {
     return (
       <main className="mx-auto grid min-h-screen max-w-6xl place-items-center px-4 text-foreground">
-        <div className="rounded-md border bg-card px-4 py-3 text-sm text-muted-foreground">
-          Loading diagram examples
-        </div>
+        <Card className="px-4 py-3 text-sm text-muted-foreground">Loading diagram examples</Card>
       </main>
     );
   }

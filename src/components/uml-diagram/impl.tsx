@@ -1,8 +1,7 @@
 "use client";
 
+import { cn } from "@moritzbrantner/ui";
 import * as React from "react";
-
-import { cn } from "../../lib/cn";
 
 type UmlDiagramNodeVariant = "default" | "accent" | "muted" | "warning" | "danger";
 type UmlDiagramEdgeKind =

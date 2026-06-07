@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { cn } from "../lib/cn";
+import { cn } from "@moritzbrantner/ui";
 
 type RelationshipMapEdgeKind = "default" | "dependency" | "blocking" | "success" | "risk";
 type RelationshipMapDirection = "forward" | "backward" | "both" | "none";

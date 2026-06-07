@@ -1,8 +1,7 @@
 "use client";
 
+import { cn } from "@moritzbrantner/ui";
 import * as React from "react";
-
-import { cn } from "../lib/cn";
 
 import { defaultToneClasses, type DiagramTone } from "./diagram-utils";
 
