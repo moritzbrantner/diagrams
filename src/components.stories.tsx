@@ -356,6 +356,7 @@ export const InteractiveDependencyGraphStory: Story = {
   name: "Interactive Dependency Graph",
   render: () => <InteractiveDependencyGraphDemo />,
   play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Expand Runtime packages" }));
     await userEvent.click(canvas.getByText("Diagrams"));
     await expect(canvas.getByRole("button", { name: "Inspect diagrams" })).toBeVisible();
     await userEvent.click(canvas.getByRole("button", { name: "Inspect diagrams" }));
@@ -364,14 +365,28 @@ export const InteractiveDependencyGraphStory: Story = {
 
 function InteractiveDependencyGraphDemo() {
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>("diagrams");
+  const [minimizedPartIds, setMinimizedPartIds] = React.useState<string[]>(["runtime"]);
+  const [minimizedNodeIds, setMinimizedNodeIds] = React.useState<string[]>([]);
 
   return (
     <StoryFrame>
       <DependencyGraph
         ariaLabel="Interactive dependency graph"
+        enableNodeMinimize
+        minimizedNodeIds={minimizedNodeIds}
+        minimizedPartIds={minimizedPartIds}
+        onMinimizedNodeIdsChange={setMinimizedNodeIds}
+        onMinimizedPartIdsChange={setMinimizedPartIds}
         selectedNodeId={selectedNodeId}
         onNodeSelect={(node) => setSelectedNodeId(node.id)}
         onNodeDeselect={() => setSelectedNodeId(null)}
+        parts={[
+          {
+            id: "runtime",
+            label: "Runtime packages",
+            nodeIds: ["diagrams", "ui"],
+          },
+        ]}
         nodeActions={(node) => [
           {
             id: "inspect",
@@ -397,10 +412,19 @@ function InteractiveDependencyGraphDemo() {
             y: 0,
           },
           { id: "ui", label: "UI", description: "Peer package", status: "stable", x: 560, y: 90 },
+          {
+            id: "docs",
+            label: "Docs",
+            description: "Examples and API report",
+            status: "stable",
+            x: 280,
+            y: 190,
+          },
         ]}
         edges={[
           { id: "app-diagrams", source: "app", target: "diagrams", label: "imports" },
           { id: "diagrams-ui", source: "diagrams", target: "ui", label: "peer", kind: "peer" },
+          { id: "diagrams-docs", source: "diagrams", target: "docs", label: "documents" },
         ]}
       />
     </StoryFrame>

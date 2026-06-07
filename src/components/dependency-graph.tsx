@@ -1,14 +1,15 @@
 "use client";
 
 import { cn } from "@moritzbrantner/ui";
+import { Maximize2Icon, Minimize2Icon } from "lucide-react";
 import * as React from "react";
 
 import {
   clampFiniteNumber,
   defaultEdgeToneClasses,
+  defaultSvgToneClasses,
   defaultToneClasses,
   getAutoGridPosition,
-  getOrthogonalRoute,
   getSpatialBounds,
   pointsToPath,
   type DiagramDirection,
@@ -20,19 +21,34 @@ export type DependencyGraphStatus = "stable" | "active" | "deprecated" | "blocke
 export type DependencyGraphEdgeKind = "runtime" | "build" | "peer" | "optional" | "blocking";
 export type DependencyGraphKeyboardMode = "nodes" | "none";
 export type DependencyGraphNodeActionPlacement = "inside-bottom-end" | "outside-top-end";
+export type DependencyGraphMinimizeControls = "auto" | "always" | "none";
 
 export type DependencyGraphNode = {
   id: string;
   label: React.ReactNode;
   description?: React.ReactNode;
   group?: React.ReactNode;
+  partId?: string;
   version?: React.ReactNode;
   status?: DependencyGraphStatus;
+  minimizable?: boolean;
   x?: number;
   y?: number;
   width?: number;
   height?: number;
   tone?: DiagramTone;
+};
+
+export type DependencyGraphPart = {
+  id: string;
+  label: React.ReactNode;
+  description?: React.ReactNode;
+  nodeIds?: readonly string[];
+  tone?: DiagramTone;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
 };
 
 export type DependencyGraphNodeAction = {
@@ -52,6 +68,7 @@ export type DependencyGraphEdge = {
   kind?: DependencyGraphEdgeKind;
   direction?: DiagramDirection;
   points?: readonly DiagramPoint[];
+  waypoints?: readonly DiagramPoint[];
 };
 
 export type DependencyGraphProps = Omit<React.ComponentProps<"figure">, "children"> & {
@@ -63,6 +80,31 @@ export type DependencyGraphProps = Omit<React.ComponentProps<"figure">, "childre
   emptyMessage?: React.ReactNode;
   padding?: number;
   autoLayoutColumns?: number;
+  parts?: readonly DependencyGraphPart[];
+  minimizedPartIds?: readonly string[];
+  defaultMinimizedPartIds?: readonly string[];
+  onMinimizedPartIdsChange?: (
+    partIds: string[],
+    part: DependencyGraphPart,
+    minimized: boolean,
+  ) => void;
+  enableNodeMinimize?: boolean;
+  minimizedNodeIds?: readonly string[];
+  defaultMinimizedNodeIds?: readonly string[];
+  onMinimizedNodeIdsChange?: (
+    nodeIds: string[],
+    node: PositionedDependencyGraphNode,
+    minimized: boolean,
+  ) => void;
+  minimizeControls?: DependencyGraphMinimizeControls;
+  getMinimizedNodeLabel?: (
+    node: PositionedDependencyGraphNode,
+    hiddenNodes: readonly PositionedDependencyGraphNode[],
+  ) => React.ReactNode;
+  getMinimizedPartLabel?: (
+    part: DependencyGraphPart,
+    hiddenNodes: readonly PositionedDependencyGraphNode[],
+  ) => React.ReactNode;
   selectedNodeId?: string | null;
   keyboardMode?: DependencyGraphKeyboardMode;
   focusedNodeId?: string | null;
@@ -88,6 +130,42 @@ type PositionedDependencyGraphNode = DependencyGraphNode &
     height: number;
   };
 
+type DependencyGraphSummaryKind = "part" | "node";
+
+type DependencyGraphSummary = {
+  kind: DependencyGraphSummaryKind;
+  sourceId: string;
+  hiddenNodes: readonly PositionedDependencyGraphNode[];
+  part?: DependencyGraphPart;
+  rootNode?: PositionedDependencyGraphNode;
+};
+
+type RenderDependencyGraphNode = PositionedDependencyGraphNode & {
+  summary?: DependencyGraphSummary;
+};
+
+type PositionedDependencyGraphPart = {
+  part: DependencyGraphPart;
+  nodeIds: Set<string>;
+  nodes: readonly PositionedDependencyGraphNode[];
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+};
+
+type DependencyGraphEdgeRoute = {
+  points: readonly DiagramPoint[];
+  labelPoint?: DiagramPoint;
+};
+
+type RenderDependencyGraphEdge = DependencyGraphEdge & {
+  source: string;
+  target: string;
+};
+
 const DEFAULT_NODE_WIDTH = 188;
 const DEFAULT_NODE_HEIGHT = 104;
 const edgeToneByKind: Record<DependencyGraphEdgeKind, DiagramTone> = {
@@ -104,6 +182,11 @@ const statusTone: Record<DependencyGraphStatus, DiagramTone> = {
   blocked: "danger",
   "at-risk": "warning",
 };
+const PART_HULL_PADDING = 28;
+const SUMMARY_NODE_WIDTH = 168;
+const SUMMARY_NODE_HEIGHT = 84;
+const PART_SUMMARY_PREFIX = "__dependency-graph-part-summary-";
+const NODE_SUMMARY_PREFIX = "__dependency-graph-node-summary-";
 
 function DependencyGraph({
   nodes,
@@ -114,6 +197,17 @@ function DependencyGraph({
   emptyMessage = "No dependencies to display.",
   padding = 32,
   autoLayoutColumns = 3,
+  parts,
+  minimizedPartIds,
+  defaultMinimizedPartIds,
+  onMinimizedPartIdsChange,
+  enableNodeMinimize,
+  minimizedNodeIds,
+  defaultMinimizedNodeIds,
+  onMinimizedNodeIdsChange,
+  minimizeControls = "auto",
+  getMinimizedNodeLabel,
+  getMinimizedPartLabel,
   selectedNodeId,
   keyboardMode,
   focusedNodeId,
@@ -130,15 +224,91 @@ function DependencyGraph({
   ...props
 }: DependencyGraphProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
-  const positionedNodes = React.useMemo(
+  const originalPositionedNodes = React.useMemo(
     () => positionNodes(nodes, autoLayoutColumns),
     [autoLayoutColumns, nodes],
+  );
+  const originalNodeMap = React.useMemo(
+    () => new Map(originalPositionedNodes.map((node) => [node.id, node])),
+    [originalPositionedNodes],
+  );
+  const originalValidEdges = React.useMemo(
+    () =>
+      edges.filter((edge) => originalNodeMap.has(edge.source) && originalNodeMap.has(edge.target)),
+    [edges, originalNodeMap],
+  );
+  const positionedParts = React.useMemo(
+    () => positionDependencyGraphParts(parts, originalPositionedNodes),
+    [parts, originalPositionedNodes],
+  );
+  const [internalMinimizedPartIds, setInternalMinimizedPartIds] = React.useState<string[]>(() => [
+    ...(defaultMinimizedPartIds ?? []),
+  ]);
+  const currentMinimizedPartIds = React.useMemo(
+    () => new Set(minimizedPartIds ?? internalMinimizedPartIds),
+    [internalMinimizedPartIds, minimizedPartIds],
+  );
+  const partProjection = React.useMemo(
+    () =>
+      getMinimizedPartProjection(positionedParts, currentMinimizedPartIds, getMinimizedPartLabel),
+    [currentMinimizedPartIds, getMinimizedPartLabel, positionedParts],
+  );
+  const resolvedEnableNodeMinimize =
+    enableNodeMinimize ??
+    Boolean(minimizedNodeIds || defaultMinimizedNodeIds || onMinimizedNodeIdsChange);
+  const [internalMinimizedNodeIds, setInternalMinimizedNodeIds] = React.useState<string[]>(() => [
+    ...(defaultMinimizedNodeIds ?? []),
+  ]);
+  const currentMinimizedNodeIds = React.useMemo(
+    () => new Set(minimizedNodeIds ?? internalMinimizedNodeIds),
+    [internalMinimizedNodeIds, minimizedNodeIds],
+  );
+  const nodeProjection = React.useMemo(
+    () =>
+      getMinimizedNodeProjection({
+        edges: originalValidEdges,
+        getMinimizedNodeLabel,
+        hiddenNodeIds: partProjection.hiddenNodeIds,
+        minimizedNodeIds: currentMinimizedNodeIds,
+        nodeMap: originalNodeMap,
+      }),
+    [
+      currentMinimizedNodeIds,
+      getMinimizedNodeLabel,
+      originalNodeMap,
+      originalValidEdges,
+      partProjection.hiddenNodeIds,
+    ],
+  );
+  const hiddenNodeToProxyId = React.useMemo(
+    () =>
+      new Map<string, string>([
+        ...partProjection.hiddenNodeToProxyId,
+        ...nodeProjection.hiddenNodeToProxyId,
+      ]),
+    [nodeProjection.hiddenNodeToProxyId, partProjection.hiddenNodeToProxyId],
+  );
+  const positionedNodes = React.useMemo<RenderDependencyGraphNode[]>(
+    () => [
+      ...originalPositionedNodes.filter((node) => !hiddenNodeToProxyId.has(node.id)),
+      ...partProjection.summaryNodes,
+      ...nodeProjection.summaryNodes,
+    ],
+    [
+      hiddenNodeToProxyId,
+      nodeProjection.summaryNodes,
+      originalPositionedNodes,
+      partProjection.summaryNodes,
+    ],
   );
   const nodeMap = React.useMemo(
     () => new Map(positionedNodes.map((node) => [node.id, node])),
     [positionedNodes],
   );
-  const validEdges = edges.filter((edge) => nodeMap.has(edge.source) && nodeMap.has(edge.target));
+  const validEdges = React.useMemo(
+    () => remapDependencyGraphEdges(originalValidEdges, hiddenNodeToProxyId, nodeMap),
+    [hiddenNodeToProxyId, nodeMap, originalValidEdges],
+  );
   const resolvedKeyboardMode = keyboardMode ?? (onNodeSelect ? "nodes" : "none");
   const nodeRefs = React.useRef(new Map<string, SVGGElement>());
   const [internalFocusedNodeId, setInternalFocusedNodeId] = React.useState<string | null>(
@@ -147,6 +317,22 @@ function DependencyGraph({
   const enabledNodes = React.useMemo(
     () => positionedNodes.filter((node) => !getNodeDisabled?.(node)),
     [getNodeDisabled, positionedNodes],
+  );
+  const collapsibleNodeHiddenNodes = React.useMemo(
+    () =>
+      getCollapsibleDependencyGraphNodeMap({
+        edges: originalValidEdges,
+        hiddenNodeIds: new Set([...partProjection.hiddenNodeIds, ...nodeProjection.hiddenNodeIds]),
+        nodeMap: originalNodeMap,
+        nodes: originalPositionedNodes,
+      }),
+    [
+      nodeProjection.hiddenNodeIds,
+      originalNodeMap,
+      originalPositionedNodes,
+      originalValidEdges,
+      partProjection.hiddenNodeIds,
+    ],
   );
   const requestedFocusedNodeId =
     focusedNodeId !== undefined ? focusedNodeId : internalFocusedNodeId;
@@ -192,6 +378,34 @@ function DependencyGraph({
       onFocusedNodeIdChange?.(node);
     },
     [focusedNodeId, getNodeDisabled, onFocusedNodeIdChange],
+  );
+  const togglePartMinimized = React.useCallback(
+    (part: DependencyGraphPart, minimized: boolean) => {
+      const nextMinimizedPartIds = minimized
+        ? Array.from(new Set([...currentMinimizedPartIds, part.id]))
+        : Array.from(currentMinimizedPartIds).filter((partId) => partId !== part.id);
+
+      if (minimizedPartIds === undefined) {
+        setInternalMinimizedPartIds(nextMinimizedPartIds);
+      }
+
+      onMinimizedPartIdsChange?.(nextMinimizedPartIds, part, minimized);
+    },
+    [currentMinimizedPartIds, minimizedPartIds, onMinimizedPartIdsChange],
+  );
+  const toggleNodeMinimized = React.useCallback(
+    (node: PositionedDependencyGraphNode, minimized: boolean) => {
+      const nextMinimizedNodeIds = minimized
+        ? Array.from(new Set([...currentMinimizedNodeIds, node.id]))
+        : Array.from(currentMinimizedNodeIds).filter((nodeId) => nodeId !== node.id);
+
+      if (minimizedNodeIds === undefined) {
+        setInternalMinimizedNodeIds(nextMinimizedNodeIds);
+      }
+
+      onMinimizedNodeIdsChange?.(nextMinimizedNodeIds, node, minimized);
+    },
+    [currentMinimizedNodeIds, minimizedNodeIds, onMinimizedNodeIdsChange],
   );
   const handleNodeKeyDown = React.useCallback(
     (event: React.KeyboardEvent<SVGGElement>, node: PositionedDependencyGraphNode) => {
@@ -245,12 +459,14 @@ function DependencyGraph({
       selectedNodeId,
     ],
   );
-  const routePoints = validEdges.flatMap((edge, index) =>
-    edge.points?.length
-      ? edge.points
-      : getOrthogonalRoute(nodeMap.get(edge.source)!, nodeMap.get(edge.target)!, index),
-  );
-  const bounds = getSpatialBounds(positionedNodes, routePoints);
+  const routePoints = validEdges.flatMap((edge, index) => {
+    const source = nodeMap.get(edge.source);
+    const target = nodeMap.get(edge.target);
+
+    return source && target ? getDependencyGraphEdgeRoute(edge, source, target, index).points : [];
+  });
+  const partBounds = partProjection.expandedParts.map((part) => part.bounds);
+  const bounds = getSpatialBounds([...positionedNodes, ...partBounds], routePoints);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
@@ -295,6 +511,16 @@ function DependencyGraph({
           </defs>
           {positionedNodes.length ? (
             <>
+              <g data-slot="dependency-graph-parts">
+                {partProjection.expandedParts.map((part) => (
+                  <DependencyGraphPartHull
+                    key={part.part.id}
+                    positionedPart={part}
+                    minimizeControls={minimizeControls}
+                    onMinimize={() => togglePartMinimized(part.part, true)}
+                  />
+                ))}
+              </g>
               <g data-slot="dependency-graph-edges">
                 {validEdges.map((edge, index) => (
                   <DependencyGraphEdgeShape
@@ -311,6 +537,14 @@ function DependencyGraph({
                   <DependencyGraphInteractiveNode
                     key={node.id}
                     node={node}
+                    minimizeControl={getDependencyGraphNodeMinimizeControl({
+                      collapsibleNodeHiddenNodes,
+                      minimizeControls,
+                      node,
+                      nodeMinimizeEnabled: resolvedEnableNodeMinimize,
+                      onToggleNodeMinimized: toggleNodeMinimized,
+                      onTogglePartMinimized: togglePartMinimized,
+                    })}
                     nodeActions={nodeActions}
                     nodeActionPlacement={nodeActionPlacement}
                     selected={selectedNodeId === node.id}
@@ -361,8 +595,97 @@ function DependencyGraph({
   );
 }
 
+type DependencyGraphNodeMinimizeControl = {
+  ariaLabel: string;
+  expanded: boolean;
+  onToggle: () => void;
+};
+
+function DependencyGraphPartHull({
+  positionedPart,
+  minimizeControls,
+  onMinimize,
+}: {
+  positionedPart: PositionedDependencyGraphPart;
+  minimizeControls: DependencyGraphMinimizeControls;
+  onMinimize: () => void;
+}) {
+  if (minimizeControls === "none") {
+    return (
+      <g data-slot="dependency-graph-part" data-part-id={positionedPart.part.id}>
+        <DependencyGraphPartHullShape positionedPart={positionedPart} />
+      </g>
+    );
+  }
+
+  const label = getDependencyGraphPartAccessibleName(positionedPart.part);
+
+  return (
+    <g data-slot="dependency-graph-part" data-part-id={positionedPart.part.id}>
+      <DependencyGraphPartHullShape positionedPart={positionedPart} />
+      <foreignObject
+        x={positionedPart.bounds.x + positionedPart.bounds.width - 36}
+        y={positionedPart.bounds.y + 8}
+        width={28}
+        height={28}
+      >
+        <button
+          type="button"
+          data-slot="dependency-graph-part-control"
+          aria-label={`Minimize ${label}`}
+          aria-expanded="true"
+          className="inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-muted-foreground shadow-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          onClick={(event) => {
+            event.stopPropagation();
+            onMinimize();
+          }}
+        >
+          <Minimize2Icon aria-hidden="true" className="size-3.5" />
+        </button>
+      </foreignObject>
+    </g>
+  );
+}
+
+function DependencyGraphPartHullShape({
+  positionedPart,
+}: {
+  positionedPart: PositionedDependencyGraphPart;
+}) {
+  const tone = positionedPart.part.tone ?? "muted";
+
+  return (
+    <>
+      <rect
+        data-slot="dependency-graph-part-hull"
+        x={positionedPart.bounds.x}
+        y={positionedPart.bounds.y}
+        width={positionedPart.bounds.width}
+        height={positionedPart.bounds.height}
+        rx={16}
+        strokeDasharray="6 6"
+        className={cn("opacity-70", defaultSvgToneClasses[tone])}
+      />
+      <foreignObject
+        x={positionedPart.bounds.x + 12}
+        y={positionedPart.bounds.y + 8}
+        width={Math.max(96, positionedPart.bounds.width - 56)}
+        height={36}
+      >
+        <div className="grid gap-0.5 overflow-hidden text-xs leading-4 text-muted-foreground">
+          <div className="truncate font-medium text-foreground">{positionedPart.part.label}</div>
+          {positionedPart.part.description ? (
+            <div className="truncate">{positionedPart.part.description}</div>
+          ) : null}
+        </div>
+      </foreignObject>
+    </>
+  );
+}
+
 function DependencyGraphInteractiveNode({
   node,
+  minimizeControl,
   nodeActions,
   nodeActionPlacement,
   selected,
@@ -376,7 +699,8 @@ function DependencyGraphInteractiveNode({
   onNodeSelect,
   setNodeRef,
 }: {
-  node: PositionedDependencyGraphNode;
+  node: RenderDependencyGraphNode;
+  minimizeControl?: DependencyGraphNodeMinimizeControl;
   nodeActions?: DependencyGraphProps["nodeActions"];
   nodeActionPlacement: DependencyGraphNodeActionPlacement;
   selected: boolean;
@@ -458,6 +782,9 @@ function DependencyGraphInteractiveNode({
         />
       ) : null}
       <DependencyGraphNodeShape node={node} />
+      {minimizeControl ? (
+        <DependencyGraphNodeMinimizeButton control={minimizeControl} node={node} />
+      ) : null}
       {resolvedActions.length ? (
         <DependencyGraphNodeActions
           actions={resolvedActions}
@@ -467,6 +794,36 @@ function DependencyGraphInteractiveNode({
         />
       ) : null}
     </g>
+  );
+}
+
+function DependencyGraphNodeMinimizeButton({
+  control,
+  node,
+}: {
+  control: DependencyGraphNodeMinimizeControl;
+  node: RenderDependencyGraphNode;
+}) {
+  return (
+    <foreignObject x={node.x + node.width - 36} y={node.y + 8} width={28} height={28}>
+      <button
+        type="button"
+        data-slot="dependency-graph-node-minimize-control"
+        aria-label={control.ariaLabel}
+        aria-expanded={control.expanded}
+        className="inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-muted-foreground shadow-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+        onClick={(event) => {
+          event.stopPropagation();
+          control.onToggle();
+        }}
+      >
+        {control.expanded ? (
+          <Minimize2Icon aria-hidden="true" className="size-3.5" />
+        ) : (
+          <Maximize2Icon aria-hidden="true" className="size-3.5" />
+        )}
+      </button>
+    </foreignObject>
   );
 }
 
@@ -536,8 +893,8 @@ function DependencyGraphEdgeShape({
   markerId,
   edgeIndex,
 }: {
-  edge: DependencyGraphEdge;
-  nodes: Map<string, PositionedDependencyGraphNode>;
+  edge: RenderDependencyGraphEdge;
+  nodes: Map<string, RenderDependencyGraphNode>;
   markerId: string;
   edgeIndex: number;
 }) {
@@ -548,10 +905,11 @@ function DependencyGraphEdgeShape({
     return null;
   }
 
-  const points = edge.points?.length ? edge.points : getOrthogonalRoute(source, target, edgeIndex);
+  const route = getDependencyGraphEdgeRoute(edge, source, target, edgeIndex);
+  const points = route.points;
   const direction = edge.direction ?? "forward";
   const markerUrl = `url(#${markerId})`;
-  const labelPoint = points[Math.floor(points.length / 2)] ?? points[0];
+  const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
   const tone = edgeToneByKind[edge.kind ?? "runtime"];
 
   return (
@@ -579,12 +937,12 @@ function DependencyGraphEdgeShape({
   );
 }
 
-function DependencyGraphNodeShape({ node }: { node: PositionedDependencyGraphNode }) {
+function DependencyGraphNodeShape({ node }: { node: RenderDependencyGraphNode }) {
   const tone = node.tone ?? (node.status ? statusTone[node.status] : "default");
 
   return (
     <foreignObject
-      data-slot="dependency-graph-node"
+      data-slot={node.summary ? "dependency-graph-summary-node" : "dependency-graph-node"}
       x={node.x}
       y={node.y}
       width={node.width}
@@ -618,6 +976,316 @@ function DependencyGraphNodeShape({ node }: { node: PositionedDependencyGraphNod
   );
 }
 
+function positionDependencyGraphParts(
+  parts: readonly DependencyGraphPart[] | undefined,
+  nodes: readonly PositionedDependencyGraphNode[],
+): PositionedDependencyGraphPart[] {
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+  const resolvedParts = parts !== undefined ? parts : inferDependencyGraphParts(nodes);
+
+  return resolvedParts.flatMap((part) => {
+    const nodeIds = new Set<string>(part.nodeIds ?? []);
+
+    for (const node of nodes) {
+      if (node.partId === part.id) {
+        nodeIds.add(node.id);
+      }
+    }
+
+    const partNodes = Array.from(nodeIds)
+      .map((nodeId) => nodeMap.get(nodeId))
+      .filter((node): node is PositionedDependencyGraphNode => Boolean(node));
+
+    if (!partNodes.length) {
+      return [];
+    }
+
+    return [
+      {
+        bounds: getDependencyGraphPartBounds(partNodes),
+        nodeIds,
+        nodes: partNodes,
+        part,
+      },
+    ];
+  });
+}
+
+function inferDependencyGraphParts(
+  nodes: readonly PositionedDependencyGraphNode[],
+): DependencyGraphPart[] {
+  return Array.from(new Set(nodes.flatMap((node) => (node.partId ? [node.partId] : [])))).map(
+    (partId) => ({
+      id: partId,
+      label: partId,
+    }),
+  );
+}
+
+function getDependencyGraphPartBounds(nodes: readonly PositionedDependencyGraphNode[]) {
+  const bounds = getSpatialBounds(nodes);
+
+  return {
+    x: bounds.x - PART_HULL_PADDING,
+    y: bounds.y - PART_HULL_PADDING,
+    width: bounds.width + PART_HULL_PADDING * 2,
+    height: bounds.height + PART_HULL_PADDING * 2,
+  };
+}
+
+function getMinimizedPartProjection(
+  parts: readonly PositionedDependencyGraphPart[],
+  minimizedPartIds: ReadonlySet<string>,
+  getMinimizedPartLabel: DependencyGraphProps["getMinimizedPartLabel"],
+) {
+  const hiddenNodeIds = new Set<string>();
+  const hiddenNodeToProxyId = new Map<string, string>();
+  const summaryNodes: RenderDependencyGraphNode[] = [];
+  const expandedParts: PositionedDependencyGraphPart[] = [];
+
+  for (const positionedPart of parts) {
+    if (!minimizedPartIds.has(positionedPart.part.id)) {
+      expandedParts.push(positionedPart);
+      continue;
+    }
+
+    const summaryNode = getDependencyGraphPartSummaryNode(positionedPart, getMinimizedPartLabel);
+
+    summaryNodes.push(summaryNode);
+
+    for (const node of positionedPart.nodes) {
+      hiddenNodeIds.add(node.id);
+      hiddenNodeToProxyId.set(node.id, summaryNode.id);
+    }
+  }
+
+  return { expandedParts, hiddenNodeIds, hiddenNodeToProxyId, summaryNodes };
+}
+
+function getDependencyGraphPartSummaryNode(
+  positionedPart: PositionedDependencyGraphPart,
+  getMinimizedPartLabel: DependencyGraphProps["getMinimizedPartLabel"],
+): RenderDependencyGraphNode {
+  const width = Math.max(120, clampFiniteNumber(positionedPart.part.width, SUMMARY_NODE_WIDTH));
+  const height = Math.max(72, clampFiniteNumber(positionedPart.part.height, SUMMARY_NODE_HEIGHT));
+  const label =
+    getMinimizedPartLabel?.(positionedPart.part, positionedPart.nodes) ?? positionedPart.part.label;
+
+  return {
+    description:
+      positionedPart.part.description ??
+      `${positionedPart.nodes.length} ${positionedPart.nodes.length === 1 ? "node" : "nodes"}`,
+    group: "Minimized part",
+    height,
+    id: `${PART_SUMMARY_PREFIX}${positionedPart.part.id}`,
+    label,
+    summary: {
+      hiddenNodes: positionedPart.nodes,
+      kind: "part",
+      part: positionedPart.part,
+      sourceId: positionedPart.part.id,
+    },
+    tone: positionedPart.part.tone ?? "muted",
+    width,
+    x:
+      positionedPart.part.x ??
+      positionedPart.bounds.x + positionedPart.bounds.width / 2 - width / 2,
+    y:
+      positionedPart.part.y ??
+      positionedPart.bounds.y + positionedPart.bounds.height / 2 - height / 2,
+  };
+}
+
+function getMinimizedNodeProjection({
+  edges,
+  getMinimizedNodeLabel,
+  hiddenNodeIds,
+  minimizedNodeIds,
+  nodeMap,
+}: {
+  edges: readonly DependencyGraphEdge[];
+  getMinimizedNodeLabel: DependencyGraphProps["getMinimizedNodeLabel"];
+  hiddenNodeIds: ReadonlySet<string>;
+  minimizedNodeIds: ReadonlySet<string>;
+  nodeMap: Map<string, PositionedDependencyGraphNode>;
+}) {
+  const branchHiddenNodeIds = new Set<string>();
+  const hiddenNodeToProxyId = new Map<string, string>();
+  const summaryNodes: RenderDependencyGraphNode[] = [];
+
+  for (const rootNodeId of minimizedNodeIds) {
+    const rootNode = nodeMap.get(rootNodeId);
+
+    if (!rootNode || hiddenNodeIds.has(rootNode.id) || branchHiddenNodeIds.has(rootNode.id)) {
+      continue;
+    }
+
+    const hiddenNodes = getTransitiveOutgoingDependencyNodes({
+      edges,
+      excludedNodeIds: new Set([...hiddenNodeIds, rootNode.id]),
+      nodeMap,
+      rootNodeId,
+    }).filter((node) => !branchHiddenNodeIds.has(node.id));
+
+    if (!hiddenNodes.length) {
+      continue;
+    }
+
+    const summaryNode = getDependencyGraphNodeSummaryNode(
+      rootNode,
+      hiddenNodes,
+      getMinimizedNodeLabel,
+    );
+
+    summaryNodes.push(summaryNode);
+
+    for (const node of hiddenNodes) {
+      branchHiddenNodeIds.add(node.id);
+      hiddenNodeToProxyId.set(node.id, summaryNode.id);
+    }
+  }
+
+  return {
+    hiddenNodeIds: branchHiddenNodeIds,
+    hiddenNodeToProxyId,
+    summaryNodes,
+  };
+}
+
+function getDependencyGraphNodeSummaryNode(
+  rootNode: PositionedDependencyGraphNode,
+  hiddenNodes: readonly PositionedDependencyGraphNode[],
+  getMinimizedNodeLabel: DependencyGraphProps["getMinimizedNodeLabel"],
+): RenderDependencyGraphNode {
+  const bounds = getSpatialBounds(hiddenNodes);
+  const width = SUMMARY_NODE_WIDTH;
+  const height = SUMMARY_NODE_HEIGHT;
+  const label =
+    getMinimizedNodeLabel?.(rootNode, hiddenNodes) ??
+    `${hiddenNodes.length} ${hiddenNodes.length === 1 ? "dependency" : "dependencies"}`;
+
+  return {
+    description: `Collapsed from ${getDependencyGraphNodeAccessibleName(rootNode)}`,
+    group: "Minimized branch",
+    height,
+    id: `${NODE_SUMMARY_PREFIX}${rootNode.id}`,
+    label,
+    summary: {
+      hiddenNodes,
+      kind: "node",
+      rootNode,
+      sourceId: rootNode.id,
+    },
+    tone: "muted",
+    width,
+    x: bounds.x + bounds.width / 2 - width / 2,
+    y: bounds.y + bounds.height / 2 - height / 2,
+  };
+}
+
+function getCollapsibleDependencyGraphNodeMap({
+  edges,
+  hiddenNodeIds,
+  nodeMap,
+  nodes,
+}: {
+  edges: readonly DependencyGraphEdge[];
+  hiddenNodeIds: ReadonlySet<string>;
+  nodeMap: Map<string, PositionedDependencyGraphNode>;
+  nodes: readonly PositionedDependencyGraphNode[];
+}) {
+  const result = new Map<string, readonly PositionedDependencyGraphNode[]>();
+
+  for (const node of nodes) {
+    if (hiddenNodeIds.has(node.id) || node.minimizable === false) {
+      continue;
+    }
+
+    const hiddenNodes = getTransitiveOutgoingDependencyNodes({
+      edges,
+      excludedNodeIds: new Set([...hiddenNodeIds, node.id]),
+      nodeMap,
+      rootNodeId: node.id,
+    });
+
+    if (hiddenNodes.length) {
+      result.set(node.id, hiddenNodes);
+    }
+  }
+
+  return result;
+}
+
+function getTransitiveOutgoingDependencyNodes({
+  edges,
+  excludedNodeIds,
+  nodeMap,
+  rootNodeId,
+}: {
+  edges: readonly DependencyGraphEdge[];
+  excludedNodeIds: ReadonlySet<string>;
+  nodeMap: Map<string, PositionedDependencyGraphNode>;
+  rootNodeId: string;
+}) {
+  const result: PositionedDependencyGraphNode[] = [];
+  const visited = new Set<string>([rootNodeId]);
+  const queue = [rootNodeId];
+
+  while (queue.length) {
+    const currentNodeId = queue.shift()!;
+
+    for (const edge of edges) {
+      if (edge.source !== currentNodeId || visited.has(edge.target)) {
+        continue;
+      }
+
+      visited.add(edge.target);
+
+      if (excludedNodeIds.has(edge.target)) {
+        continue;
+      }
+
+      const targetNode = nodeMap.get(edge.target);
+
+      if (!targetNode) {
+        continue;
+      }
+
+      result.push(targetNode);
+      queue.push(edge.target);
+    }
+  }
+
+  return result;
+}
+
+function remapDependencyGraphEdges(
+  edges: readonly DependencyGraphEdge[],
+  hiddenNodeToProxyId: Map<string, string>,
+  nodeMap: Map<string, RenderDependencyGraphNode>,
+): RenderDependencyGraphEdge[] {
+  return edges.flatMap((edge) => {
+    const source = hiddenNodeToProxyId.get(edge.source) ?? edge.source;
+    const target = hiddenNodeToProxyId.get(edge.target) ?? edge.target;
+
+    const remapped = source !== edge.source || target !== edge.target;
+
+    if (!nodeMap.has(source) || !nodeMap.has(target) || (remapped && source === target)) {
+      return [];
+    }
+
+    return [
+      {
+        ...edge,
+        points: remapped ? undefined : edge.points,
+        source,
+        target,
+        waypoints: remapped ? undefined : edge.waypoints,
+      },
+    ];
+  });
+}
+
 function positionNodes(
   nodes: readonly DependencyGraphNode[],
   columns: number,
@@ -646,6 +1314,157 @@ function getDependencyGraphNodeCenter(node: PositionedDependencyGraphNode): Diag
   return {
     x: node.x + node.width / 2,
     y: node.y + node.height / 2,
+  };
+}
+
+function getDependencyGraphEdgeRoute(
+  edge: DependencyGraphEdge,
+  sourceNode: PositionedDependencyGraphNode,
+  targetNode: PositionedDependencyGraphNode,
+  edgeIndex: number,
+): DependencyGraphEdgeRoute {
+  if (edge.points?.length) {
+    return {
+      labelPoint: edge.points[Math.floor(edge.points.length / 2)],
+      points: edge.points,
+    };
+  }
+
+  if (sourceNode.id === targetNode.id) {
+    const offset = 32 + (edgeIndex % 3) * 16;
+    const start = {
+      x: sourceNode.x + sourceNode.width,
+      y: sourceNode.y + sourceNode.height * 0.34,
+    };
+    const end = {
+      x: sourceNode.x + sourceNode.width,
+      y: sourceNode.y + sourceNode.height * 0.68,
+    };
+
+    return {
+      labelPoint: {
+        x: sourceNode.x + sourceNode.width + offset,
+        y: sourceNode.y + sourceNode.height / 2,
+      },
+      points: [start, { x: start.x + offset, y: start.y }, { x: start.x + offset, y: end.y }, end],
+    };
+  }
+
+  const sourceCenter = getDependencyGraphNodeCenter(sourceNode);
+  const targetCenter = getDependencyGraphNodeCenter(targetNode);
+
+  if (edge.waypoints?.length) {
+    const sourceToward = edge.waypoints[0] ?? targetCenter;
+    const targetToward = edge.waypoints[edge.waypoints.length - 1] ?? sourceCenter;
+    const source = getDependencyGraphBoundaryPoint(sourceNode, sourceToward);
+    const target = getDependencyGraphBoundaryPoint(targetNode, targetToward);
+
+    return {
+      labelPoint: edge.waypoints[Math.floor(edge.waypoints.length / 2)],
+      points: [source, ...edge.waypoints, target],
+    };
+  }
+
+  const source = getDependencyGraphBoundaryPoint(sourceNode, targetCenter);
+  const target = getDependencyGraphBoundaryPoint(targetNode, sourceCenter);
+  const offset = (edgeIndex % 3) * 12;
+  const middleX = (source.x + target.x) / 2 + offset;
+
+  return {
+    labelPoint: {
+      x: (source.x + target.x) / 2,
+      y: (source.y + target.y) / 2,
+    },
+    points: [source, { x: middleX, y: source.y }, { x: middleX, y: target.y }, target],
+  };
+}
+
+function getDependencyGraphBoundaryPoint(
+  node: PositionedDependencyGraphNode,
+  toward: DiagramPoint,
+): DiagramPoint {
+  const center = getDependencyGraphNodeCenter(node);
+  const dx = toward.x - center.x;
+  const dy = toward.y - center.y;
+  const halfWidth = node.width / 2;
+  const halfHeight = node.height / 2;
+
+  if (dx === 0 && dy === 0) {
+    return { x: center.x + halfWidth, y: center.y };
+  }
+
+  if (Math.abs(dx) * halfHeight > Math.abs(dy) * halfWidth) {
+    return {
+      x: center.x + (dx > 0 ? halfWidth : -halfWidth),
+      y: center.y + (dy * halfWidth) / Math.max(Math.abs(dx), 1),
+    };
+  }
+
+  return {
+    x: center.x + (dx * halfHeight) / Math.max(Math.abs(dy), 1),
+    y: center.y + (dy > 0 ? halfHeight : -halfHeight),
+  };
+}
+
+function getDependencyGraphNodeMinimizeControl({
+  collapsibleNodeHiddenNodes,
+  minimizeControls,
+  node,
+  nodeMinimizeEnabled,
+  onToggleNodeMinimized,
+  onTogglePartMinimized,
+}: {
+  collapsibleNodeHiddenNodes: Map<string, readonly PositionedDependencyGraphNode[]>;
+  minimizeControls: DependencyGraphMinimizeControls;
+  node: RenderDependencyGraphNode;
+  nodeMinimizeEnabled: boolean;
+  onToggleNodeMinimized: (node: PositionedDependencyGraphNode, minimized: boolean) => void;
+  onTogglePartMinimized: (part: DependencyGraphPart, minimized: boolean) => void;
+}): DependencyGraphNodeMinimizeControl | undefined {
+  if (minimizeControls === "none") {
+    return undefined;
+  }
+
+  if (node.summary?.kind === "part" && node.summary.part) {
+    const label = getDependencyGraphNodeAccessibleName(node);
+
+    return {
+      ariaLabel: `Expand ${label}`,
+      expanded: false,
+      onToggle: () => onTogglePartMinimized(node.summary!.part!, false),
+    };
+  }
+
+  if (node.summary?.kind === "node" && node.summary.rootNode) {
+    const label = getDependencyGraphNodeAccessibleName(node);
+
+    return {
+      ariaLabel: `Expand ${label}`,
+      expanded: false,
+      onToggle: () => onToggleNodeMinimized(node.summary!.rootNode!, false),
+    };
+  }
+
+  if (!nodeMinimizeEnabled || node.minimizable === false) {
+    return undefined;
+  }
+
+  const hiddenNodes = collapsibleNodeHiddenNodes.get(node.id);
+
+  if (!hiddenNodes?.length && minimizeControls !== "always") {
+    return undefined;
+  }
+
+  const label = getDependencyGraphNodeAccessibleName(node);
+
+  return {
+    ariaLabel: `Minimize ${label}`,
+    expanded: true,
+    onToggle: () => {
+      if (hiddenNodes?.length) {
+        onToggleNodeMinimized(node, true);
+      }
+    },
   };
 }
 
@@ -687,6 +1506,12 @@ function getDependencyGraphNodeAccessibleName(node: DependencyGraphNode) {
   return typeof node.label === "string" || typeof node.label === "number"
     ? String(node.label)
     : node.id;
+}
+
+function getDependencyGraphPartAccessibleName(part: DependencyGraphPart) {
+  return typeof part.label === "string" || typeof part.label === "number"
+    ? String(part.label)
+    : part.id;
 }
 
 function getDependencyGraphActionAccessibleLabel(action: DependencyGraphNodeAction) {
