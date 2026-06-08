@@ -127,7 +127,7 @@
     "@axe-core/playwright": "^4.11.3",
     "@changesets/cli": "^2.31.0",
     "@eslint/js": "^9",
-    "@moritzbrantner/ui": "^0.9.1",
+    "@moritzbrantner/ui": "1.0.0",
     "@playwright/test": "^1.60.0",
     "@storybook/addon-a11y": "^10.4.1",
     "@storybook/addon-vitest": "^10.4.1",
@@ -163,7 +163,7 @@
     "vitest": "^4.1.2"
   },
   "peerDependencies": {
-    "@moritzbrantner/ui": "^0.9.1",
+    "@moritzbrantner/ui": "^1.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
