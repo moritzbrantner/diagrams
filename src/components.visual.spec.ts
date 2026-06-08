@@ -17,11 +17,6 @@ const stories = [
     responsive: true,
   },
   {
-    id: "diagrams-components--burndown-chart-story",
-    name: "burndown-chart",
-    responsive: true,
-  },
-  {
     id: "diagrams-components--gantt-chart-story",
     name: "gantt-chart",
     responsive: true,

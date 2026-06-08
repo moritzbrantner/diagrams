@@ -8,7 +8,6 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@moritzbrantner/diagrams": ["./src/index.ts"],
-      "@moritzbrantner/diagrams/burndown-chart": ["./src/burndown-chart.ts"],
       "@moritzbrantner/diagrams/gantt-chart": ["./src/gantt-chart.ts"],
       "@moritzbrantner/diagrams/org-chart": ["./src/org-chart.ts"],
       "@moritzbrantner/diagrams/process-map": ["./src/process-map.ts"],

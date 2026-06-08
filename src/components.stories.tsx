@@ -4,7 +4,6 @@ import { expect, userEvent } from "storybook/test";
 
 import {
   ArchitectureDiagram,
-  BurndownChart,
   DecisionTree,
   DependencyGraph,
   EntityRelationshipDiagram,
@@ -180,32 +179,6 @@ export const RelationshipMapStory: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("img", { name: "Story relationship map" })).toBeVisible();
     await expect(canvas.getByText("Governance")).toBeVisible();
-  },
-};
-
-export const BurndownChartStory: Story = {
-  name: "Burndown Chart",
-  render: () => (
-    <StoryFrame>
-      <BurndownChart
-        ariaLabel="Story burndown chart"
-        points={[
-          { id: "day-1", date: "2026-04-01", remaining: 48 },
-          { id: "day-3", date: "2026-04-03", remaining: 42 },
-          { id: "day-6", date: "2026-04-06", remaining: 31 },
-          { id: "day-9", date: "2026-04-09", remaining: 24 },
-          { id: "day-12", date: "2026-04-12", remaining: 11 },
-          { id: "day-15", date: "2026-04-15", remaining: 4 },
-        ]}
-        startDate="2026-04-01"
-        endDate="2026-04-15"
-        totalWork={48}
-      />
-    </StoryFrame>
-  ),
-  play: async ({ canvas }) => {
-    await expect(canvas.getByRole("img", { name: "Story burndown chart" })).toBeVisible();
-    await expect(canvas.getByText("Remaining")).toBeVisible();
   },
 };
 

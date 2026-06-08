@@ -3,7 +3,6 @@ import { describe, expect, test, vi } from "vitest";
 
 import {
   ArchitectureDiagram,
-  BurndownChart,
   DecisionTree,
   DependencyGraph,
   EntityRelationshipDiagram,
@@ -49,16 +48,6 @@ describe("diagram quality invariants", () => {
                 { x: 520, y: 0 },
               ],
             },
-          ]}
-        />
-        <BurndownChart
-          ariaLabel="Sprint burndown"
-          startDate="2026-04-01"
-          endDate="2026-04-01"
-          totalWork={40}
-          points={[
-            { date: "2026-04-01", remaining: 40 },
-            { date: "2026-04-01", remaining: 20 },
           ]}
         />
         <GanttChart
@@ -154,43 +143,31 @@ describe("diagram quality invariants", () => {
 
   test("ignores invalid dates without rendering NaN or Infinity", () => {
     const { container } = render(
-      <>
-        <BurndownChart
-          ariaLabel="Invalid burndown"
-          startDate="not-a-date"
-          endDate="also-not-a-date"
-          points={[
-            { date: "not-a-date", remaining: 8 },
-            { date: "2026-04-02", remaining: 4 },
-          ]}
-        />
-        <GanttChart
-          ariaLabel="Invalid Gantt"
-          startDate="not-a-date"
-          endDate="also-not-a-date"
-          tasks={[
-            {
-              deadlineDate: "not-a-date",
-              earliestStartDate: "also-not-a-date",
-              endDate: "not-a-date",
-              id: "invalid",
-              label: "Invalid",
-              startDate: "not-a-date",
-            },
-            {
-              endDate: "2026-04-04",
-              id: "valid",
-              label: "Valid",
-              startDate: "2026-04-02",
-            },
-          ]}
-        />
-      </>,
+      <GanttChart
+        ariaLabel="Invalid Gantt"
+        startDate="not-a-date"
+        endDate="also-not-a-date"
+        tasks={[
+          {
+            deadlineDate: "not-a-date",
+            earliestStartDate: "also-not-a-date",
+            endDate: "not-a-date",
+            id: "invalid",
+            label: "Invalid",
+            startDate: "not-a-date",
+          },
+          {
+            endDate: "2026-04-04",
+            id: "valid",
+            label: "Valid",
+            startDate: "2026-04-02",
+          },
+        ]}
+      />,
     );
 
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
     expectNoInvalidSvgGeometry(container);
-    expect(screen.getByRole("img", { name: "Invalid burndown" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "Invalid Gantt" })).toBeTruthy();
   });
 
@@ -198,7 +175,6 @@ describe("diagram quality invariants", () => {
     render(
       <>
         <RelationshipMap nodes={[]} emptyMessage="No relationships" />
-        <BurndownChart points={[]} emptyMessage="No sprint data" />
         <GanttChart tasks={[]} emptyMessage="No scheduled work" />
         <SequenceDiagram participants={[]} emptyMessage="No sequence" />
         <SwimlaneDiagram lanes={[]} emptyMessage="No swimlanes" />
@@ -214,7 +190,6 @@ describe("diagram quality invariants", () => {
     );
 
     expect(screen.getByRole("img", { name: "Relationship map" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Burndown chart" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "Gantt chart" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "Sequence diagram" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "Swimlane diagram" })).toBeTruthy();
@@ -227,7 +202,6 @@ describe("diagram quality invariants", () => {
     expect(screen.getByRole("img", { name: "Timeline diagram" })).toBeTruthy();
     expect(screen.getByRole("grid", { name: "Journey map" })).toBeTruthy();
     expect(screen.getByText("No relationships")).toBeTruthy();
-    expect(screen.getByText("No sprint data")).toBeTruthy();
     expect(screen.getByText("No scheduled work")).toBeTruthy();
     expect(screen.getByText("No sequence")).toBeTruthy();
     expect(screen.getByText("No journey")).toBeTruthy();

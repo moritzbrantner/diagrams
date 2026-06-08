@@ -21,7 +21,6 @@ test("examples page renders seeded diagram primitives", async ({ page }) => {
   await expect(page.getByRole("treeitem", { name: "Program owner" })).toBeVisible();
   await expect(page.getByTestId("process-map-example").getByRole("list")).toBeVisible();
   await expect(page.getByRole("img", { name: "Release relationship map" })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Release burndown chart" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Release Gantt chart" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Release sequence diagram" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Release swimlane diagram" })).toBeVisible();

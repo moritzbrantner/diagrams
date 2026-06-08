@@ -48,10 +48,6 @@ describe("package contract", () => {
         types: "./dist/architecture-diagram.d.ts",
         import: "./dist/architecture-diagram.js",
       },
-      "./burndown-chart": {
-        types: "./dist/burndown-chart.d.ts",
-        import: "./dist/burndown-chart.js",
-      },
       "./decision-tree": {
         types: "./dist/decision-tree.d.ts",
         import: "./dist/decision-tree.js",

@@ -20,7 +20,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@moritzbrantner/diagrams": path.resolve(rootDir, "src/index.ts"),
-      "@moritzbrantner/diagrams/burndown-chart": path.resolve(rootDir, "src/burndown-chart.ts"),
       "@moritzbrantner/diagrams/gantt-chart": path.resolve(rootDir, "src/gantt-chart.ts"),
       "@moritzbrantner/diagrams/org-chart": path.resolve(rootDir, "src/org-chart.ts"),
       "@moritzbrantner/diagrams/process-map": path.resolve(rootDir, "src/process-map.ts"),

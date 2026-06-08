@@ -16,14 +16,6 @@ export {
   PositionedArchitectureDiagramNode,
 } from "./architecture-diagram.js";
 export {
-  BurndownChart,
-  BurndownChartDate,
-  BurndownChartPoint,
-  BurndownChartPointAction,
-  BurndownChartProps,
-  PreparedBurndownPoint,
-} from "./burndown-chart.js";
-export {
   DecisionTree,
   DecisionTreeBranch,
   DecisionTreeBranchAction,

@@ -14,7 +14,6 @@ import { createRoot } from "react-dom/client";
 
 import {
   ArchitectureDiagram,
-  BurndownChart,
   DecisionTree,
   DependencyGraph,
   EntityRelationshipDiagram,
@@ -42,7 +41,6 @@ type DiagramKey =
   | "org"
   | "process"
   | "relationships"
-  | "burndown"
   | "gantt"
   | "sequence"
   | "swimlane"
@@ -62,7 +60,6 @@ type ShowcaseData = {
   orgNodes: React.ComponentProps<typeof OrgChart>["nodes"];
   relationshipNodes: React.ComponentProps<typeof RelationshipMap>["nodes"];
   relationshipEdges: React.ComponentProps<typeof RelationshipMap>["edges"];
-  burndownPoints: React.ComponentProps<typeof BurndownChart>["points"];
   ganttTasks: React.ComponentProps<typeof GanttChart>["tasks"];
   sequenceParticipants: React.ComponentProps<typeof SequenceDiagram>["participants"];
   sequenceMessages: React.ComponentProps<typeof SequenceDiagram>["messages"];
@@ -94,7 +91,6 @@ const diagramTabs: {
   { key: "org", label: "Org", icon: GitBranchIcon },
   { key: "process", label: "Process", icon: WorkflowIcon },
   { key: "relationships", label: "Map", icon: NetworkIcon },
-  { key: "burndown", label: "Burndown", icon: WorkflowIcon },
   { key: "gantt", label: "Gantt", icon: GitBranchIcon },
   { key: "sequence", label: "Sequence", icon: WorkflowIcon },
   { key: "swimlane", label: "Swimlane", icon: WorkflowIcon },
@@ -115,8 +111,6 @@ const snippets: Record<DiagramKey, string> = {
     '<ProcessMap steps={processSteps} orientation={mode === "compact" ? "vertical" : "horizontal"} />',
   relationships:
     '<RelationshipMap nodes={nodes} edges={edges} ariaLabel="Release relationship map" />',
-  burndown:
-    '<BurndownChart points={burndownPoints} startDate="2026-04-01" endDate="2026-04-15" totalWork={48} />',
   gantt: '<GanttChart tasks={ganttTasks} startDate="2026-04-01" endDate="2026-04-24" />',
   sequence: "<SequenceDiagram participants={participants} messages={messages} />",
   swimlane: "<SwimlaneDiagram lanes={lanes} steps={steps} connectors={connectors} />",
@@ -306,14 +300,6 @@ async function loadShowcaseData(): Promise<ShowcaseData> {
         label: "submits",
         kind: "risk",
       },
-    ],
-    burndownPoints: [
-      { id: "day-1", date: "2026-04-01", remaining: 48 },
-      { id: "day-3", date: "2026-04-03", remaining: 42 },
-      { id: "day-6", date: "2026-04-06", remaining: 31 },
-      { id: "day-9", date: "2026-04-09", remaining: 24 },
-      { id: "day-12", date: "2026-04-12", remaining: 11 },
-      { id: "day-15", date: "2026-04-15", remaining: 4 },
     ],
     ganttTasks: [
       {
@@ -677,19 +663,6 @@ function ShowcasePreview({
       );
     }
 
-    if (activeDiagram === "burndown") {
-      return (
-        <BurndownChart
-          ariaLabel="Release burndown chart"
-          caption="Remaining work is shown against the ideal completion path."
-          points={data.burndownPoints}
-          startDate="2026-04-01"
-          endDate="2026-04-15"
-          totalWork={48}
-        />
-      );
-    }
-
     if (activeDiagram === "gantt") {
       return (
         <GanttChart
@@ -837,16 +810,6 @@ function ExamplesGallery({ data }: { data: ShowcaseData }) {
           ariaLabel="Release relationship map"
           nodes={data.relationshipNodes}
           edges={data.relationshipEdges}
-        />
-      </ExampleSection>
-
-      <ExampleSection title="Burndown chart" testId="burndown-chart-example">
-        <BurndownChart
-          ariaLabel="Release burndown chart"
-          points={data.burndownPoints}
-          startDate="2026-04-01"
-          endDate="2026-04-15"
-          totalWork={48}
         />
       </ExampleSection>
 

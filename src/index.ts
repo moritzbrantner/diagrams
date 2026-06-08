@@ -1,5 +1,4 @@
 export * from "./architecture-diagram";
-export * from "./burndown-chart";
 export * from "./decision-tree";
 export * from "./dependency-graph";
 export * from "./entity-relationship-diagram";

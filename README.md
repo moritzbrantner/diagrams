@@ -61,7 +61,6 @@ Generated API documentation is published under <https://moritzbrantner.github.io
 ## API Overview
 
 - `ArchitectureDiagram` for systems, boundaries, stores, queues, and external integrations.
-- `BurndownChart` for sprint or scope burndown timelines.
 - `DecisionTree` for branching decisions, actions, and outcomes.
 - `DependencyGraph` for package, module, service, or team dependencies.
 - `EntityRelationshipDiagram` for entities, fields, keys, and cardinality relationships.
@@ -209,29 +208,6 @@ export function ReleaseProcess() {
         { id: "scope", label: "Scope", status: "done", tone: "success" },
         { id: "build", label: "Build", status: "active", tone: "accent" },
         { id: "ship", label: "Ship", status: "pending" },
-      ]}
-    />
-  );
-}
-```
-
-## Burndown Chart
-
-```tsx
-import { BurndownChart } from "@moritzbrantner/diagrams";
-
-export function SprintBurndown() {
-  return (
-    <BurndownChart
-      ariaLabel="Sprint burndown"
-      startDate="2026-04-01"
-      endDate="2026-04-15"
-      totalWork={48}
-      points={[
-        { date: "2026-04-01", remaining: 48 },
-        { date: "2026-04-06", remaining: 31 },
-        { date: "2026-04-12", remaining: 11 },
-        { date: "2026-04-15", remaining: 4 },
       ]}
     />
   );

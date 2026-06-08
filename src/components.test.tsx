@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
 import { ArchitectureDiagram } from "./architecture-diagram";
-import { BurndownChart } from "./burndown-chart";
 import { DecisionTree } from "./decision-tree";
 import { DependencyGraph } from "./dependency-graph";
 import { EntityRelationshipDiagram } from "./entity-relationship-diagram";
@@ -120,38 +119,6 @@ describe("ProcessMap", () => {
     expect(
       container.querySelector('[data-slot="process-map"]')?.getAttribute("data-orientation"),
     ).toBe("vertical");
-  });
-});
-
-describe("BurndownChart", () => {
-  test("renders actual points, ideal line, and empty state", () => {
-    const { container, rerender } = render(
-      <BurndownChart
-        ariaLabel="Sprint burndown"
-        points={[
-          { id: "day-1", date: "2026-04-01", remaining: 40 },
-          { id: "day-2", date: "2026-04-02", remaining: 32 },
-          { id: "day-3", date: "2026-04-03", remaining: 18 },
-        ]}
-        startDate="2026-04-01"
-        endDate="2026-04-05"
-        totalWork={40}
-      />,
-    );
-
-    expect(screen.getByRole("img", { name: "Sprint burndown" })).toBeTruthy();
-    expect(container.querySelectorAll('[data-slot="burndown-chart-point"]')).toHaveLength(3);
-    expect(
-      container.querySelector('[data-slot="burndown-chart-actual-line"]')?.getAttribute("d"),
-    ).toContain("M ");
-    expect(
-      container
-        .querySelector('[data-slot="burndown-chart-ideal-line"]')
-        ?.getAttribute("stroke-dasharray"),
-    ).toBe("6 6");
-
-    rerender(<BurndownChart points={[]} emptyMessage="No sprint data" />);
-    expect(screen.getByText("No sprint data")).toBeTruthy();
   });
 });
 
@@ -528,7 +495,6 @@ describe("Interactive diagram additions", () => {
     const onStepSelect = vi.fn();
     const onMessageSelect = vi.fn();
     const onTaskSelect = vi.fn();
-    const onPointSelect = vi.fn();
     const onTimelineSelect = vi.fn();
     const onJourneyItemSelect = vi.fn();
     const { container } = render(
@@ -560,12 +526,6 @@ describe("Interactive diagram additions", () => {
           onTaskSelect={onTaskSelect}
           todayDate="2026-04-02"
         />
-        <BurndownChart
-          points={[{ id: "day-1", date: "2026-04-01", remaining: 10 }]}
-          totalWork={10}
-          onPointSelect={onPointSelect}
-          showVariance
-        />
         <TimelineDiagram
           items={[{ id: "release", date: "2026-04-01", label: "Release" }]}
           onItemSelect={onTimelineSelect}
@@ -584,18 +544,15 @@ describe("Interactive diagram additions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Plan" }));
     fireEvent.click(screen.getByRole("button", { name: "Request" }));
     fireEvent.click(screen.getByRole("button", { name: "Brief" }));
-    fireEvent.click(screen.getByRole("button", { name: /Apr 1/ }));
     fireEvent.click(screen.getByRole("button", { name: "Release" }));
     fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
 
     expect(onStepSelect).toHaveBeenCalled();
     expect(onMessageSelect).toHaveBeenCalled();
     expect(onTaskSelect).toHaveBeenCalled();
-    expect(onPointSelect).toHaveBeenCalled();
     expect(onTimelineSelect).toHaveBeenCalled();
     expect(onJourneyItemSelect).toHaveBeenCalled();
     expect(container.innerHTML).not.toContain("NaN");
     expect(container.querySelector('[data-slot="gantt-chart-today"]')).toBeTruthy();
-    expect(container.querySelector('[data-slot="burndown-chart-variance"]')).toBeTruthy();
   });
 });

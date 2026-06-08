@@ -120,7 +120,6 @@ export default tseslint.config(
   {
     files: [
       "src/components/chart/*.tsx",
-      "src/components/burndown-chart.tsx",
       "src/components/gantt-chart.tsx",
       "src/components/org-chart.tsx",
       "src/components/process-map.tsx",

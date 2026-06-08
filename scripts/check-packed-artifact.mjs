@@ -17,7 +17,6 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const tempDir = mkdtempSync(path.join(tmpdir(), "diagrams-pack-check-"));
 const expectedEntrypoints = [
   "index",
-  "burndown-chart",
   "gantt-chart",
   "org-chart",
   "process-map",
@@ -102,15 +101,14 @@ try {
   writeFileSync(
     path.join(consumerDir, "import-check.mjs"),
     [
-      'import { BurndownChart, GanttChart, OrgChart, ProcessMap, RelationshipMap, UmlDiagram } from "@moritzbrantner/diagrams";',
-      'import { BurndownChart as BurndownChartSubpath } from "@moritzbrantner/diagrams/burndown-chart";',
+      'import { GanttChart, OrgChart, ProcessMap, RelationshipMap, UmlDiagram } from "@moritzbrantner/diagrams";',
       'import { GanttChart as GanttChartSubpath } from "@moritzbrantner/diagrams/gantt-chart";',
       'import { OrgChart as OrgChartSubpath } from "@moritzbrantner/diagrams/org-chart";',
       'import { ProcessMap as ProcessMapSubpath } from "@moritzbrantner/diagrams/process-map";',
       'import { RelationshipMap as RelationshipMapSubpath } from "@moritzbrantner/diagrams/relationship-map";',
       'import { UmlDiagram as UmlDiagramSubpath } from "@moritzbrantner/diagrams/uml-diagram";',
       "",
-      "for (const value of [BurndownChart, BurndownChartSubpath, GanttChart, GanttChartSubpath, OrgChart, OrgChartSubpath, ProcessMap, ProcessMapSubpath, RelationshipMap, RelationshipMapSubpath, UmlDiagram, UmlDiagramSubpath]) {",
+      "for (const value of [GanttChart, GanttChartSubpath, OrgChart, OrgChartSubpath, ProcessMap, ProcessMapSubpath, RelationshipMap, RelationshipMapSubpath, UmlDiagram, UmlDiagramSubpath]) {",
       "  if (typeof value !== 'function' && typeof value !== 'object') {",
       "    throw new Error('Packed package runtime import returned an unexpected export.');",
       "  }",
@@ -121,21 +119,19 @@ try {
   writeFileSync(
     path.join(consumerDir, "type-check.ts"),
     [
-      'import { type BurndownChartPoint } from "@moritzbrantner/diagrams/burndown-chart";',
       'import { type GanttChartTask } from "@moritzbrantner/diagrams/gantt-chart";',
       'import { type OrgChartNodeData } from "@moritzbrantner/diagrams";',
       'import { type ProcessMapStepData } from "@moritzbrantner/diagrams/process-map";',
       'import { type RelationshipMapNode } from "@moritzbrantner/diagrams/relationship-map";',
       'import { type UmlDiagramNode } from "@moritzbrantner/diagrams/uml-diagram";',
       "",
-      'const burndownPoint: BurndownChartPoint = { date: "2026-04-01", remaining: 8 };',
       'const task: GanttChartTask = { id: "release", label: "Release", startDate: "2026-04-01", endDate: "2026-04-02" };',
       'const node: OrgChartNodeData = { id: "owner", label: "Owner" };',
       'const step: ProcessMapStepData = { id: "plan", label: "Plan", status: "active" };',
       'const relationship: RelationshipMapNode = { id: "product", label: "Product" };',
       'const umlNode: UmlDiagramNode = { id: "draft", label: "Draft" };',
       "",
-      "if (!burndownPoint.date || !task.id || !node.id || !step.id || !relationship.id || !umlNode.id) {",
+      "if (!task.id || !node.id || !step.id || !relationship.id || !umlNode.id) {",
       "  throw new Error('Packed package type import returned unexpected data.');",
       "}",
       "",

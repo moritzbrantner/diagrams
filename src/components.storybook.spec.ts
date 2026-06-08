@@ -14,7 +14,6 @@ const storyIds = [
   "diagrams-components--process-map-story",
   "diagrams-components--relationship-map-story",
   "diagrams-components--interactive-relationship-map-story",
-  "diagrams-components--burndown-chart-story",
   "diagrams-components--gantt-chart-story",
   "diagrams-components--interactive-gantt-chart-story",
   "diagrams-uml-diagram--default",
