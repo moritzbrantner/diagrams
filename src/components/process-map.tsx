@@ -83,6 +83,7 @@ function ProcessMap({
   onStepActionSelect,
   children,
   className,
+  role,
   ...props
 }: ProcessMapProps) {
   const isDataDriven = Boolean(steps?.length);
@@ -172,7 +173,7 @@ function ProcessMap({
     <div
       data-slot="process-map"
       data-orientation={orientation}
-      role={isDataDriven ? "list" : props.role}
+      role={role}
       className={cn(
         "relative w-full max-w-full min-w-0 overflow-auto rounded-md border bg-card/60 p-3 text-card-foreground",
         className,
@@ -182,6 +183,7 @@ function ProcessMap({
       {zoomControls}
       <div
         data-slot="process-map-track"
+        role={isDataDriven && role === undefined ? "list" : undefined}
         className={cn(
           "flex min-w-0 gap-3",
           orientation === "vertical"
@@ -193,43 +195,47 @@ function ProcessMap({
         {isDataDriven
           ? steps?.map((step, index) => (
               <React.Fragment key={step.id}>
-                <ProcessMapStep
-                  step={step}
-                  role={onStepSelect ? "button" : "listitem"}
-                  aria-pressed={onStepSelect ? selectedStepId === step.id : undefined}
-                  aria-disabled={getStepDisabled?.(step) || undefined}
-                  selected={selectedStepId === step.id}
-                  focused={effectiveFocusedStepId === step.id}
-                  disabled={Boolean(getStepDisabled?.(step))}
-                  actions={
-                    typeof stepActions === "function" ? stepActions(step) : (stepActions ?? [])
-                  }
-                  tabIndex={
-                    resolvedKeyboardMode === "nodes" &&
-                    effectiveFocusedStepId === step.id &&
-                    !getStepDisabled?.(step)
-                      ? 0
-                      : -1
-                  }
-                  onFocus={() => {
-                    if (focusedStepId === undefined) {
-                      setInternalFocusedStepId(step.id);
+                <div role={role === undefined ? "listitem" : undefined}>
+                  <ProcessMapStep
+                    step={step}
+                    role={onStepSelect ? "button" : undefined}
+                    aria-pressed={onStepSelect ? selectedStepId === step.id : undefined}
+                    aria-disabled={getStepDisabled?.(step) || undefined}
+                    selected={selectedStepId === step.id}
+                    focused={effectiveFocusedStepId === step.id}
+                    disabled={Boolean(getStepDisabled?.(step))}
+                    actions={
+                      typeof stepActions === "function" ? stepActions(step) : (stepActions ?? [])
                     }
-                    onFocusedStepIdChange?.(step);
-                  }}
-                  onKeyDown={(event) => handleStepKeyDown(event, step)}
-                  onClick={
-                    onStepSelect && !getStepDisabled?.(step) ? () => onStepSelect(step) : undefined
-                  }
-                  onActionSelect={onStepActionSelect}
-                  ref={(element) => {
-                    if (element) {
-                      stepRefs.current.set(step.id, element);
-                    } else {
-                      stepRefs.current.delete(step.id);
+                    tabIndex={
+                      resolvedKeyboardMode === "nodes" &&
+                      effectiveFocusedStepId === step.id &&
+                      !getStepDisabled?.(step)
+                        ? 0
+                        : -1
                     }
-                  }}
-                />
+                    onFocus={() => {
+                      if (focusedStepId === undefined) {
+                        setInternalFocusedStepId(step.id);
+                      }
+                      onFocusedStepIdChange?.(step);
+                    }}
+                    onKeyDown={(event) => handleStepKeyDown(event, step)}
+                    onClick={
+                      onStepSelect && !getStepDisabled?.(step)
+                        ? () => onStepSelect(step)
+                        : undefined
+                    }
+                    onActionSelect={onStepActionSelect}
+                    ref={(element) => {
+                      if (element) {
+                        stepRefs.current.set(step.id, element);
+                      } else {
+                        stepRefs.current.delete(step.id);
+                      }
+                    }}
+                  />
+                </div>
                 {index < steps.length - 1 ? (
                   <ProcessMapConnector orientation={orientation} />
                 ) : null}

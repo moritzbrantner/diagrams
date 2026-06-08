@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
 import { ArchitectureDiagram } from "./architecture-diagram";
@@ -105,6 +105,8 @@ describe("ProcessMap", () => {
 
     expect(screen.getByRole("list")).toBeTruthy();
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getByRole("list").getAttribute("data-slot")).toBe("process-map-track");
+    expect(within(screen.getByRole("list")).queryByRole("button", { name: "Zoom in" })).toBeNull();
     expect(
       container.querySelector('[data-slot="process-map"]')?.getAttribute("data-orientation"),
     ).toBe("horizontal");
