@@ -593,7 +593,7 @@ function ParticipantShape({
         "outline-none",
         onParticipantSelect && "cursor-pointer",
         disabled && "opacity-60",
-        "transition-opacity data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_foreignObject>div]:ring-2 data-[highlight-state=active]:[&_foreignObject>div]:ring-ring/60",
+        "transition-opacity data-[highlight-state=related]:opacity-100 data-[disabled=true]:data-[highlight-state=related]:opacity-60 data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_foreignObject>div]:ring-2 data-[highlight-state=active]:[&_foreignObject>div]:ring-ring/60",
       )}
       onClick={
         onParticipantSelect && !disabled ? () => onParticipantSelect(participant) : undefined

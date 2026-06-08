@@ -640,7 +640,7 @@ function UmlDiagramInteractiveNode({
         onNodeSelect &&
           "cursor-pointer focus-visible:[&_[data-slot='uml-diagram-node-focus']]:stroke-ring",
         disabled && "opacity-60",
-        "transition-opacity data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot='uml-diagram-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot='uml-diagram-node']>div]:ring-ring/60",
+        "transition-opacity data-[highlight-state=related]:opacity-100 data-[disabled=true]:data-[highlight-state=related]:opacity-60 data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot='uml-diagram-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot='uml-diagram-node']>div]:ring-ring/60",
       )}
       onClick={interactive ? selectNode : undefined}
       onPointerEnter={interactionProps?.onPointerEnter}

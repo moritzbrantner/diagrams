@@ -294,6 +294,13 @@ describe("RelationshipMap", () => {
     expect(support.getAttribute("data-highlight-state")).toBe("dimmed");
     expect(edge.getAttribute("data-highlight-state")).toBe("related");
 
+    fireEvent.pointerLeave(product);
+    fireEvent.pointerEnter(edge);
+    expect(edge.getAttribute("data-highlight-state")).toBe("active");
+    expect(product.getAttribute("data-highlight-state")).toBe("related");
+    expect(sales.getAttribute("data-highlight-state")).toBe("related");
+    expect(support.getAttribute("data-highlight-state")).toBe("dimmed");
+
     fireEvent.click(screen.getByRole("button", { name: "Search diagram" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Search diagram" }), {
       target: { value: "briefs" },

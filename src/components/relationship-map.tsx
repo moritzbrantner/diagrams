@@ -661,7 +661,7 @@ function RelationshipMapInteractiveNode({
         onNodeSelect &&
           "cursor-pointer focus-visible:[&_[data-slot='relationship-map-node-focus']]:stroke-ring",
         disabled && "opacity-60",
-        "transition-opacity data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot='relationship-map-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot='relationship-map-node']>div]:ring-ring/60",
+        "transition-opacity data-[highlight-state=related]:opacity-100 data-[disabled=true]:data-[highlight-state=related]:opacity-60 data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot='relationship-map-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot='relationship-map-node']>div]:ring-ring/60",
       )}
       onClick={
         onNodeSelect && !disabled
