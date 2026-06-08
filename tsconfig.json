@@ -8,10 +8,22 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@moritzbrantner/diagrams": ["./src/index.ts"],
+      "@moritzbrantner/diagrams/architecture-diagram": ["./src/architecture-diagram.ts"],
+      "@moritzbrantner/diagrams/decision-tree": ["./src/decision-tree.ts"],
+      "@moritzbrantner/diagrams/dependency-graph": ["./src/dependency-graph.ts"],
+      "@moritzbrantner/diagrams/entity-relationship-diagram": [
+        "./src/entity-relationship-diagram.ts"
+      ],
       "@moritzbrantner/diagrams/gantt-chart": ["./src/gantt-chart.ts"],
+      "@moritzbrantner/diagrams/journey-map": ["./src/journey-map.ts"],
+      "@moritzbrantner/diagrams/mind-map": ["./src/mind-map.ts"],
       "@moritzbrantner/diagrams/org-chart": ["./src/org-chart.ts"],
       "@moritzbrantner/diagrams/process-map": ["./src/process-map.ts"],
       "@moritzbrantner/diagrams/relationship-map": ["./src/relationship-map.ts"],
+      "@moritzbrantner/diagrams/sequence-diagram": ["./src/sequence-diagram.ts"],
+      "@moritzbrantner/diagrams/state-machine-diagram": ["./src/state-machine-diagram.ts"],
+      "@moritzbrantner/diagrams/swimlane-diagram": ["./src/swimlane-diagram.ts"],
+      "@moritzbrantner/diagrams/timeline-diagram": ["./src/timeline-diagram.ts"],
       "@moritzbrantner/diagrams/uml-diagram": ["./src/uml-diagram.ts"]
     },
     "skipLibCheck": true,

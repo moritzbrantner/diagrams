@@ -4,9 +4,54 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@moritzbrantner/diagrams examples</title>
+    <link rel="stylesheet" href="./src/styles.css" />
   </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body class="bg-background text-foreground">
+    <main class="mx-auto grid max-w-6xl gap-8 px-4 py-8">
+      <header class="grid gap-3">
+        <h1 class="text-3xl font-semibold tracking-normal">@moritzbrantner/diagrams</h1>
+        <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
+          React 19 diagram primitives with dedicated example pages for every public package subpath.
+        </p>
+      </header>
+
+      <nav aria-label="Diagram examples" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <a class="rounded-md border p-4 hover:bg-muted" href="./architecture-diagram/">
+          Architecture Diagram
+        </a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./decision-tree/">Decision Tree</a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./dependency-graph/">
+          Dependency Graph
+        </a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./entity-relationship-diagram/">
+          Entity Relationship Diagram
+        </a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./gantt-chart/">Gantt Chart</a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./journey-map/">Journey Map</a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./mind-map/">Mind Map</a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./org-chart/">Org Chart</a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./process-map/">Process Map</a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./relationship-map/">
+          Relationship Map
+        </a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./sequence-diagram/">
+          Sequence Diagram
+        </a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./state-machine-diagram/">
+          State Machine Diagram
+        </a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./swimlane-diagram/">
+          Swimlane Diagram
+        </a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./timeline-diagram/">
+          Timeline Diagram
+        </a>
+        <a class="rounded-md border p-4 hover:bg-muted" href="./uml-diagram/">UML Diagram</a>
+      </nav>
+
+      <p class="text-sm text-muted-foreground">
+        <a class="underline underline-offset-4" href="./api/">API documentation</a>
+      </p>
+    </main>
   </body>
 </html>

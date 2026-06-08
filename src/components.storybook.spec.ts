@@ -66,6 +66,7 @@ async function expectStoryA11yClean(page: Page) {
       const results = await new AxeBuilder({ page })
         .include("#storybook-root")
         .disableRules(["landmark-one-main", "page-has-heading-one", "region"])
+        .setLegacyMode()
         .analyze();
 
       expect(results.violations).toEqual([]);

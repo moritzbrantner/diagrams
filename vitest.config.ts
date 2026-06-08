@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -5,14 +6,32 @@ import { defineConfig } from "vitest/config";
 
 const rootDir = fileURLToPath(new URL("./", import.meta.url));
 
+type PackageJson = {
+  name: string;
+  exports: Record<string, { import?: string; types?: string } | string>;
+};
+
+function getPackageAliases(rootDir: string) {
+  const packageJson = JSON.parse(
+    readFileSync(path.join(rootDir, "package.json"), "utf8"),
+  ) as PackageJson;
+
+  return Object.keys(packageJson.exports)
+    .filter((exportKey) => exportKey !== "./package.json")
+    .map((exportKey) => {
+      const name = exportKey === "." ? "index" : exportKey.slice(2);
+      const find = exportKey === "." ? packageJson.name : `${packageJson.name}/${name}`;
+
+      return {
+        find,
+        replacement: path.resolve(rootDir, `src/${name}.ts`),
+      };
+    });
+}
+
 export default defineConfig({
   resolve: {
-    alias: {
-      "@moritzbrantner/diagrams": path.resolve(rootDir, "src/index.ts"),
-      "@moritzbrantner/diagrams/org-chart": path.resolve(rootDir, "src/org-chart.ts"),
-      "@moritzbrantner/diagrams/process-map": path.resolve(rootDir, "src/process-map.ts"),
-      "@moritzbrantner/diagrams/relationship-map": path.resolve(rootDir, "src/relationship-map.ts"),
-    },
+    alias: getPackageAliases(rootDir),
   },
   test: {
     coverage: {

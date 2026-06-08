@@ -13,16 +13,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { getPublicEntrypoints } from "./public-entrypoints.mjs";
+
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = mkdtempSync(path.join(tmpdir(), "diagrams-pack-check-"));
-const expectedEntrypoints = [
-  "index",
-  "gantt-chart",
-  "org-chart",
-  "process-map",
-  "relationship-map",
-  "uml-diagram",
-];
 
 try {
   const packed = JSON.parse(
@@ -46,23 +40,19 @@ try {
   });
   assertFile(path.join(packageDir, "package.json"));
 
-  for (const entrypoint of expectedEntrypoints) {
-    assertFile(path.join(packageDir, "dist", `${entrypoint}.js`));
-    assertFile(path.join(packageDir, "dist", `${entrypoint}.d.ts`));
-  }
-
   const packageJson = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
+  const entrypoints = getPublicEntrypoints(packageJson);
 
-  for (const entrypoint of expectedEntrypoints) {
-    const exportKey = entrypoint === "index" ? "." : `./${entrypoint}`;
-    const distName = entrypoint === "index" ? "index" : entrypoint;
+  for (const entrypoint of entrypoints) {
+    assertFile(path.join(packageDir, entrypoint.distJsPath));
+    assertFile(path.join(packageDir, entrypoint.distTypesPath));
 
-    if (packageJson.exports?.[exportKey]?.import !== `./dist/${distName}.js`) {
-      throw new Error(`Packed package ${exportKey} import export is incorrect.`);
+    if (entrypoint.exportValue?.import !== `./${entrypoint.distJsPath}`) {
+      throw new Error(`Packed package ${entrypoint.exportKey} import export is incorrect.`);
     }
 
-    if (packageJson.exports?.[exportKey]?.types !== `./dist/${distName}.d.ts`) {
-      throw new Error(`Packed package ${exportKey} types export is incorrect.`);
+    if (entrypoint.exportValue?.types !== `./${entrypoint.distTypesPath}`) {
+      throw new Error(`Packed package ${entrypoint.exportKey} types export is incorrect.`);
     }
   }
 
@@ -101,16 +91,17 @@ try {
   writeFileSync(
     path.join(consumerDir, "import-check.mjs"),
     [
-      'import { GanttChart, OrgChart, ProcessMap, RelationshipMap, UmlDiagram } from "@moritzbrantner/diagrams";',
-      'import { GanttChart as GanttChartSubpath } from "@moritzbrantner/diagrams/gantt-chart";',
-      'import { OrgChart as OrgChartSubpath } from "@moritzbrantner/diagrams/org-chart";',
-      'import { ProcessMap as ProcessMapSubpath } from "@moritzbrantner/diagrams/process-map";',
-      'import { RelationshipMap as RelationshipMapSubpath } from "@moritzbrantner/diagrams/relationship-map";',
-      'import { UmlDiagram as UmlDiagramSubpath } from "@moritzbrantner/diagrams/uml-diagram";',
+      `const specifiers = ${JSON.stringify(
+        entrypoints.map((entrypoint) => entrypoint.packageSpecifier),
+        null,
+        2,
+      )};`,
       "",
-      "for (const value of [GanttChart, GanttChartSubpath, OrgChart, OrgChartSubpath, ProcessMap, ProcessMapSubpath, RelationshipMap, RelationshipMapSubpath, UmlDiagram, UmlDiagramSubpath]) {",
-      "  if (typeof value !== 'function' && typeof value !== 'object') {",
-      "    throw new Error('Packed package runtime import returned an unexpected export.');",
+      "for (const specifier of specifiers) {",
+      "  const module = await import(specifier);",
+      "",
+      "  if (Object.keys(module).length === 0) {",
+      "    throw new Error(`${specifier} returned no runtime exports.`);",
       "  }",
       "}",
       "",
@@ -119,20 +110,19 @@ try {
   writeFileSync(
     path.join(consumerDir, "type-check.ts"),
     [
-      'import { type GanttChartTask } from "@moritzbrantner/diagrams/gantt-chart";',
-      'import { type OrgChartNodeData } from "@moritzbrantner/diagrams";',
-      'import { type ProcessMapStepData } from "@moritzbrantner/diagrams/process-map";',
-      'import { type RelationshipMapNode } from "@moritzbrantner/diagrams/relationship-map";',
-      'import { type UmlDiagramNode } from "@moritzbrantner/diagrams/uml-diagram";',
+      ...entrypoints.map(
+        (entrypoint) =>
+          `import type * as ${toNamespaceName(entrypoint.name)} from "${entrypoint.packageSpecifier}";`,
+      ),
       "",
-      'const task: GanttChartTask = { id: "release", label: "Release", startDate: "2026-04-01", endDate: "2026-04-02" };',
-      'const node: OrgChartNodeData = { id: "owner", label: "Owner" };',
-      'const step: ProcessMapStepData = { id: "plan", label: "Plan", status: "active" };',
-      'const relationship: RelationshipMapNode = { id: "product", label: "Product" };',
-      'const umlNode: UmlDiagramNode = { id: "draft", label: "Draft" };',
+      "type ExportChecks = [",
+      ...entrypoints.map((entrypoint) => `  keyof typeof ${toNamespaceName(entrypoint.name)},`),
+      "];",
       "",
-      "if (!task.id || !node.id || !step.id || !relationship.id || !umlNode.id) {",
-      "  throw new Error('Packed package type import returned unexpected data.');",
+      "const checks = null as unknown as ExportChecks;",
+      "",
+      "if (!checks) {",
+      '  throw new Error("Packed package type imports returned unexpected data.");',
       "}",
       "",
     ].join("\n"),
@@ -220,4 +210,16 @@ function linkInstalledModules(sourceNodeModules, targetNodeModules) {
       symlinkSync(sourcePath, targetPath, entry.isDirectory() ? "dir" : "file");
     }
   }
+}
+
+function toNamespaceName(name) {
+  if (name === "index") {
+    return "Root";
+  }
+
+  return name
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`)
+    .join("");
 }

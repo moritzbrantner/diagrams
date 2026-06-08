@@ -93,8 +93,8 @@
     "api:check": "bun run build && node ./scripts/check-api-report.mjs",
     "audit:production": "bun audit --production",
     "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
-    "build": "tsup src/index.ts src/architecture-diagram.ts src/decision-tree.ts src/dependency-graph.ts src/entity-relationship-diagram.ts src/gantt-chart.ts src/journey-map.ts src/mind-map.ts src/org-chart.ts src/process-map.ts src/relationship-map.ts src/sequence-diagram.ts src/state-machine-diagram.ts src/swimlane-diagram.ts src/timeline-diagram.ts src/uml-diagram.ts --format esm --dts --clean --out-dir dist",
-    "build:examples": "vite build --outDir ../dist-examples --emptyOutDir && bun run docs && node ./scripts/copy-docs-to-examples.mjs",
+    "build": "node ./scripts/build.mjs",
+    "build:examples": "vite build --outDir ../dist-examples --emptyOutDir && node ./scripts/check-example-bundles.mjs && bun run docs && node ./scripts/copy-docs-to-examples.mjs",
     "build:storybook": "storybook build --output-dir storybook-static",
     "changeset": "changeset",
     "check-types": "tsc --noEmit",
@@ -120,7 +120,6 @@
     "version-packages": "changeset version"
   },
   "dependencies": {
-    "@tanstack/react-query": "5.101.0",
     "lucide-react": "^1.7.0"
   },
   "devDependencies": {

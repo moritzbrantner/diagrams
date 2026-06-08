@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
   dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
   exports?: Record<string, unknown>;
   license?: string;
   name?: string;
@@ -16,6 +17,9 @@ const tsconfig = JSON.parse(readFileSync("tsconfig.json", "utf8")) as {
     paths?: Record<string, string[]>;
   };
 };
+const publicExportPaths = Object.keys(packageJson.exports ?? {})
+  .filter((exportKey) => exportKey !== "." && exportKey !== "./package.json")
+  .map((exportKey) => `@moritzbrantner/diagrams/${exportKey.slice(2)}`);
 
 describe("package contract", () => {
   test("is a public MIT package with expected peer contracts", () => {
@@ -106,6 +110,25 @@ describe("package contract", () => {
       },
       "./package.json": "./package.json",
     });
+  });
+
+  test("has TypeScript path coverage for every public export", () => {
+    expect(tsconfig.compilerOptions?.paths?.["@moritzbrantner/diagrams"]).toEqual([
+      "./src/index.ts",
+    ]);
+    expect(tsconfig.compilerOptions?.paths).toMatchObject(
+      Object.fromEntries(
+        publicExportPaths.map((specifier) => [
+          specifier,
+          [`./src/${specifier.replace("@moritzbrantner/diagrams/", "")}.ts`],
+        ]),
+      ),
+    );
+  });
+
+  test("keeps example-only React Query out of runtime dependencies", () => {
+    expect(packageJson.dependencies?.["@tanstack/react-query"]).toBeUndefined();
+    expect(packageJson.devDependencies?.["@tanstack/react-query"]).toBeUndefined();
   });
 
   test("exposes maturity and release scripts", () => {

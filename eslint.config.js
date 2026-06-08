@@ -20,6 +20,7 @@ export default tseslint.config(
       "coverage/",
       "dist/",
       "dist-examples/",
+      "dist-examples-sourcemap/",
       "docs/",
       "node_modules/",
       "playwright-report/",

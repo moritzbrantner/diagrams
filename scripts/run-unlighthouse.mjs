@@ -37,8 +37,6 @@ try {
     "--config-file",
     "unlighthouse.config.ts",
     "--desktop",
-    "--urls",
-    "/",
     "--budget",
     "40",
     "--reporter",
