@@ -10,6 +10,7 @@ import {
   defaultEdgeToneClasses,
   defaultSvgToneClasses,
   defaultToneClasses,
+  getDiagramCanvasStyle,
   getAutoGridPosition,
   getHullRoute,
   getSpatialBounds,
@@ -509,9 +510,11 @@ function DependencyGraph({
   const routePoints = edgeRoutes.flatMap(({ route }) => route.points);
   const partBounds = partProjection.expandedParts.map((part) => part.bounds);
   const bounds = getSpatialBounds([...positionedNodes, ...partBounds], routePoints);
-  const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
-    bounds.height + padding * 2
-  }`;
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 288,
+    minWidth: 640,
+    padding,
+  });
   const nodeDescriptors = React.useMemo(
     () =>
       positionedNodes.map((node) => ({
@@ -593,7 +596,8 @@ function DependencyGraph({
           data-slot="dependency-graph-svg"
           role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          viewBox={interaction.viewBox}
+          style={canvasStyle}
           className={cn(
             "block min-h-72 w-full min-w-160 text-foreground",
             diagramCanvasLabelVisibilityClass,

@@ -5,6 +5,8 @@ import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
 import { cn } from "@moritzbrantner/ui";
 
+import { useDiagramZoomControls } from "./diagram-utils";
+
 type OrgChartNodeData = {
   id: string;
   label: React.ReactNode;
@@ -359,21 +361,24 @@ function OrgChart({
       visibleNodes,
     ],
   );
+  const { controls: zoomControls, zoomStyle } = useDiagramZoomControls();
 
   return (
     <div
       data-slot="org-chart"
       className={cn(
-        "min-w-0 overflow-x-auto rounded-md border bg-card p-4 text-card-foreground",
+        "relative min-w-0 overflow-auto rounded-md border bg-card p-4 text-card-foreground",
         className,
       )}
       {...props}
     >
+      {zoomControls}
       {nodes.length ? (
         <div
           data-slot="org-chart-roots"
           role="tree"
           className="flex min-w-max gap-6 md:justify-center"
+          style={zoomStyle}
         >
           {nodes.map((node, index) => (
             <OrgChartNode

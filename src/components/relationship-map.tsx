@@ -8,6 +8,7 @@ import {
   getHullRoute,
   getNearestDiagramItem,
   getReactNodeAccessibleName,
+  getDiagramCanvasStyle,
   getSpatialBounds,
   isActivationKey,
   pointsToPath,
@@ -348,9 +349,11 @@ function RelationshipMap({
     width: 640,
     height: 320,
   });
-  const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
-    bounds.height + padding * 2
-  }`;
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 288,
+    minWidth: 640,
+    padding,
+  });
   const nodeDescriptors = React.useMemo(
     () =>
       positionedNodes.map((node) => ({
@@ -431,7 +434,8 @@ function RelationshipMap({
           data-slot="relationship-map-svg"
           role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          viewBox={interaction.viewBox}
+          style={canvasStyle}
           className={cn(
             "block min-h-72 w-full min-w-160 text-foreground",
             diagramCanvasLabelVisibilityClass,

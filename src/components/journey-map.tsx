@@ -3,7 +3,12 @@
 import { cn } from "@moritzbrantner/ui";
 import * as React from "react";
 
-import { defaultToneClasses, getReactNodeAccessibleName, type DiagramTone } from "./diagram-utils";
+import {
+  defaultToneClasses,
+  getReactNodeAccessibleName,
+  type DiagramTone,
+  useDiagramZoomControls,
+} from "./diagram-utils";
 
 export type JourneyMapPhase = {
   id: string;
@@ -131,6 +136,7 @@ function JourneyMap({
   const collapsedPhaseSummaries = phases.filter((phase) => collapsedPhaseIds.includes(phase.id));
   const collapsedLaneSummaries = lanes.filter((lane) => collapsedLaneIds.includes(lane.id));
   const gridTemplateColumns = `repeat(${Math.max(1, visiblePhases.length)}, minmax(13rem, 1fr))`;
+  const { controls: zoomControls, zoomStyle } = useDiagramZoomControls();
 
   return (
     <figure
@@ -142,13 +148,14 @@ function JourneyMap({
         data-slot="journey-map-scroll-area"
         role="region"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
       >
+        {zoomControls}
         <button type="button" className="sr-only">
           Focus journey map scroll area
         </button>
         {phases.length ? (
-          <div role="grid" aria-label={ariaLabel} className="min-w-max p-3">
+          <div role="grid" aria-label={ariaLabel} className="min-w-max p-3" style={zoomStyle}>
             {collapsedPhaseSummaries.length || collapsedLaneSummaries.length ? (
               <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {collapsedPhaseSummaries.map((phase) => (

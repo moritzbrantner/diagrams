@@ -7,6 +7,7 @@ import {
   clampFiniteNumber,
   diagramCanvasLabelVisibilityClass,
   DiagramSvgItemInteraction,
+  getDiagramCanvasStyle,
   type DiagramItemAction,
   defaultEdgeToneClasses,
   defaultToneClasses,
@@ -370,9 +371,11 @@ function SwimlaneDiagram({
   });
   const routePoints = connectorRoutes.flatMap(({ route }) => route.points);
   const bounds = getSpatialBounds([...positionedLanes, ...renderSteps], routePoints);
-  const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
-    bounds.height + padding * 2
-  }`;
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 320,
+    minWidth: 640,
+    padding,
+  });
   const interaction = useDiagramCanvasInteractions({
     interactiveFeatures,
     contentBounds: bounds,
@@ -445,7 +448,8 @@ function SwimlaneDiagram({
           data-slot="swimlane-diagram-svg"
           role={onStepSelect || stepActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          viewBox={interaction.viewBox}
+          style={canvasStyle}
           className={cn(
             "block min-h-80 w-full min-w-160 text-foreground",
             diagramCanvasLabelVisibilityClass,

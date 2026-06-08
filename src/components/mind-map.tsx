@@ -6,6 +6,7 @@ import * as React from "react";
 import {
   clampFiniteNumber,
   DiagramSvgItemInteraction,
+  getDiagramCanvasStyle,
   type DiagramItemAction,
   defaultEdgeToneClasses,
   defaultToneClasses,
@@ -16,6 +17,7 @@ import {
   isActivationKey,
   type DiagramTone,
   useControlledSetState,
+  useDiagramCanvasInteractions,
 } from "./diagram-utils";
 
 export type MindMapNode = {
@@ -242,9 +244,33 @@ function MindMap({
     [internalExpandedNodeIds, onExpandedNodeIdsChange, setInternalExpandedNodeIds],
   );
   const bounds = getSpatialBounds(positionedNodes);
-  const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
-    bounds.height + padding * 2
-  }`;
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 320,
+    minWidth: 640,
+    padding,
+  });
+  const {
+    overlay: interactionOverlay,
+    setScrollAreaElement: setInteractionScrollAreaElement,
+    svgProps: interactionSvgProps,
+    viewBox: interactionViewBox,
+  } = useDiagramCanvasInteractions({
+    interactiveFeatures: { viewport: true },
+    contentBounds: bounds,
+    nodes: positionedNodes.map((node) => ({
+      id: node.id,
+      item: node,
+      label: node.label,
+      bounds: { x: node.x, y: node.y, width: node.width, height: node.height },
+    })),
+    edges: edges.map(({ source, target }) => ({
+      id: `${source.id}-${target.id}`,
+      item: { source, target },
+      sourceId: source.id,
+      targetId: target.id,
+    })),
+    padding,
+  });
 
   return (
     <figure
@@ -257,10 +283,11 @@ function MindMap({
       {...props}
     >
       <div
+        ref={setInteractionScrollAreaElement}
         data-slot="mind-map-scroll-area"
         role="region"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
       >
         <button type="button" className="sr-only">
           Focus mind map scroll area
@@ -269,8 +296,10 @@ function MindMap({
           data-slot="mind-map-svg"
           role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={viewBox}
+          viewBox={interactionViewBox}
+          style={canvasStyle}
           className="block min-h-80 w-full min-w-160 text-foreground"
+          {...interactionSvgProps}
         >
           {positionedNodes.length ? (
             <>
@@ -339,6 +368,7 @@ function MindMap({
             </text>
           )}
         </svg>
+        {interactionOverlay}
       </div>
       {caption ? (
         <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">

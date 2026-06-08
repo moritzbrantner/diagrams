@@ -4,7 +4,12 @@ import * as React from "react";
 
 import { cn } from "@moritzbrantner/ui";
 
-import { getReactNodeAccessibleName, isActivationKey } from "./diagram-utils";
+import {
+  getDiagramCanvasStyle,
+  getReactNodeAccessibleName,
+  isActivationKey,
+  useDiagramCanvasInteractions,
+} from "./diagram-utils";
 
 type GanttChartDate = Date | number | string;
 type GanttChartTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";
@@ -153,6 +158,33 @@ function GanttChart({
         null)
       : null;
   const todayTimestamp = todayDate ? toDayTimestamp(todayDate) : NaN;
+  const bounds = { x: 0, y: 0, width, height };
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minWidth: DEFAULT_GANTT_WIDTH,
+    padding: 0,
+  });
+  const {
+    overlay: interactionOverlay,
+    setScrollAreaElement: setInteractionScrollAreaElement,
+    svgProps: interactionSvgProps,
+    viewBox: interactionViewBox,
+  } = useDiagramCanvasInteractions({
+    interactiveFeatures: { viewport: true },
+    contentBounds: bounds,
+    nodes: preparedTasks.map((task, index) => ({
+      id: task.id,
+      item: task,
+      label: task.label,
+      bounds: {
+        x: GANTT_PADDING.left,
+        y: getRowY(index, rowHeight),
+        width: width - GANTT_PADDING.left - GANTT_PADDING.right,
+        height: rowHeight,
+      },
+    })),
+    edges: [],
+    padding: 0,
+  });
 
   return (
     <figure
@@ -164,18 +196,21 @@ function GanttChart({
       {...props}
     >
       <div
+        ref={setInteractionScrollAreaElement}
         data-slot="gantt-chart-scroll-area"
         aria-label={`${ariaLabel} scroll area`}
         role="region"
-        className="overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="relative overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         tabIndex={0}
       >
         <svg
           data-slot="gantt-chart-svg"
           role={onTaskSelect || taskActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={`0 0 ${width} ${height}`}
+          viewBox={interactionViewBox}
+          style={canvasStyle}
           className="block w-full min-w-220 text-foreground"
+          {...interactionSvgProps}
         >
           <defs>
             <marker id={markerId} markerWidth="8" markerHeight="8" refX="4" refY="4">
@@ -326,6 +361,7 @@ function GanttChart({
             </text>
           )}
         </svg>
+        {interactionOverlay}
       </div>
       {caption ? (
         <figcaption

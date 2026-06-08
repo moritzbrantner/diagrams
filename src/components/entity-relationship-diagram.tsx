@@ -7,6 +7,7 @@ import {
   clampFiniteNumber,
   diagramCanvasLabelVisibilityClass,
   DiagramSvgItemInteraction,
+  getDiagramCanvasStyle,
   type DiagramItemAction,
   defaultEdgeToneClasses,
   defaultToneClasses,
@@ -321,9 +322,11 @@ function EntityRelationshipDiagram({
   });
   const routePoints = relationRoutes.flatMap(({ route }) => route.points);
   const bounds = getSpatialBounds(renderEntities, routePoints);
-  const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
-    bounds.height + padding * 2
-  }`;
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 320,
+    minWidth: 640,
+    padding,
+  });
   const interaction = useDiagramCanvasInteractions({
     interactiveFeatures,
     contentBounds: bounds,
@@ -394,7 +397,8 @@ function EntityRelationshipDiagram({
           data-slot="entity-relationship-diagram-svg"
           role={onEntitySelect || entityActions || onFieldSelect ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          viewBox={interaction.viewBox}
+          style={canvasStyle}
           className={cn(
             "block min-h-80 w-full min-w-160 text-foreground",
             diagramCanvasLabelVisibilityClass,

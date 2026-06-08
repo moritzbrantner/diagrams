@@ -265,6 +265,32 @@ describe("RelationshipMap", () => {
     expect(svg.getAttribute("class")).toContain("hover");
   });
 
+  test("enables viewport zoom and scrollable canvas sizing by default", () => {
+    const { container } = render(
+      <RelationshipMap
+        ariaLabel="Default zoom map"
+        nodes={[
+          { id: "start", label: "Start", x: 0, y: 0 },
+          { id: "far", label: "Far away", x: 1800, y: 900 },
+        ]}
+        edges={[{ id: "start-far", source: "start", target: "far" }]}
+      />,
+    );
+    const svg = screen.getByRole("img", { name: "Default zoom map" });
+    const initialViewBox = svg.getAttribute("viewBox");
+    const scrollArea = container.querySelector<HTMLElement>(
+      '[data-slot="relationship-map-scroll-area"]',
+    );
+
+    expect(screen.getByRole("button", { name: "Zoom in" })).toBeTruthy();
+    expect(scrollArea?.className).toContain("overflow-auto");
+    expect(svg.getAttribute("style")).toContain("width: max(100%,");
+    expect(svg.getAttribute("style")).toContain("height:");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(svg.getAttribute("viewBox")).not.toBe(initialViewBox);
+  });
+
   test("supports interactive viewport controls, highlighting, search, and edge inspection", async () => {
     const onViewportChange = vi.fn();
     const { container } = render(

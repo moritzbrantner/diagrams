@@ -4,6 +4,8 @@ import * as React from "react";
 
 import { cn } from "@moritzbrantner/ui";
 
+import { useDiagramZoomControls } from "./diagram-utils";
+
 type ProcessMapOrientation = "horizontal" | "vertical";
 type ProcessMapTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";
 type ProcessMapStatus = "pending" | "active" | "done" | "blocked" | "warning";
@@ -164,6 +166,7 @@ function ProcessMap({
       selectedStepId,
     ],
   );
+  const { controls: zoomControls, zoomStyle } = useDiagramZoomControls();
 
   return (
     <div
@@ -171,11 +174,12 @@ function ProcessMap({
       data-orientation={orientation}
       role={isDataDriven ? "list" : props.role}
       className={cn(
-        "w-full max-w-full min-w-0 overflow-x-auto rounded-md border bg-card/60 p-3 text-card-foreground",
+        "relative w-full max-w-full min-w-0 overflow-auto rounded-md border bg-card/60 p-3 text-card-foreground",
         className,
       )}
       {...props}
     >
+      {zoomControls}
       <div
         data-slot="process-map-track"
         className={cn(
@@ -184,6 +188,7 @@ function ProcessMap({
             ? "flex-col"
             : "min-w-max flex-col md:flex-row md:items-stretch",
         )}
+        style={zoomStyle}
       >
         {isDataDriven
           ? steps?.map((step, index) => (

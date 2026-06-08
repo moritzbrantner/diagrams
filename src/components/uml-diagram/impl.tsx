@@ -5,6 +5,7 @@ import * as React from "react";
 
 import {
   diagramCanvasLabelVisibilityClass,
+  getDiagramCanvasStyle,
   useDiagramCanvasInteractions,
   useDiagramCanvasSettings,
   type DiagramInteractiveProps,
@@ -358,9 +359,11 @@ function UmlDiagram({
     ],
   );
   const bounds = getUmlDiagramBounds(positionedNodes, edges);
-  const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
-    bounds.height + padding * 2
-  }`;
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 256,
+    minWidth: 640,
+    padding,
+  });
   const edgeRoutes = edges.flatMap((edge, edgeIndex) => {
     const source = nodeMap.get(edge.source);
     const target = nodeMap.get(edge.target);
@@ -443,7 +446,8 @@ function UmlDiagram({
           data-slot="uml-diagram-svg"
           role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          viewBox={interaction.viewBox}
+          style={canvasStyle}
           className={cn(
             "block min-h-64 w-full min-w-160 text-foreground",
             diagramCanvasLabelVisibilityClass,

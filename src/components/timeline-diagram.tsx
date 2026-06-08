@@ -7,9 +7,11 @@ import {
   clampFiniteNumber,
   defaultEdgeToneClasses,
   defaultToneClasses,
+  getDiagramCanvasStyle,
   getReactNodeAccessibleName,
   isActivationKey,
   type DiagramTone,
+  useDiagramCanvasInteractions,
 } from "./diagram-utils";
 
 export type TimelineDiagramDate = Date | string | number;
@@ -208,6 +210,29 @@ function TimelineDiagram({
       selectedItemId,
     ],
   );
+  const bounds = { x: 0, y: 0, width: TIMELINE_WIDTH, height: TIMELINE_HEIGHT };
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 224,
+    minWidth: 640,
+    padding: 0,
+  });
+  const {
+    overlay: interactionOverlay,
+    setScrollAreaElement: setInteractionScrollAreaElement,
+    svgProps: interactionSvgProps,
+    viewBox: interactionViewBox,
+  } = useDiagramCanvasInteractions({
+    interactiveFeatures: { viewport: true },
+    contentBounds: bounds,
+    nodes: datedItems.map((item) => ({
+      id: item.id,
+      item,
+      label: item.label,
+      bounds: { x: item.x - 80, y: item.y - 44, width: 160, height: 88 },
+    })),
+    edges: [],
+    padding: 0,
+  });
 
   return (
     <figure
@@ -255,10 +280,11 @@ function TimelineDiagram({
         </div>
       ) : (
         <div
+          ref={setInteractionScrollAreaElement}
           data-slot="timeline-diagram-scroll-area"
           role="region"
           aria-label={`${ariaLabel} scroll area`}
-          className="overflow-auto"
+          className="relative overflow-auto"
         >
           <button type="button" className="sr-only">
             Focus timeline diagram scroll area
@@ -267,8 +293,10 @@ function TimelineDiagram({
             data-slot="timeline-diagram-svg"
             role={onItemSelect || itemActions ? "group" : "img"}
             aria-label={ariaLabel}
-            viewBox={`0 0 ${TIMELINE_WIDTH} ${TIMELINE_HEIGHT}`}
+            viewBox={interactionViewBox}
+            style={canvasStyle}
             className="block min-h-56 w-full min-w-160"
+            {...interactionSvgProps}
           >
             <line
               data-slot="timeline-diagram-axis"
@@ -429,6 +457,7 @@ function TimelineDiagram({
               </text>
             )}
           </svg>
+          {interactionOverlay}
         </div>
       )}
       {caption ? (

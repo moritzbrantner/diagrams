@@ -7,6 +7,7 @@ import {
   clampFiniteNumber,
   diagramCanvasLabelVisibilityClass,
   DiagramSvgItemInteraction,
+  getDiagramCanvasStyle,
   type DiagramItemAction,
   defaultEdgeToneClasses,
   defaultToneClasses,
@@ -284,9 +285,11 @@ function StateMachineDiagram({
   });
   const routePoints = transitionRoutes.flatMap(({ route }) => route.points);
   const bounds = getSpatialBounds(positionedStates, routePoints);
-  const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
-    bounds.height + padding * 2
-  }`;
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 320,
+    minWidth: 640,
+    padding,
+  });
   const interaction = useDiagramCanvasInteractions({
     interactiveFeatures,
     contentBounds: bounds,
@@ -358,7 +361,8 @@ function StateMachineDiagram({
           data-slot="state-machine-diagram-svg"
           role={onStateSelect || stateActions || onTransitionSelect ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          viewBox={interaction.viewBox}
+          style={canvasStyle}
           className={cn(
             "block min-h-80 w-full min-w-160 text-foreground",
             diagramCanvasLabelVisibilityClass,

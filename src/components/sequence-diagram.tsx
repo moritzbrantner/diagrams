@@ -8,6 +8,7 @@ import {
   diagramCanvasLabelVisibilityClass,
   defaultEdgeToneClasses,
   defaultToneClasses,
+  getDiagramCanvasStyle,
   getReactNodeAccessibleName,
   isActivationKey,
   useDiagramCanvasInteractions,
@@ -252,6 +253,11 @@ function SequenceDiagram({
     TOP_PADDING + HEADER_HEIGHT + validMessages.length * MESSAGE_GAP + 96,
   );
   const bounds = { x: 0, y: 0, width, height };
+  const canvasStyle = getDiagramCanvasStyle(bounds, {
+    minHeight: 320,
+    minWidth: 640,
+    padding,
+  });
   const interaction = useDiagramCanvasInteractions({
     interactiveFeatures,
     contentBounds: bounds,
@@ -339,11 +345,8 @@ function SequenceDiagram({
               : "img"
           }
           aria-label={ariaLabel}
-          viewBox={
-            interactiveFeatures
-              ? interaction.viewBox
-              : `${-padding} ${-padding} ${width + padding * 2} ${height + padding * 2}`
-          }
+          viewBox={interaction.viewBox}
+          style={canvasStyle}
           className={cn(
             "block min-h-80 w-full min-w-160 text-foreground",
             diagramCanvasLabelVisibilityClass,

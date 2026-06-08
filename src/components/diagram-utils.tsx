@@ -946,6 +946,57 @@ export function useDiagramCanvasSettings({
 const diagramCanvasOverlayButtonClass =
   "inline-flex size-8 items-center justify-center rounded-sm border bg-background/90 text-foreground shadow-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4";
 
+export function useDiagramZoomControls({
+  defaultZoom = 1,
+  maxZoom = 3,
+  minZoom = 0.5,
+  step = 1.15,
+}: {
+  defaultZoom?: number;
+  maxZoom?: number;
+  minZoom?: number;
+  step?: number;
+} = {}) {
+  const [zoom, setZoom] = React.useState(defaultZoom);
+  const zoomStyle = React.useMemo(() => ({ zoom }), [zoom]);
+  const controls = (
+    <div
+      data-slot="diagram-zoom-controls"
+      className="absolute right-2 top-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1"
+    >
+      <button
+        type="button"
+        aria-label="Zoom in"
+        className={diagramCanvasOverlayButtonClass}
+        disabled={zoom >= maxZoom}
+        onClick={() => setZoom((current) => Math.min(maxZoom, current * step))}
+      >
+        <ZoomInIcon aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label="Zoom out"
+        className={diagramCanvasOverlayButtonClass}
+        disabled={zoom <= minZoom}
+        onClick={() => setZoom((current) => Math.max(minZoom, current / step))}
+      >
+        <ZoomOutIcon aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label="Reset view"
+        className={diagramCanvasOverlayButtonClass}
+        disabled={zoom === defaultZoom}
+        onClick={() => setZoom(defaultZoom)}
+      >
+        <RotateCcwIcon aria-hidden="true" />
+      </button>
+    </div>
+  );
+
+  return { controls, zoom, zoomStyle } as const;
+}
+
 type ResolvedDiagramInteractiveFeatures = {
   enabled: boolean;
   viewport: boolean;
@@ -962,6 +1013,27 @@ export function getFittedViewport(bounds: DiagramBounds, padding = 32): DiagramV
     y: bounds.y - padding,
     width: Math.max(1, bounds.width + padding * 2),
     height: Math.max(1, bounds.height + padding * 2),
+  };
+}
+
+export function getDiagramCanvasStyle(
+  bounds: DiagramBounds,
+  {
+    minHeight = 0,
+    minWidth = 0,
+    padding = 32,
+  }: {
+    minHeight?: number;
+    minWidth?: number;
+    padding?: number;
+  } = {},
+): React.CSSProperties {
+  const width = Math.ceil(Math.max(minWidth, bounds.width + padding * 2));
+  const height = Math.ceil(Math.max(minHeight, bounds.height + padding * 2));
+
+  return {
+    height,
+    width: `max(100%, ${width}px)`,
   };
 }
 
@@ -1244,6 +1316,7 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
   }, [defaultViewport, fittedViewport, viewport]);
 
   const currentViewport = viewport ?? internalViewport;
+  const visualViewport = features.viewport ? currentViewport : fittedViewport;
   const setViewport = React.useCallback(
     (nextViewport: DiagramViewport, reason: DiagramViewportChangeReason) => {
       const constrained = clampDiagramViewport(nextViewport, fittedViewport);
@@ -1539,8 +1612,8 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
   } satisfies React.SVGProps<SVGSVGElement>;
 
   return {
-    viewport: currentViewport,
-    viewBox: `${currentViewport.x} ${currentViewport.y} ${currentViewport.width} ${currentViewport.height}`,
+    viewport: visualViewport,
+    viewBox: `${visualViewport.x} ${visualViewport.y} ${visualViewport.width} ${visualViewport.height}`,
     setScrollAreaElement,
     setNodeElement,
     svgProps: features.enabled ? svgProps : {},
@@ -1883,8 +1956,8 @@ function resolveDiagramInteractiveFeatures(
 
   if (!features) {
     return {
-      enabled: false,
-      viewport: false,
+      enabled: features === undefined,
+      viewport: features === undefined,
       pathHighlight: false,
       pathHighlightMode: "neighbors",
       search: false,
@@ -1897,7 +1970,7 @@ function resolveDiagramInteractiveFeatures(
 
   return {
     enabled: true,
-    viewport: Boolean(features.viewport),
+    viewport: features.viewport ?? true,
     pathHighlight,
     pathHighlightMode:
       typeof features.pathHighlight === "object"
