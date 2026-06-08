@@ -254,6 +254,20 @@ export function getBoundaryPoint(
   rect: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>,
   toward: DiagramPoint,
 ): DiagramPoint {
+  return getBoundaryAnchor(rect, toward).point;
+}
+
+type BoundaryAnchor = {
+  normal: DiagramPoint;
+  point: DiagramPoint;
+};
+
+const ROUTE_ENDPOINT_STUB_LENGTH = 18;
+
+function getBoundaryAnchor(
+  rect: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>,
+  toward: DiagramPoint,
+): BoundaryAnchor {
   const center = getCenter(rect);
   const dx = toward.x - center.x;
   const dy = toward.y - center.y;
@@ -261,19 +275,35 @@ export function getBoundaryPoint(
   const halfHeight = rect.height / 2;
 
   if (dx === 0 && dy === 0) {
-    return { x: center.x + halfWidth, y: center.y };
+    return {
+      normal: { x: 1, y: 0 },
+      point: { x: center.x + halfWidth, y: center.y },
+    };
   }
 
   if (Math.abs(dx) * halfHeight > Math.abs(dy) * halfWidth) {
     return {
-      x: center.x + (dx > 0 ? halfWidth : -halfWidth),
-      y: center.y + (dy * halfWidth) / Math.max(Math.abs(dx), 1),
+      normal: { x: dx > 0 ? 1 : -1, y: 0 },
+      point: {
+        x: center.x + (dx > 0 ? halfWidth : -halfWidth),
+        y: center.y + (dy * halfWidth) / Math.max(Math.abs(dx), 1),
+      },
     };
   }
 
   return {
-    x: center.x + (dx * halfHeight) / Math.max(Math.abs(dy), 1),
-    y: center.y + (dy > 0 ? halfHeight : -halfHeight),
+    normal: { x: 0, y: dy > 0 ? 1 : -1 },
+    point: {
+      x: center.x + (dx * halfHeight) / Math.max(Math.abs(dy), 1),
+      y: center.y + (dy > 0 ? halfHeight : -halfHeight),
+    },
+  };
+}
+
+function getEndpointStub(anchor: BoundaryAnchor): DiagramPoint {
+  return {
+    x: anchor.point.x + anchor.normal.x * ROUTE_ENDPOINT_STUB_LENGTH,
+    y: anchor.point.y + anchor.normal.y * ROUTE_ENDPOINT_STUB_LENGTH,
   };
 }
 
@@ -344,8 +374,8 @@ export function getHullRoute({
     };
   }
 
-  const start = getBoundaryPoint(source, targetCenter);
-  const end = getBoundaryPoint(target, sourceCenter);
+  const start = getBoundaryAnchor(source, targetCenter);
+  const end = getBoundaryAnchor(target, sourceCenter);
   const routePoints = getBestOrthogonalRoute({
     edgeIndex,
     end,
@@ -371,27 +401,71 @@ function getBestOrthogonalRoute({
 }: {
   source: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
   target: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
-  start: DiagramPoint;
-  end: DiagramPoint;
+  start: BoundaryAnchor;
+  end: BoundaryAnchor;
   obstacles: readonly DiagramBoundsItem[];
   edgeIndex: number;
 }) {
   const offset = getRouteOffset(edgeIndex);
   const clearance = 24 + Math.abs(offset);
-  const middleX = (start.x + end.x) / 2 + offset;
-  const middleY = (start.y + end.y) / 2 + offset;
+  const routeStart = getEndpointStub(start);
+  const routeEnd = getEndpointStub(end);
+  const middleX = (routeStart.x + routeEnd.x) / 2 + offset;
+  const middleY = (routeStart.y + routeEnd.y) / 2 + offset;
   const leftX = Math.min(source.x, target.x) - clearance;
   const rightX = Math.max(source.x + source.width, target.x + target.width) + clearance;
   const topY = Math.min(source.y, target.y) - clearance;
   const bottomY = Math.max(source.y + source.height, target.y + target.height) + clearance;
   const candidates = [
-    [start, { x: middleX, y: start.y }, { x: middleX, y: end.y }, end],
-    [start, { x: start.x, y: middleY }, { x: end.x, y: middleY }, end],
-    [start, { x: leftX, y: start.y }, { x: leftX, y: end.y }, end],
-    [start, { x: rightX, y: start.y }, { x: rightX, y: end.y }, end],
-    [start, { x: start.x, y: topY }, { x: end.x, y: topY }, end],
-    [start, { x: start.x, y: bottomY }, { x: end.x, y: bottomY }, end],
-  ].map(simplifyRoutePoints);
+    [
+      start.point,
+      routeStart,
+      { x: middleX, y: routeStart.y },
+      { x: middleX, y: routeEnd.y },
+      routeEnd,
+      end.point,
+    ],
+    [
+      start.point,
+      routeStart,
+      { x: routeStart.x, y: middleY },
+      { x: routeEnd.x, y: middleY },
+      routeEnd,
+      end.point,
+    ],
+    [
+      start.point,
+      routeStart,
+      { x: leftX, y: routeStart.y },
+      { x: leftX, y: routeEnd.y },
+      routeEnd,
+      end.point,
+    ],
+    [
+      start.point,
+      routeStart,
+      { x: rightX, y: routeStart.y },
+      { x: rightX, y: routeEnd.y },
+      routeEnd,
+      end.point,
+    ],
+    [
+      start.point,
+      routeStart,
+      { x: routeStart.x, y: topY },
+      { x: routeEnd.x, y: topY },
+      routeEnd,
+      end.point,
+    ],
+    [
+      start.point,
+      routeStart,
+      { x: routeStart.x, y: bottomY },
+      { x: routeEnd.x, y: bottomY },
+      routeEnd,
+      end.point,
+    ],
+  ].map(simplifyOrthogonalRoutePoints);
 
   return candidates
     .map((points) => ({
@@ -422,6 +496,49 @@ function simplifyRoutePoints(points: readonly DiagramPoint[]) {
   }
 
   return simplified;
+}
+
+function simplifyOrthogonalRoutePoints(points: readonly DiagramPoint[]) {
+  const simplified: DiagramPoint[] = [];
+
+  for (const point of simplifyRoutePoints(points)) {
+    simplified.push(point);
+
+    while (simplified.length >= 3) {
+      const end = simplified[simplified.length - 1];
+      const middle = simplified[simplified.length - 2];
+      const start = simplified[simplified.length - 3];
+
+      if (!pointIsBetweenCollinearPoints(start, middle, end)) {
+        break;
+      }
+
+      simplified.splice(simplified.length - 2, 1);
+    }
+  }
+
+  return simplified;
+}
+
+function pointIsBetweenCollinearPoints(
+  start: DiagramPoint,
+  middle: DiagramPoint,
+  end: DiagramPoint,
+) {
+  const epsilon = 0.5;
+  const sameX = Math.abs(start.x - middle.x) < epsilon && Math.abs(middle.x - end.x) < epsilon;
+  const sameY = Math.abs(start.y - middle.y) < epsilon && Math.abs(middle.y - end.y) < epsilon;
+
+  if (!sameX && !sameY) {
+    return false;
+  }
+
+  return (
+    middle.x >= Math.min(start.x, end.x) - epsilon &&
+    middle.x <= Math.max(start.x, end.x) + epsilon &&
+    middle.y >= Math.min(start.y, end.y) - epsilon &&
+    middle.y <= Math.max(start.y, end.y) + epsilon
+  );
 }
 
 function getRouteScore(

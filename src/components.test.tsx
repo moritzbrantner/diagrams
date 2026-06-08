@@ -482,6 +482,8 @@ describe("Next diagram primitives", () => {
           entities={[
             { id: "orders", name: "orders", fields: [{ id: "id", name: "id", key: "primary" }] },
             { id: "customers", name: "customers", x: 320, y: 80 },
+            { id: "payments", name: "payments", x: 280, y: 0 },
+            { id: "invoices", name: "invoices", x: 0, y: 120 },
           ]}
           relations={[
             {
@@ -490,6 +492,11 @@ describe("Next diagram primitives", () => {
               target: "orders",
               sourceCardinality: "one",
               targetCardinality: "zero-or-many",
+            },
+            {
+              id: "offset",
+              source: "invoices",
+              target: "payments",
             },
           ]}
         />
@@ -516,6 +523,26 @@ describe("Next diagram primitives", () => {
     expect(screen.getByText("submit")).toBeTruthy();
     expect(screen.getByRole("img", { name: "Diagram mind map" })).toBeTruthy();
     expect(screen.getByText("Workflow")).toBeTruthy();
+    const offsetRelationPath = container
+      .querySelectorAll('[data-slot="entity-relationship-diagram-relation"] path')[1]
+      ?.getAttribute("d");
+
+    if (!offsetRelationPath) {
+      throw new Error("Expected ERD offset relation path");
+    }
+
+    const offsetRelationCoordinates =
+      offsetRelationPath.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+
+    expect(offsetRelationCoordinates.length).toBeGreaterThanOrEqual(4);
+    expect(offsetRelationCoordinates[0]).toBeCloseTo(offsetRelationCoordinates[2]);
+    expect(offsetRelationCoordinates[1]).not.toBeCloseTo(offsetRelationCoordinates[3]);
+    expect(offsetRelationCoordinates[offsetRelationCoordinates.length - 4]).toBeCloseTo(
+      offsetRelationCoordinates[offsetRelationCoordinates.length - 2],
+    );
+    expect(offsetRelationCoordinates[offsetRelationCoordinates.length - 3]).not.toBeCloseTo(
+      offsetRelationCoordinates[offsetRelationCoordinates.length - 1],
+    );
     expect(decisionRoot).toEqual(decisionSnapshot);
     expect(mindRoot).toEqual(mindSnapshot);
   });
