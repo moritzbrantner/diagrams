@@ -633,7 +633,7 @@ function UmlDiagramMarkers({ ids }: { ids: UmlDiagramMarkerIds }) {
       <marker
         id={ids.arrow}
         markerHeight="8"
-        markerUnits="strokeWidth"
+        markerUnits="userSpaceOnUse"
         markerWidth="8"
         orient="auto"
         refX="7"
@@ -645,7 +645,7 @@ function UmlDiagramMarkers({ ids }: { ids: UmlDiagramMarkerIds }) {
       <marker
         id={ids.triangle}
         markerHeight="10"
-        markerUnits="strokeWidth"
+        markerUnits="userSpaceOnUse"
         markerWidth="10"
         orient="auto"
         refX="9"
@@ -657,7 +657,7 @@ function UmlDiagramMarkers({ ids }: { ids: UmlDiagramMarkerIds }) {
       <marker
         id={ids.diamond}
         markerHeight="12"
-        markerUnits="strokeWidth"
+        markerUnits="userSpaceOnUse"
         markerWidth="14"
         orient="auto"
         refX="1"
@@ -673,7 +673,7 @@ function UmlDiagramMarkers({ ids }: { ids: UmlDiagramMarkerIds }) {
       <marker
         id={ids.filledDiamond}
         markerHeight="12"
-        markerUnits="strokeWidth"
+        markerUnits="userSpaceOnUse"
         markerWidth="14"
         orient="auto"
         refX="1"

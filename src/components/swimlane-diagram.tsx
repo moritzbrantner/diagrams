@@ -331,6 +331,7 @@ function SwimlaneDiagram({
           source,
           target,
           edgeIndex: index,
+          obstacles: renderSteps,
           points: connector.points,
           waypoints: connector.waypoints,
           selfLoop: source.id === target.id,
@@ -374,9 +375,11 @@ function SwimlaneDiagram({
               id={markerId}
               markerWidth="10"
               markerHeight="10"
-              refX="8"
+              markerUnits="userSpaceOnUse"
+              refX="10"
               refY="5"
               orient="auto-start-reverse"
+              viewBox="0 0 10 10"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" className="fill-current text-muted-foreground" />
             </marker>
@@ -442,6 +445,7 @@ function SwimlaneDiagram({
                     key={connector.id}
                     connector={connector}
                     steps={stepMap}
+                    obstacles={renderSteps}
                     markerId={markerId}
                     connectorIndex={index}
                   />
@@ -518,11 +522,13 @@ function SwimlaneDiagram({
 function SwimlaneConnectorShape({
   connector,
   steps,
+  obstacles,
   markerId,
   connectorIndex,
 }: {
   connector: SwimlaneDiagramConnector;
   steps: Map<string, RenderSwimlaneDiagramStep>;
+  obstacles: readonly RenderSwimlaneDiagramStep[];
   markerId: string;
   connectorIndex: number;
 }) {
@@ -537,6 +543,7 @@ function SwimlaneConnectorShape({
     source,
     target,
     edgeIndex: connectorIndex,
+    obstacles,
     points: connector.points,
     waypoints: connector.waypoints,
     selfLoop: source.id === target.id,

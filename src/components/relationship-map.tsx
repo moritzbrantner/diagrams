@@ -304,6 +304,7 @@ function RelationshipMap({
           source,
           target,
           edgeIndex,
+          obstacles: positionedNodes,
           points: edge.points,
           waypoints: edge.waypoints,
           selfLoop: source.id === target.id,
@@ -350,9 +351,11 @@ function RelationshipMap({
               id={markerIds.arrow}
               markerWidth="10"
               markerHeight="10"
-              refX="8"
+              markerUnits="userSpaceOnUse"
+              refX="10"
               refY="5"
               orient="auto-start-reverse"
+              viewBox="0 0 10 10"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" className="fill-current text-muted-foreground" />
             </marker>
@@ -365,6 +368,7 @@ function RelationshipMap({
                     key={edge.id}
                     edge={edge}
                     nodes={nodeMap}
+                    obstacles={positionedNodes}
                     markerId={markerIds.arrow}
                     edgeIndex={edgeIndex}
                   />
@@ -422,11 +426,13 @@ function RelationshipMap({
 function RelationshipMapEdgeShape({
   edge,
   nodes,
+  obstacles,
   markerId,
   edgeIndex,
 }: {
   edge: RelationshipMapEdge;
   nodes: Map<string, RenderRelationshipMapNode>;
+  obstacles: readonly RenderRelationshipMapNode[];
   markerId: string;
   edgeIndex: number;
 }) {
@@ -441,6 +447,7 @@ function RelationshipMapEdgeShape({
     source,
     target,
     edgeIndex,
+    obstacles,
     points: edge.points,
     waypoints: edge.waypoints,
     selfLoop: source.id === target.id,

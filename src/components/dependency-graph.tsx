@@ -10,6 +10,7 @@ import {
   defaultSvgToneClasses,
   defaultToneClasses,
   getAutoGridPosition,
+  getHullRoute,
   getSpatialBounds,
   pointsToPath,
   type DiagramDirection,
@@ -463,7 +464,9 @@ function DependencyGraph({
     const source = nodeMap.get(edge.source);
     const target = nodeMap.get(edge.target);
 
-    return source && target ? getDependencyGraphEdgeRoute(edge, source, target, index).points : [];
+    return source && target
+      ? getDependencyGraphEdgeRoute(edge, source, target, index, positionedNodes).points
+      : [];
   });
   const partBounds = partProjection.expandedParts.map((part) => part.bounds);
   const bounds = getSpatialBounds([...positionedNodes, ...partBounds], routePoints);
@@ -502,9 +505,11 @@ function DependencyGraph({
               id={markerId}
               markerWidth="10"
               markerHeight="10"
-              refX="8"
+              markerUnits="userSpaceOnUse"
+              refX="10"
               refY="5"
               orient="auto-start-reverse"
+              viewBox="0 0 10 10"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" className="fill-current text-muted-foreground" />
             </marker>
@@ -527,6 +532,7 @@ function DependencyGraph({
                     key={edge.id}
                     edge={edge}
                     nodes={nodeMap}
+                    obstacles={positionedNodes}
                     markerId={markerId}
                     edgeIndex={index}
                   />
@@ -890,11 +896,13 @@ function DependencyGraphNodeActions({
 function DependencyGraphEdgeShape({
   edge,
   nodes,
+  obstacles,
   markerId,
   edgeIndex,
 }: {
   edge: RenderDependencyGraphEdge;
   nodes: Map<string, RenderDependencyGraphNode>;
+  obstacles: readonly RenderDependencyGraphNode[];
   markerId: string;
   edgeIndex: number;
 }) {
@@ -905,7 +913,7 @@ function DependencyGraphEdgeShape({
     return null;
   }
 
-  const route = getDependencyGraphEdgeRoute(edge, source, target, edgeIndex);
+  const route = getDependencyGraphEdgeRoute(edge, source, target, edgeIndex, obstacles);
   const points = route.points;
   const direction = edge.direction ?? "forward";
   const markerUrl = `url(#${markerId})`;
@@ -1322,88 +1330,17 @@ function getDependencyGraphEdgeRoute(
   sourceNode: PositionedDependencyGraphNode,
   targetNode: PositionedDependencyGraphNode,
   edgeIndex: number,
+  obstacles: readonly RenderDependencyGraphNode[],
 ): DependencyGraphEdgeRoute {
-  if (edge.points?.length) {
-    return {
-      labelPoint: edge.points[Math.floor(edge.points.length / 2)],
-      points: edge.points,
-    };
-  }
-
-  if (sourceNode.id === targetNode.id) {
-    const offset = 32 + (edgeIndex % 3) * 16;
-    const start = {
-      x: sourceNode.x + sourceNode.width,
-      y: sourceNode.y + sourceNode.height * 0.34,
-    };
-    const end = {
-      x: sourceNode.x + sourceNode.width,
-      y: sourceNode.y + sourceNode.height * 0.68,
-    };
-
-    return {
-      labelPoint: {
-        x: sourceNode.x + sourceNode.width + offset,
-        y: sourceNode.y + sourceNode.height / 2,
-      },
-      points: [start, { x: start.x + offset, y: start.y }, { x: start.x + offset, y: end.y }, end],
-    };
-  }
-
-  const sourceCenter = getDependencyGraphNodeCenter(sourceNode);
-  const targetCenter = getDependencyGraphNodeCenter(targetNode);
-
-  if (edge.waypoints?.length) {
-    const sourceToward = edge.waypoints[0] ?? targetCenter;
-    const targetToward = edge.waypoints[edge.waypoints.length - 1] ?? sourceCenter;
-    const source = getDependencyGraphBoundaryPoint(sourceNode, sourceToward);
-    const target = getDependencyGraphBoundaryPoint(targetNode, targetToward);
-
-    return {
-      labelPoint: edge.waypoints[Math.floor(edge.waypoints.length / 2)],
-      points: [source, ...edge.waypoints, target],
-    };
-  }
-
-  const source = getDependencyGraphBoundaryPoint(sourceNode, targetCenter);
-  const target = getDependencyGraphBoundaryPoint(targetNode, sourceCenter);
-  const offset = (edgeIndex % 3) * 12;
-  const middleX = (source.x + target.x) / 2 + offset;
-
-  return {
-    labelPoint: {
-      x: (source.x + target.x) / 2,
-      y: (source.y + target.y) / 2,
-    },
-    points: [source, { x: middleX, y: source.y }, { x: middleX, y: target.y }, target],
-  };
-}
-
-function getDependencyGraphBoundaryPoint(
-  node: PositionedDependencyGraphNode,
-  toward: DiagramPoint,
-): DiagramPoint {
-  const center = getDependencyGraphNodeCenter(node);
-  const dx = toward.x - center.x;
-  const dy = toward.y - center.y;
-  const halfWidth = node.width / 2;
-  const halfHeight = node.height / 2;
-
-  if (dx === 0 && dy === 0) {
-    return { x: center.x + halfWidth, y: center.y };
-  }
-
-  if (Math.abs(dx) * halfHeight > Math.abs(dy) * halfWidth) {
-    return {
-      x: center.x + (dx > 0 ? halfWidth : -halfWidth),
-      y: center.y + (dy * halfWidth) / Math.max(Math.abs(dx), 1),
-    };
-  }
-
-  return {
-    x: center.x + (dx * halfHeight) / Math.max(Math.abs(dy), 1),
-    y: center.y + (dy > 0 ? halfHeight : -halfHeight),
-  };
+  return getHullRoute({
+    source: sourceNode,
+    target: targetNode,
+    edgeIndex,
+    obstacles,
+    points: edge.points,
+    waypoints: edge.waypoints,
+    selfLoop: sourceNode.id === targetNode.id,
+  });
 }
 
 function getDependencyGraphNodeMinimizeControl({

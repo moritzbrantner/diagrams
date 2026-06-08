@@ -282,6 +282,7 @@ function EntityRelationshipDiagram({
           source,
           target,
           edgeIndex: index,
+          obstacles: renderEntities,
           points: relation.points,
           waypoints: relation.waypoints,
           selfLoop: source.id === target.id,
@@ -326,6 +327,7 @@ function EntityRelationshipDiagram({
                     key={relation.id}
                     relation={relation}
                     entities={entityMap}
+                    obstacles={renderEntities}
                     relationIndex={index}
                   />
                 ))}
@@ -411,10 +413,12 @@ function EntityRelationshipDiagram({
 function RelationShape({
   relation,
   entities,
+  obstacles,
   relationIndex,
 }: {
   relation: EntityRelationshipRelation;
   entities: Map<string, PositionedEntityRelationshipEntity>;
+  obstacles: readonly PositionedEntityRelationshipEntity[];
   relationIndex: number;
 }) {
   const source = entities.get(relation.source);
@@ -428,6 +432,7 @@ function RelationShape({
     source,
     target,
     edgeIndex: relationIndex,
+    obstacles,
     points: relation.points,
     waypoints: relation.waypoints,
     selfLoop: source.id === target.id,

@@ -245,6 +245,7 @@ function StateMachineDiagram({
           source,
           target,
           edgeIndex: index,
+          obstacles: positionedStates,
           points: transition.points,
           waypoints: transition.waypoints,
           selfLoop: source.id === target.id,
@@ -287,9 +288,11 @@ function StateMachineDiagram({
               id={markerId}
               markerWidth="10"
               markerHeight="10"
-              refX="8"
+              markerUnits="userSpaceOnUse"
+              refX="10"
               refY="5"
               orient="auto-start-reverse"
+              viewBox="0 0 10 10"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" className="fill-current text-muted-foreground" />
             </marker>
@@ -302,6 +305,7 @@ function StateMachineDiagram({
                     key={transition.id}
                     transition={transition}
                     states={stateMap}
+                    obstacles={positionedStates}
                     markerId={markerId}
                     transitionIndex={index}
                     selected={selectedTransitionId === transition.id}
@@ -361,6 +365,7 @@ function StateMachineDiagram({
 function TransitionShape({
   transition,
   states,
+  obstacles,
   markerId,
   transitionIndex,
   selected,
@@ -368,6 +373,7 @@ function TransitionShape({
 }: {
   transition: StateMachineTransition;
   states: Map<string, PositionedStateMachineState>;
+  obstacles: readonly PositionedStateMachineState[];
   markerId: string;
   transitionIndex: number;
   selected: boolean;
@@ -384,6 +390,7 @@ function TransitionShape({
     source,
     target,
     edgeIndex: transitionIndex,
+    obstacles,
     points: transition.points,
     waypoints: transition.waypoints,
     selfLoop: source.id === target.id,

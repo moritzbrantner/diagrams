@@ -261,9 +261,11 @@ function SequenceDiagram({
               id={markerId}
               markerWidth="10"
               markerHeight="10"
-              refX="8"
+              markerUnits="userSpaceOnUse"
+              refX="10"
               refY="5"
               orient="auto-start-reverse"
+              viewBox="0 0 10 10"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" className="fill-current text-muted-foreground" />
             </marker>

@@ -181,6 +181,7 @@ export type HullRouteInput = {
   source: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
   target: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
   edgeIndex?: number;
+  obstacles?: readonly DiagramBoundsItem[];
   points?: readonly DiagramPoint[];
   waypoints?: readonly DiagramPoint[];
   selfLoop?: boolean;
@@ -195,14 +196,17 @@ export function getHullRoute({
   source,
   target,
   edgeIndex = 0,
+  obstacles = [],
   points,
   waypoints,
   selfLoop,
 }: HullRouteInput): HullRoute {
   if (points?.length) {
+    const routePoints = simplifyRoutePoints(points);
+
     return {
-      labelPoint: points[Math.floor(points.length / 2)],
-      points,
+      labelPoint: getRouteLabelPoint(routePoints, obstacles),
+      points: routePoints,
     };
   }
 
@@ -212,8 +216,17 @@ export function getHullRoute({
     const end = { x: source.x + source.width, y: source.y + source.height * 0.68 };
 
     return {
-      labelPoint: { x: source.x + source.width + offset, y: source.y + source.height / 2 },
-      points: [start, { x: start.x + offset, y: start.y }, { x: end.x + offset, y: end.y }, end],
+      labelPoint: getRouteLabelPoint(
+        [start, { x: start.x + offset, y: start.y }, { x: end.x + offset, y: end.y }, end],
+        obstacles,
+        { x: source.x + source.width + offset + 10, y: source.y + source.height / 2 },
+      ),
+      points: simplifyRoutePoints([
+        start,
+        { x: start.x + offset, y: start.y },
+        { x: end.x + offset, y: end.y },
+        end,
+      ]),
     };
   }
 
@@ -223,21 +236,310 @@ export function getHullRoute({
   if (waypoints?.length) {
     const start = getBoundaryPoint(source, waypoints[0] ?? targetCenter);
     const end = getBoundaryPoint(target, waypoints[waypoints.length - 1] ?? sourceCenter);
+    const routePoints = simplifyRoutePoints([start, ...waypoints, end]);
 
     return {
-      labelPoint: waypoints[Math.floor(waypoints.length / 2)],
-      points: [start, ...waypoints, end],
+      labelPoint: getRouteLabelPoint(routePoints, obstacles),
+      points: routePoints,
     };
   }
 
   const start = getBoundaryPoint(source, targetCenter);
   const end = getBoundaryPoint(target, sourceCenter);
-  const offset = (edgeIndex % 3) * 12;
-  const middleX = (start.x + end.x) / 2 + offset;
+  const routePoints = getBestOrthogonalRoute({
+    edgeIndex,
+    end,
+    obstacles,
+    source,
+    start,
+    target,
+  });
 
   return {
-    labelPoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
-    points: [start, { x: middleX, y: start.y }, { x: middleX, y: end.y }, end],
+    labelPoint: getRouteLabelPoint(routePoints, obstacles),
+    points: routePoints,
+  };
+}
+
+function getBestOrthogonalRoute({
+  source,
+  target,
+  start,
+  end,
+  obstacles,
+  edgeIndex,
+}: {
+  source: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
+  target: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
+  start: DiagramPoint;
+  end: DiagramPoint;
+  obstacles: readonly DiagramBoundsItem[];
+  edgeIndex: number;
+}) {
+  const offset = getRouteOffset(edgeIndex);
+  const clearance = 24 + Math.abs(offset);
+  const middleX = (start.x + end.x) / 2 + offset;
+  const middleY = (start.y + end.y) / 2 + offset;
+  const leftX = Math.min(source.x, target.x) - clearance;
+  const rightX = Math.max(source.x + source.width, target.x + target.width) + clearance;
+  const topY = Math.min(source.y, target.y) - clearance;
+  const bottomY = Math.max(source.y + source.height, target.y + target.height) + clearance;
+  const candidates = [
+    [start, { x: middleX, y: start.y }, { x: middleX, y: end.y }, end],
+    [start, { x: start.x, y: middleY }, { x: end.x, y: middleY }, end],
+    [start, { x: leftX, y: start.y }, { x: leftX, y: end.y }, end],
+    [start, { x: rightX, y: start.y }, { x: rightX, y: end.y }, end],
+    [start, { x: start.x, y: topY }, { x: end.x, y: topY }, end],
+    [start, { x: start.x, y: bottomY }, { x: end.x, y: bottomY }, end],
+  ].map(simplifyRoutePoints);
+
+  return candidates
+    .map((points) => ({
+      points,
+      score: getRouteScore(points, obstacles, [source, target]),
+    }))
+    .sort((first, second) => first.score - second.score)[0].points;
+}
+
+function getRouteOffset(edgeIndex: number) {
+  return [0, 14, -14, 28, -28][edgeIndex % 5] ?? 0;
+}
+
+function simplifyRoutePoints(points: readonly DiagramPoint[]) {
+  const finitePoints = points.filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
+  const simplified: DiagramPoint[] = [];
+
+  for (const point of finitePoints) {
+    const previous = simplified[simplified.length - 1];
+
+    if (previous && Math.abs(previous.x - point.x) < 0.5 && Math.abs(previous.y - point.y) < 0.5) {
+      continue;
+    }
+
+    simplified.push(point);
+  }
+
+  return simplified;
+}
+
+function getRouteScore(
+  points: readonly DiagramPoint[],
+  obstacles: readonly DiagramBoundsItem[],
+  endpointItems: readonly DiagramBoundsItem[],
+) {
+  let score = points.length * 4;
+
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1];
+    const end = points[index];
+    const segmentLength = Math.hypot(end.x - start.x, end.y - start.y);
+
+    score += segmentLength * 0.02;
+
+    if (segmentLength < 1) {
+      score += 1000;
+    }
+
+    for (const obstacle of obstacles) {
+      if (endpointItems.some((item) => sameBounds(item, obstacle))) {
+        continue;
+      }
+
+      if (segmentIntersectsBounds(start, end, obstacle, 10)) {
+        score += 1200;
+      }
+    }
+  }
+
+  return score;
+}
+
+function getRouteLabelPoint(
+  points: readonly DiagramPoint[],
+  obstacles: readonly DiagramBoundsItem[],
+  preferredPoint = getPolylineMidpoint(points),
+) {
+  const segment = getPolylineMidSegment(points);
+  const horizontal = segment
+    ? Math.abs(segment.end.x - segment.start.x) >= Math.abs(segment.end.y - segment.start.y)
+    : true;
+  const candidates = [
+    preferredPoint,
+    ...[18, -18, 34, -34, 52, -52].map((offset) =>
+      horizontal
+        ? { x: preferredPoint.x, y: preferredPoint.y + offset }
+        : { x: preferredPoint.x + offset, y: preferredPoint.y },
+    ),
+    { x: preferredPoint.x + 36, y: preferredPoint.y + 24 },
+    { x: preferredPoint.x - 36, y: preferredPoint.y - 24 },
+  ];
+
+  return candidates
+    .map((candidate) => ({
+      point: candidate,
+      score:
+        Math.hypot(candidate.x - preferredPoint.x, candidate.y - preferredPoint.y) +
+        getLabelObstaclePenalty(candidate, obstacles),
+    }))
+    .sort((first, second) => first.score - second.score)[0].point;
+}
+
+function getPolylineMidpoint(points: readonly DiagramPoint[]) {
+  const segment = getPolylineMidSegment(points);
+
+  if (!segment) {
+    return points[0] ?? { x: 0, y: 0 };
+  }
+
+  return {
+    x: segment.start.x + (segment.end.x - segment.start.x) * segment.ratio,
+    y: segment.start.y + (segment.end.y - segment.start.y) * segment.ratio,
+  };
+}
+
+function getPolylineMidSegment(points: readonly DiagramPoint[]) {
+  if (points.length < 2) {
+    return null;
+  }
+
+  const lengths = points.slice(1).map((point, index) => {
+    const previous = points[index];
+    return Math.hypot(point.x - previous.x, point.y - previous.y);
+  });
+  const totalLength = lengths.reduce((sum, length) => sum + length, 0);
+  let remaining = totalLength / 2;
+
+  for (let index = 0; index < lengths.length; index += 1) {
+    const length = lengths[index];
+
+    if (remaining <= length || index === lengths.length - 1) {
+      return {
+        end: points[index + 1],
+        ratio: length > 0 ? remaining / length : 0,
+        start: points[index],
+      };
+    }
+
+    remaining -= length;
+  }
+
+  return null;
+}
+
+function getLabelObstaclePenalty(point: DiagramPoint, obstacles: readonly DiagramBoundsItem[]) {
+  const labelBounds = {
+    x: point.x - 76,
+    y: point.y - 24,
+    width: 152,
+    height: 48,
+  };
+
+  return obstacles.reduce(
+    (penalty, obstacle) => penalty + (boundsOverlap(labelBounds, obstacle, 8) ? 800 : 0),
+    0,
+  );
+}
+
+function boundsOverlap(first: DiagramBoundsItem, second: DiagramBoundsItem, padding = 0) {
+  const firstBounds = normalizeBounds(first);
+  const secondBounds = normalizeBounds(second);
+
+  return (
+    firstBounds.x < secondBounds.x + secondBounds.width + padding &&
+    firstBounds.x + firstBounds.width > secondBounds.x - padding &&
+    firstBounds.y < secondBounds.y + secondBounds.height + padding &&
+    firstBounds.y + firstBounds.height > secondBounds.y - padding
+  );
+}
+
+function segmentIntersectsBounds(
+  start: DiagramPoint,
+  end: DiagramPoint,
+  boundsItem: DiagramBoundsItem,
+  padding = 0,
+) {
+  const bounds = normalizeBounds(boundsItem);
+  const left = bounds.x - padding;
+  const right = bounds.x + bounds.width + padding;
+  const top = bounds.y - padding;
+  const bottom = bounds.y + bounds.height + padding;
+
+  if (start.x === end.x) {
+    const x = start.x;
+    const minY = Math.min(start.y, end.y);
+    const maxY = Math.max(start.y, end.y);
+
+    return x >= left && x <= right && maxY >= top && minY <= bottom;
+  }
+
+  if (start.y === end.y) {
+    const y = start.y;
+    const minX = Math.min(start.x, end.x);
+    const maxX = Math.max(start.x, end.x);
+
+    return y >= top && y <= bottom && maxX >= left && minX <= right;
+  }
+
+  return lineIntersectsBounds(start, end, {
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+  });
+}
+
+function lineIntersectsBounds(start: DiagramPoint, end: DiagramPoint, bounds: DiagramBounds) {
+  const corners = [
+    { x: bounds.x, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+    { x: bounds.x, y: bounds.y + bounds.height },
+  ];
+
+  return corners.some((corner, index) =>
+    linesIntersect(start, end, corner, corners[(index + 1) % corners.length]),
+  );
+}
+
+function linesIntersect(
+  firstStart: DiagramPoint,
+  firstEnd: DiagramPoint,
+  secondStart: DiagramPoint,
+  secondEnd: DiagramPoint,
+) {
+  const direction = (a: DiagramPoint, b: DiagramPoint, c: DiagramPoint) =>
+    (c.x - a.x) * (b.y - a.y) - (b.x - a.x) * (c.y - a.y);
+  const firstDirection = direction(secondStart, secondEnd, firstStart);
+  const secondDirection = direction(secondStart, secondEnd, firstEnd);
+  const thirdDirection = direction(firstStart, firstEnd, secondStart);
+  const fourthDirection = direction(firstStart, firstEnd, secondEnd);
+
+  return (
+    ((firstDirection > 0 && secondDirection < 0) || (firstDirection < 0 && secondDirection > 0)) &&
+    ((thirdDirection > 0 && fourthDirection < 0) || (thirdDirection < 0 && fourthDirection > 0))
+  );
+}
+
+function sameBounds(first: DiagramBoundsItem, second: DiagramBoundsItem) {
+  const firstBounds = normalizeBounds(first);
+  const secondBounds = normalizeBounds(second);
+
+  return (
+    firstBounds.x === secondBounds.x &&
+    firstBounds.y === secondBounds.y &&
+    firstBounds.width === secondBounds.width &&
+    firstBounds.height === secondBounds.height
+  );
+}
+
+function normalizeBounds(item: DiagramBoundsItem): DiagramBounds {
+  return {
+    x: clampFiniteNumber(item.x, 0),
+    y: clampFiniteNumber(item.y, 0),
+    width: Math.max(0, clampFiniteNumber(item.width, 0)),
+    height: Math.max(0, clampFiniteNumber(item.height, 0)),
   };
 }
 

@@ -353,6 +353,7 @@ function ArchitectureDiagram({
           source,
           target,
           edgeIndex: index,
+          obstacles: positionedNodes,
           points: connection.points,
           waypoints: connection.waypoints,
           selfLoop: source.id === target.id,
@@ -398,9 +399,11 @@ function ArchitectureDiagram({
               id={markerId}
               markerWidth="10"
               markerHeight="10"
-              refX="8"
+              markerUnits="userSpaceOnUse"
+              refX="10"
               refY="5"
               orient="auto-start-reverse"
+              viewBox="0 0 10 10"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" className="fill-current text-muted-foreground" />
             </marker>
@@ -482,6 +485,7 @@ function ArchitectureDiagram({
                     key={connection.id}
                     connection={connection}
                     nodes={nodeMap}
+                    obstacles={positionedNodes}
                     markerId={markerId}
                     connectionIndex={index}
                   />
@@ -558,11 +562,13 @@ function ArchitectureDiagram({
 function ArchitectureConnectionShape({
   connection,
   nodes,
+  obstacles,
   markerId,
   connectionIndex,
 }: {
   connection: ArchitectureDiagramConnection;
   nodes: Map<string, RenderArchitectureDiagramNode>;
+  obstacles: readonly RenderArchitectureDiagramNode[];
   markerId: string;
   connectionIndex: number;
 }) {
@@ -577,6 +583,7 @@ function ArchitectureConnectionShape({
     source,
     target,
     edgeIndex: connectionIndex,
+    obstacles,
     points: connection.points,
     waypoints: connection.waypoints,
     selfLoop: source.id === target.id,

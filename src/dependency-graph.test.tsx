@@ -38,7 +38,7 @@ describe("DependencyGraph", () => {
 
     const path = container.querySelector('[data-slot="dependency-graph-edge"] path');
 
-    expect(path?.getAttribute("d")).toBe("M 188 52 L 224 52 L 224 52 L 260 52");
+    expect(path?.getAttribute("d")).toBe("M 188 52 L 260 52");
     expect(path?.getAttribute("d")).not.toContain("M 94 52");
     expect(path?.getAttribute("d")).not.toContain("354 52");
   });

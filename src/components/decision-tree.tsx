@@ -303,6 +303,7 @@ function DecisionTree({
         source: nodeMap.get(edge.source)!,
         target: nodeMap.get(edge.target)!,
         edgeIndex: index,
+        obstacles: positionedNodes,
       }).points,
   );
   const bounds = getSpatialBounds(positionedNodes, routePoints);
@@ -344,6 +345,7 @@ function DecisionTree({
                     key={edge.id}
                     edge={edge}
                     nodes={nodeMap}
+                    obstacles={positionedNodes}
                     edgeIndex={index}
                     branchActions={branchActions}
                     onBranchSelect={onBranchSelect}
@@ -423,12 +425,14 @@ function DecisionTree({
 function DecisionEdgeShape({
   edge,
   nodes,
+  obstacles,
   edgeIndex,
   branchActions,
   onBranchSelect,
 }: {
   edge: DecisionTreeEdge;
   nodes: Map<string, PositionedDecisionTreeNode>;
+  obstacles: readonly PositionedDecisionTreeNode[];
   edgeIndex: number;
   branchActions?: DecisionTreeProps["branchActions"];
   onBranchSelect?: DecisionTreeProps["onBranchSelect"];
@@ -440,7 +444,7 @@ function DecisionEdgeShape({
     return null;
   }
 
-  const route = getHullRoute({ source, target, edgeIndex });
+  const route = getHullRoute({ source, target, edgeIndex, obstacles });
   const points = route.points;
   const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
   const resolvedActions =
