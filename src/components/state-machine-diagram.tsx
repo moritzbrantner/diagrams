@@ -5,6 +5,7 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  diagramCanvasLabelVisibilityClass,
   DiagramSvgItemInteraction,
   type DiagramItemAction,
   defaultEdgeToneClasses,
@@ -16,7 +17,10 @@ import {
   getSpatialBounds,
   isActivationKey,
   pointsToPath,
+  useDiagramCanvasInteractions,
+  useDiagramCanvasSettings,
   type DiagramDirection,
+  type DiagramInteractiveProps,
   type DiagramPoint,
   type DiagramTone,
 } from "./diagram-utils";
@@ -79,7 +83,7 @@ export type StateMachineDiagramProps = Omit<React.ComponentProps<"figure">, "chi
   ) => void;
   selectedTransitionId?: string | null;
   onTransitionSelect?: (transition: StateMachineTransition) => void;
-};
+} & DiagramInteractiveProps<PositionedStateMachineState, StateMachineTransition>;
 
 type PositionedStateMachineState = StateMachineState &
   Required<Pick<StateMachineState, "x" | "y">> & {
@@ -117,10 +121,32 @@ function StateMachineDiagram({
   onStateActionSelect,
   selectedTransitionId,
   onTransitionSelect,
+  interactiveFeatures,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  getSearchText,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  renderEdgeInspector,
   className,
   ...props
 }: StateMachineDiagramProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
+  const {
+    menu: canvasSettingsMenu,
+    setScrollAreaElement: setCanvasSettingsScrollAreaElement,
+    svgProps: canvasSettingsSvgProps,
+  } = useDiagramCanvasSettings();
   const positionedStates = React.useMemo(
     () => positionStates(states, autoLayoutColumns),
     [autoLayoutColumns, states],
@@ -236,26 +262,76 @@ function StateMachineDiagram({
       selectedStateId,
     ],
   );
-  const routePoints = validTransitions.flatMap((transition, index) => {
+  const transitionRoutes = validTransitions.flatMap((transition, index) => {
     const source = stateMap.get(transition.source);
     const target = stateMap.get(transition.target);
 
-    return source && target
-      ? getHullRoute({
-          source,
-          target,
-          edgeIndex: index,
-          obstacles: positionedStates,
-          points: transition.points,
-          waypoints: transition.waypoints,
-          selfLoop: source.id === target.id,
-        }).points
-      : [];
+    if (!source || !target) {
+      return [];
+    }
+
+    const route = getHullRoute({
+      source,
+      target,
+      edgeIndex: index,
+      obstacles: positionedStates,
+      points: transition.points,
+      waypoints: transition.waypoints,
+      selfLoop: source.id === target.id,
+    });
+
+    return [{ transition, transitionIndex: index, route }];
   });
+  const routePoints = transitionRoutes.flatMap(({ route }) => route.points);
   const bounds = getSpatialBounds(positionedStates, routePoints);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
+  const interaction = useDiagramCanvasInteractions({
+    interactiveFeatures,
+    contentBounds: bounds,
+    nodes: positionedStates.map((state) => ({
+      id: state.id,
+      item: state,
+      label: state.label,
+      bounds: { x: state.x, y: state.y, width: state.width, height: state.height },
+    })),
+    edges: transitionRoutes.map(({ transition, route }) => ({
+      id: transition.id,
+      item: transition,
+      sourceId: transition.source,
+      targetId: transition.target,
+      label: transition.event ?? transition.guard ?? transition.action,
+      kind: transition.kind,
+      direction: transition.direction,
+      labelPoint:
+        route.labelPoint ?? route.points[Math.floor(route.points.length / 2)] ?? route.points[0],
+    })),
+    viewport,
+    defaultViewport,
+    onViewportChange,
+    highlightedElement,
+    defaultHighlightedElement,
+    onHighlightedElementChange,
+    searchQuery,
+    defaultSearchQuery,
+    onSearchQueryChange,
+    focusedSearchResult,
+    onFocusedSearchResultChange,
+    inspectedEdgeId,
+    defaultInspectedEdgeId,
+    onInspectedEdgeIdChange,
+    getSearchText,
+    renderEdgeInspector,
+    padding,
+  });
+  const setScrollAreaElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvasSettingsScrollAreaElement(element);
+      interaction.setScrollAreaElement(element);
+    },
+    [interaction, setCanvasSettingsScrollAreaElement],
+  );
   const markerId = `state-machine-diagram-arrow-${markerPrefix}`;
 
   return (
@@ -268,20 +344,26 @@ function StateMachineDiagram({
       {...props}
     >
       <div
+        ref={setScrollAreaElement}
         data-slot="state-machine-diagram-scroll-area"
         role="region"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
       >
         <button type="button" className="sr-only">
           Focus state machine diagram scroll area
         </button>
         <svg
+          {...canvasSettingsSvgProps}
           data-slot="state-machine-diagram-svg"
           role={onStateSelect || stateActions || onTransitionSelect ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={viewBox}
-          className="block min-h-80 w-full min-w-160 text-foreground"
+          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          className={cn(
+            "block min-h-80 w-full min-w-160 text-foreground",
+            diagramCanvasLabelVisibilityClass,
+          )}
+          {...interaction.svgProps}
         >
           <defs>
             <marker
@@ -300,16 +382,19 @@ function StateMachineDiagram({
           {positionedStates.length ? (
             <>
               <g data-slot="state-machine-diagram-transitions">
-                {validTransitions.map((transition, index) => (
+                {transitionRoutes.map(({ transition, transitionIndex, route }) => (
                   <TransitionShape
                     key={transition.id}
                     transition={transition}
                     states={stateMap}
                     obstacles={positionedStates}
                     markerId={markerId}
-                    transitionIndex={index}
+                    transitionIndex={transitionIndex}
+                    route={route}
                     selected={selectedTransitionId === transition.id}
                     onTransitionSelect={onTransitionSelect}
+                    highlightState={interaction.getEdgeHighlightState(transition.id)}
+                    interactionProps={interaction.getEdgeInteractionProps(transition.id)}
                   />
                 ))}
               </g>
@@ -333,7 +418,12 @@ function StateMachineDiagram({
                     onFocus={handleStateFocus}
                     onKeyDown={handleStateKeyDown}
                     onActionSelect={onStateActionSelect}
-                    setItemRef={setStateRef}
+                    setItemRef={(stateId, element) => {
+                      setStateRef(stateId, element);
+                      interaction.setNodeElement(stateId, element);
+                    }}
+                    highlightState={interaction.getNodeHighlightState(state.id)}
+                    interactionProps={interaction.getNodeInteractionProps(state.id)}
                   >
                     <StateShape state={state} />
                   </DiagramSvgItemInteraction>
@@ -352,6 +442,8 @@ function StateMachineDiagram({
             </text>
           )}
         </svg>
+        {interaction.overlay}
+        {canvasSettingsMenu}
       </div>
       {caption ? (
         <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">
@@ -368,16 +460,22 @@ function TransitionShape({
   obstacles,
   markerId,
   transitionIndex,
+  route: providedRoute,
   selected,
   onTransitionSelect,
+  highlightState,
+  interactionProps,
 }: {
   transition: StateMachineTransition;
   states: Map<string, PositionedStateMachineState>;
   obstacles: readonly PositionedStateMachineState[];
   markerId: string;
   transitionIndex: number;
+  route?: ReturnType<typeof getHullRoute>;
   selected: boolean;
   onTransitionSelect?: StateMachineDiagramProps["onTransitionSelect"];
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const source = states.get(transition.source);
   const target = states.get(transition.target);
@@ -386,15 +484,17 @@ function TransitionShape({
     return null;
   }
 
-  const route = getHullRoute({
-    source,
-    target,
-    edgeIndex: transitionIndex,
-    obstacles,
-    points: transition.points,
-    waypoints: transition.waypoints,
-    selfLoop: source.id === target.id,
-  });
+  const route =
+    providedRoute ??
+    getHullRoute({
+      source,
+      target,
+      edgeIndex: transitionIndex,
+      obstacles,
+      points: transition.points,
+      waypoints: transition.waypoints,
+      selfLoop: source.id === target.id,
+    });
   const points = route.points;
   const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
   const direction = transition.direction ?? "forward";
@@ -406,19 +506,37 @@ function TransitionShape({
 
   return (
     <g
+      data-diagram-edge="true"
       data-slot="state-machine-diagram-transition"
       data-kind={transition.kind ?? "transition"}
       data-selected={selected ? "true" : undefined}
+      data-highlight-state={highlightState}
       role={onTransitionSelect ? "button" : undefined}
       aria-label={onTransitionSelect ? accessibleLabel : undefined}
       aria-pressed={onTransitionSelect ? selected : undefined}
-      tabIndex={onTransitionSelect ? 0 : undefined}
-      className={onTransitionSelect ? "cursor-pointer outline-none" : undefined}
-      onClick={onTransitionSelect ? () => onTransitionSelect(transition) : undefined}
-      onKeyDown={
-        onTransitionSelect
+      aria-describedby={interactionProps?.["aria-describedby"]}
+      tabIndex={onTransitionSelect ? 0 : interactionProps?.tabIndex}
+      className={cn(
+        "transition-opacity data-[highlight-state=dimmed]:opacity-25",
+        onTransitionSelect && "cursor-pointer outline-none",
+      )}
+      onClick={
+        onTransitionSelect || interactionProps?.onClick
           ? (event) => {
-              if (isActivationKey(event)) {
+              interactionProps?.onClick?.(event);
+              onTransitionSelect?.(transition);
+            }
+          : undefined
+      }
+      onPointerEnter={interactionProps?.onPointerEnter}
+      onPointerLeave={interactionProps?.onPointerLeave}
+      onFocus={interactionProps?.onFocus}
+      onBlur={interactionProps?.onBlur}
+      onKeyDown={
+        onTransitionSelect || interactionProps?.onKeyDown
+          ? (event) => {
+              interactionProps?.onKeyDown?.(event);
+              if (onTransitionSelect && isActivationKey(event)) {
                 event.preventDefault();
                 onTransitionSelect(transition);
               }
@@ -436,7 +554,13 @@ function TransitionShape({
         markerEnd={direction === "forward" || direction === "both" ? markerUrl : undefined}
       />
       {(transition.event || transition.guard || transition.action) && labelPoint ? (
-        <foreignObject x={labelPoint.x - 82} y={labelPoint.y - 30} width={164} height={52}>
+        <foreignObject
+          data-diagram-label="true"
+          x={labelPoint.x - 82}
+          y={labelPoint.y - 30}
+          width={164}
+          height={52}
+        >
           <div className="grid rounded-md border bg-background px-2 py-1 text-center text-xs text-muted-foreground shadow-sm">
             {transition.event ? (
               <span className="font-medium text-foreground">{transition.event}</span>

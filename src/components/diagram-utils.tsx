@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  Maximize2Icon,
+  RotateCcwIcon,
+  SearchIcon,
+  XIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "lucide-react";
 import * as React from "react";
 
 export type DiagramPoint = {
@@ -22,6 +32,96 @@ export type DiagramBounds = {
   y: number;
   width: number;
   height: number;
+};
+
+export type DiagramElementKind = "node" | "edge";
+
+export type DiagramElementRef = {
+  kind: DiagramElementKind;
+  id: string;
+};
+
+export type DiagramViewport = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type DiagramViewportChangeReason =
+  | "fit"
+  | "reset"
+  | "pan"
+  | "zoom"
+  | "search"
+  | "programmatic";
+
+export type DiagramPathHighlightMode = "neighbors" | "incoming" | "outgoing" | "connected";
+
+export type DiagramInteractiveFeatures =
+  | boolean
+  | {
+      viewport?: boolean;
+      pathHighlight?: boolean | { mode?: DiagramPathHighlightMode };
+      search?: boolean;
+      edgeInspector?: boolean;
+      controls?: "auto" | "always" | "none";
+    };
+
+export type DiagramSearchResult<TNode, TEdge> = {
+  ref: DiagramElementRef;
+  label: string;
+  item: TNode | TEdge;
+};
+
+export type DiagramEdgeInspectorContext<TNode, TEdge> = {
+  edge: TEdge;
+  source?: TNode;
+  target?: TNode;
+  edgeId: string;
+  sourceId?: string;
+  targetId?: string;
+  label?: React.ReactNode;
+  kind?: string;
+  direction?: string;
+};
+
+export type DiagramNodeDescriptor<TNode> = {
+  id: string;
+  item: TNode;
+  label?: React.ReactNode;
+  bounds: DiagramBounds;
+};
+
+export type DiagramEdgeDescriptor<TEdge> = {
+  id: string;
+  item: TEdge;
+  sourceId: string;
+  targetId: string;
+  label?: React.ReactNode;
+  kind?: string;
+  direction?: DiagramDirection | string;
+  labelPoint?: DiagramPoint;
+};
+
+export type DiagramInteractiveProps<TNode, TEdge> = {
+  interactiveFeatures?: DiagramInteractiveFeatures;
+  viewport?: DiagramViewport;
+  defaultViewport?: DiagramViewport;
+  onViewportChange?: (viewport: DiagramViewport, reason: DiagramViewportChangeReason) => void;
+  highlightedElement?: DiagramElementRef | null;
+  defaultHighlightedElement?: DiagramElementRef | null;
+  onHighlightedElementChange?: (element: DiagramElementRef | null) => void;
+  searchQuery?: string;
+  defaultSearchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
+  focusedSearchResult?: DiagramElementRef | null;
+  onFocusedSearchResultChange?: (result: DiagramSearchResult<TNode, TEdge> | null) => void;
+  getSearchText?: (item: { kind: DiagramElementKind; id: string; item: TNode | TEdge }) => string;
+  inspectedEdgeId?: string | null;
+  defaultInspectedEdgeId?: string | null;
+  onInspectedEdgeIdChange?: (edgeId: string | null) => void;
+  renderEdgeInspector?: (context: DiagramEdgeInspectorContext<TNode, TEdge>) => React.ReactNode;
 };
 
 export const defaultToneClasses: Record<DiagramTone, string> = {
@@ -619,6 +719,1327 @@ export type DiagramItemAction<TItem> = {
   onSelect?: (item: TItem) => void;
 };
 
+export const diagramCanvasLabelVisibilityClass =
+  "[&[data-show-labels='false']_[data-diagram-label]]:pointer-events-none [&[data-show-labels='false']_[data-diagram-label]]:opacity-0 [&[data-show-labels='false']_[data-diagram-label]]:transition-opacity [&[data-show-labels='false']_[data-diagram-edge]:hover_[data-diagram-label]]:opacity-100 [&[data-show-labels='false']_[data-diagram-edge]:focus-within_[data-diagram-label]]:opacity-100";
+
+export function useDiagramCanvasSettings({
+  defaultShowLabels = true,
+}: {
+  defaultShowLabels?: boolean;
+} = {}) {
+  const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
+  const [showLabels, setShowLabels] = React.useState(defaultShowLabels);
+  const [menuPosition, setMenuPosition] = React.useState<{ x: number; y: number } | null>(null);
+  const setScrollAreaElement = React.useCallback((element: HTMLDivElement | null) => {
+    scrollAreaRef.current = element;
+  }, []);
+
+  React.useEffect(() => {
+    if (!menuPosition) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) {
+        return;
+      }
+
+      setMenuPosition(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuPosition(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuPosition]);
+
+  const handleCanvasContextMenu = React.useCallback((event: React.MouseEvent<SVGSVGElement>) => {
+    const target = event.target;
+
+    if (
+      target instanceof Element &&
+      target.closest("button,a,input,select,textarea,[role='button']")
+    ) {
+      return;
+    }
+
+    const scrollArea = scrollAreaRef.current;
+
+    if (!scrollArea) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const scrollAreaRect = scrollArea.getBoundingClientRect();
+
+    setMenuPosition({
+      x: event.clientX - scrollAreaRect.left + scrollArea.scrollLeft,
+      y: event.clientY - scrollAreaRect.top + scrollArea.scrollTop,
+    });
+  }, []);
+
+  const menu = menuPosition ? (
+    <div
+      ref={menuRef}
+      role="menu"
+      tabIndex={-1}
+      aria-label="Diagram settings"
+      data-slot="diagram-canvas-settings-menu"
+      className="absolute z-20 min-w-40 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+      style={{ left: menuPosition.x, top: menuPosition.y }}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Settings</div>
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={showLabels}
+        data-slot="diagram-canvas-settings-labels"
+        className="flex w-full items-center justify-between gap-3 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+        onClick={() => setShowLabels((current) => !current)}
+      >
+        <span>Labels</span>
+        <span className="text-xs text-muted-foreground">{showLabels ? "On" : "Off"}</span>
+      </button>
+    </div>
+  ) : null;
+
+  return {
+    menu,
+    setScrollAreaElement,
+    showLabels,
+    svgProps: {
+      "data-show-labels": showLabels ? "true" : "false",
+      onContextMenu: handleCanvasContextMenu,
+    },
+  } as const;
+}
+
+const diagramCanvasOverlayButtonClass =
+  "inline-flex size-8 items-center justify-center rounded-sm border bg-background/90 text-foreground shadow-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4";
+
+type ResolvedDiagramInteractiveFeatures = {
+  enabled: boolean;
+  viewport: boolean;
+  pathHighlight: boolean;
+  pathHighlightMode: DiagramPathHighlightMode;
+  search: boolean;
+  edgeInspector: boolean;
+  controls: "auto" | "always" | "none";
+};
+
+export function getFittedViewport(bounds: DiagramBounds, padding = 32): DiagramViewport {
+  return {
+    x: bounds.x - padding,
+    y: bounds.y - padding,
+    width: Math.max(1, bounds.width + padding * 2),
+    height: Math.max(1, bounds.height + padding * 2),
+  };
+}
+
+export function zoomViewportAtPoint(
+  viewport: DiagramViewport,
+  point: DiagramPoint,
+  zoomFactor: number,
+  minZoom: number,
+  maxZoom: number,
+  fittedViewport = viewport,
+): DiagramViewport {
+  const currentZoom = getViewportZoom(viewport, fittedViewport);
+  const nextZoom = Math.min(maxZoom, Math.max(minZoom, currentZoom * zoomFactor));
+  const scale = currentZoom / nextZoom;
+  const width = viewport.width * scale;
+  const height = viewport.height * scale;
+  const ratioX = (point.x - viewport.x) / viewport.width;
+  const ratioY = (point.y - viewport.y) / viewport.height;
+
+  return {
+    x: point.x - width * ratioX,
+    y: point.y - height * ratioY,
+    width,
+    height,
+  };
+}
+
+export function panViewport(viewport: DiagramViewport, delta: DiagramPoint): DiagramViewport {
+  return {
+    ...viewport,
+    x: viewport.x + delta.x,
+    y: viewport.y + delta.y,
+  };
+}
+
+export function getDiagramPointFromClientPoint(
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+): DiagramPoint {
+  const owner = svg.ownerSVGElement ?? svg;
+  const viewBox = owner.viewBox.baseVal;
+  const rect = owner.getBoundingClientRect();
+
+  if (typeof owner.createSVGPoint === "function") {
+    const point = owner.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const matrix = owner.getScreenCTM()?.inverse();
+
+    if (matrix) {
+      const transformed = point.matrixTransform(matrix);
+      return { x: transformed.x, y: transformed.y };
+    }
+  }
+
+  return {
+    x: viewBox.x + ((clientX - rect.left) / Math.max(rect.width, 1)) * viewBox.width,
+    y: viewBox.y + ((clientY - rect.top) / Math.max(rect.height, 1)) * viewBox.height,
+  };
+}
+
+export function buildDiagramSearchIndex<TNode, TEdge>(
+  nodes: readonly DiagramNodeDescriptor<TNode>[],
+  edges: readonly DiagramEdgeDescriptor<TEdge>[],
+  getSearchText?: DiagramInteractiveProps<TNode, TEdge>["getSearchText"],
+): (DiagramSearchResult<TNode, TEdge> & { searchText: string })[] {
+  return [
+    ...nodes.map((node) => {
+      const label = getDiagramSearchLabel(node.label, node.id);
+      return {
+        ref: { kind: "node" as const, id: node.id },
+        label,
+        item: node.item,
+        searchText:
+          getSearchText?.({ kind: "node", id: node.id, item: node.item }) ??
+          getDefaultDiagramSearchText(node.id, node.label, node.item),
+      };
+    }),
+    ...edges.map((edge) => {
+      const label = getDiagramSearchLabel(edge.label, edge.id);
+      return {
+        ref: { kind: "edge" as const, id: edge.id },
+        label,
+        item: edge.item,
+        searchText:
+          getSearchText?.({ kind: "edge", id: edge.id, item: edge.item }) ??
+          getDefaultDiagramSearchText(
+            edge.id,
+            edge.label,
+            edge.item,
+            edge.sourceId,
+            edge.targetId,
+            edge.kind,
+            edge.direction,
+          ),
+      };
+    }),
+  ].map((entry) => ({ ...entry, searchText: entry.searchText.toLowerCase() }));
+}
+
+export function getConnectedElementIds<TEdge>(
+  edges: readonly DiagramEdgeDescriptor<TEdge>[],
+  activeElement: DiagramElementRef | null,
+  mode: DiagramPathHighlightMode,
+) {
+  const nodeIds = new Set<string>();
+  const edgeIds = new Set<string>();
+
+  if (!activeElement) {
+    return { nodeIds, edgeIds };
+  }
+
+  if (activeElement.kind === "edge") {
+    const activeEdge = edges.find((edge) => edge.id === activeElement.id);
+
+    if (activeEdge) {
+      edgeIds.add(activeEdge.id);
+      nodeIds.add(activeEdge.sourceId);
+      nodeIds.add(activeEdge.targetId);
+    }
+
+    return { nodeIds, edgeIds };
+  }
+
+  nodeIds.add(activeElement.id);
+
+  if (mode === "neighbors") {
+    for (const edge of edges) {
+      if (edge.sourceId === activeElement.id || edge.targetId === activeElement.id) {
+        edgeIds.add(edge.id);
+        nodeIds.add(edge.sourceId);
+        nodeIds.add(edge.targetId);
+      }
+    }
+
+    return { nodeIds, edgeIds };
+  }
+
+  const queue = [activeElement.id];
+  const visited = new Set(queue);
+
+  while (queue.length) {
+    const nodeId = queue.shift()!;
+
+    for (const edge of edges) {
+      const directions = getTraversalDirections(edge);
+      const traversable =
+        mode === "connected"
+          ? edge.sourceId === nodeId || edge.targetId === nodeId
+          : mode === "incoming"
+            ? directions.some((direction) => direction.to === nodeId)
+            : directions.some((direction) => direction.from === nodeId);
+
+      if (!traversable) {
+        continue;
+      }
+
+      edgeIds.add(edge.id);
+
+      const nextNodes =
+        mode === "connected"
+          ? [edge.sourceId, edge.targetId]
+          : mode === "incoming"
+            ? directions
+                .filter((direction) => direction.to === nodeId)
+                .map((direction) => direction.from)
+            : directions
+                .filter((direction) => direction.from === nodeId)
+                .map((direction) => direction.to);
+
+      for (const nextNode of nextNodes) {
+        nodeIds.add(nextNode);
+
+        if (!visited.has(nextNode)) {
+          visited.add(nextNode);
+          queue.push(nextNode);
+        }
+      }
+    }
+  }
+
+  return { nodeIds, edgeIds };
+}
+
+export function useDiagramCanvasInteractions<TNode, TEdge>({
+  interactiveFeatures,
+  contentBounds,
+  nodes,
+  edges,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  getSearchText,
+  renderEdgeInspector,
+  padding = 32,
+}: DiagramInteractiveProps<TNode, TEdge> & {
+  contentBounds: DiagramBounds;
+  nodes: readonly DiagramNodeDescriptor<TNode>[];
+  edges: readonly DiagramEdgeDescriptor<TEdge>[];
+  padding?: number;
+}) {
+  const features = React.useMemo(
+    () => resolveDiagramInteractiveFeatures(interactiveFeatures),
+    [interactiveFeatures],
+  );
+  const fittedViewport = React.useMemo(
+    () => getFittedViewport(contentBounds, padding),
+    [contentBounds, padding],
+  );
+  const initialViewport = defaultViewport ?? fittedViewport;
+  const [internalViewport, setInternalViewport] = React.useState<DiagramViewport>(initialViewport);
+  const [internalHighlightedElement, setInternalHighlightedElement] =
+    React.useState<DiagramElementRef | null>(() => defaultHighlightedElement ?? null);
+  const [hoveredElement, setHoveredElement] = React.useState<DiagramElementRef | null>(null);
+  const [internalSearchQuery, setInternalSearchQuery] = React.useState(defaultSearchQuery ?? "");
+  const [focusedResultIndex, setFocusedResultIndex] = React.useState(0);
+  const [internalInspectedEdgeId, setInternalInspectedEdgeId] = React.useState<string | null>(
+    () => defaultInspectedEdgeId ?? null,
+  );
+  const [inspectorRole, setInspectorRole] = React.useState<"tooltip" | "dialog">("tooltip");
+  const [inspectorPoint, setInspectorPoint] = React.useState<DiagramPoint | null>(null);
+  const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
+  const svgRef = React.useRef<SVGSVGElement | null>(null);
+  const nodeRefs = React.useRef(new Map<string, SVGGElement>());
+  const [scrollAreaElement, setScrollAreaStateElement] = React.useState<HTMLDivElement | null>(
+    null,
+  );
+  const isPanningRef = React.useRef(false);
+  const panStartRef = React.useRef<{
+    clientX: number;
+    clientY: number;
+    viewport: DiagramViewport;
+  } | null>(null);
+  const isSpacePressedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (viewport === undefined && defaultViewport === undefined) {
+      queueMicrotask(() => setInternalViewport(fittedViewport));
+    }
+  }, [defaultViewport, fittedViewport, viewport]);
+
+  const currentViewport = viewport ?? internalViewport;
+  const setViewport = React.useCallback(
+    (nextViewport: DiagramViewport, reason: DiagramViewportChangeReason) => {
+      const constrained = clampDiagramViewport(nextViewport, fittedViewport);
+
+      if (viewport === undefined) {
+        setInternalViewport(constrained);
+      }
+
+      onViewportChange?.(constrained, reason);
+    },
+    [fittedViewport, onViewportChange, viewport],
+  );
+  const setScrollAreaElement = React.useCallback((element: HTMLDivElement | null) => {
+    scrollAreaRef.current = element;
+    setScrollAreaStateElement((currentElement) =>
+      currentElement === element ? currentElement : element,
+    );
+  }, []);
+  const setNodeElement = React.useCallback((nodeId: string, element: SVGGElement | null) => {
+    if (element) {
+      nodeRefs.current.set(nodeId, element);
+    } else {
+      nodeRefs.current.delete(nodeId);
+    }
+  }, []);
+  const setHighlighted = React.useCallback(
+    (element: DiagramElementRef | null) => {
+      if (highlightedElement === undefined) {
+        setInternalHighlightedElement(element);
+      }
+
+      onHighlightedElementChange?.(element);
+    },
+    [highlightedElement, onHighlightedElementChange],
+  );
+  const inspectEdge = React.useCallback(
+    (edgeId: string | null, role: "tooltip" | "dialog" = "tooltip", point?: DiagramPoint) => {
+      if (inspectedEdgeId === undefined) {
+        setInternalInspectedEdgeId(edgeId);
+      }
+
+      setInspectorRole(role);
+      setInspectorPoint(point ?? null);
+      onInspectedEdgeIdChange?.(edgeId);
+    },
+    [inspectedEdgeId, onInspectedEdgeIdChange],
+  );
+  const clearInspector = React.useCallback(() => {
+    inspectEdge(null);
+  }, [inspectEdge]);
+  const query = searchQuery ?? internalSearchQuery;
+  const setQuery = React.useCallback(
+    (nextQuery: string) => {
+      if (searchQuery === undefined) {
+        setInternalSearchQuery(nextQuery);
+      }
+
+      setFocusedResultIndex(0);
+      onSearchQueryChange?.(nextQuery);
+    },
+    [onSearchQueryChange, searchQuery],
+  );
+  const searchIndex = React.useMemo(
+    () => buildDiagramSearchIndex(nodes, edges, getSearchText),
+    [edges, getSearchText, nodes],
+  );
+  const searchResults = React.useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return searchIndex.filter((entry) => entry.searchText.includes(normalizedQuery));
+  }, [query, searchIndex]);
+  const controlledFocusedResult = focusedSearchResult
+    ? (searchResults.find((result) => isSameDiagramElementRef(result.ref, focusedSearchResult)) ??
+      null)
+    : null;
+  const effectiveFocusedSearchResult =
+    controlledFocusedResult ??
+    searchResults[focusedResultIndex % Math.max(searchResults.length, 1)] ??
+    null;
+  const inspectedId = inspectedEdgeId !== undefined ? inspectedEdgeId : internalInspectedEdgeId;
+  const inspectedEdge = inspectedId ? edges.find((edge) => edge.id === inspectedId) : undefined;
+  const activeElement =
+    hoveredElement ??
+    (features.search ? effectiveFocusedSearchResult?.ref : null) ??
+    (highlightedElement !== undefined ? highlightedElement : internalHighlightedElement);
+  const connectedElements = React.useMemo(
+    () =>
+      features.pathHighlight
+        ? getConnectedElementIds(edges, activeElement ?? null, features.pathHighlightMode)
+        : { nodeIds: new Set<string>(), edgeIds: new Set<string>() },
+    [activeElement, edges, features.pathHighlight, features.pathHighlightMode],
+  );
+
+  React.useEffect(() => {
+    if (!features.search || !query.trim()) {
+      onFocusedSearchResultChange?.(null);
+      return;
+    }
+
+    onFocusedSearchResultChange?.(effectiveFocusedSearchResult);
+
+    if (!effectiveFocusedSearchResult) {
+      return;
+    }
+
+    if (effectiveFocusedSearchResult.ref.kind === "node") {
+      queueMicrotask(() =>
+        nodeRefs.current.get(effectiveFocusedSearchResult.ref.id)?.focus({ preventScroll: true }),
+      );
+    } else if (features.edgeInspector) {
+      queueMicrotask(() => inspectEdge(effectiveFocusedSearchResult.ref.id, "dialog"));
+    }
+
+    focusViewportOnElement(
+      effectiveFocusedSearchResult.ref,
+      nodes,
+      edges,
+      currentViewport,
+      setViewport,
+    );
+  }, [
+    currentViewport,
+    edges,
+    effectiveFocusedSearchResult,
+    features.edgeInspector,
+    features.search,
+    inspectEdge,
+    nodes,
+    onFocusedSearchResultChange,
+    query,
+    setViewport,
+  ]);
+
+  React.useEffect(() => {
+    function handleDocumentKeyDown(event: KeyboardEvent) {
+      if (event.key === " ") {
+        isSpacePressedRef.current = true;
+      }
+
+      if (event.key === "Escape" && inspectedId && inspectedEdgeId === undefined) {
+        clearInspector();
+      }
+    }
+
+    function handleDocumentKeyUp(event: KeyboardEvent) {
+      if (event.key === " ") {
+        isSpacePressedRef.current = false;
+      }
+    }
+
+    document.addEventListener("keydown", handleDocumentKeyDown);
+    document.addEventListener("keyup", handleDocumentKeyUp);
+
+    return () => {
+      document.removeEventListener("keydown", handleDocumentKeyDown);
+      document.removeEventListener("keyup", handleDocumentKeyUp);
+    };
+  }, [clearInspector, inspectedEdgeId, inspectedId]);
+
+  const zoomAtCenter = React.useCallback(
+    (zoomFactor: number) => {
+      const center = {
+        x: currentViewport.x + currentViewport.width / 2,
+        y: currentViewport.y + currentViewport.height / 2,
+      };
+      setViewport(
+        zoomViewportAtPoint(currentViewport, center, zoomFactor, 0.25, 4, fittedViewport),
+        "zoom",
+      );
+    },
+    [currentViewport, fittedViewport, setViewport],
+  );
+  const fit = React.useCallback(
+    () => setViewport(fittedViewport, "fit"),
+    [fittedViewport, setViewport],
+  );
+  const reset = React.useCallback(
+    () => setViewport(defaultViewport ?? fittedViewport, "reset"),
+    [defaultViewport, fittedViewport, setViewport],
+  );
+  const focusSearchResult = React.useCallback(
+    (direction: 1 | -1) => {
+      if (!searchResults.length) {
+        return;
+      }
+
+      setFocusedResultIndex(
+        (current) => (current + direction + searchResults.length) % searchResults.length,
+      );
+    },
+    [searchResults.length],
+  );
+  const clearSearch = React.useCallback(() => {
+    setQuery("");
+    if (highlightedElement === undefined) {
+      setInternalHighlightedElement(null);
+    }
+    onFocusedSearchResultChange?.(null);
+  }, [highlightedElement, onFocusedSearchResultChange, setQuery]);
+
+  const svgProps = {
+    ref: (element: SVGSVGElement | null) => {
+      svgRef.current = element;
+    },
+    onWheel: (event: React.WheelEvent<SVGSVGElement>) => {
+      if (!features.viewport || (!event.ctrlKey && !event.metaKey)) {
+        return;
+      }
+
+      event.preventDefault();
+      const svg = svgRef.current;
+
+      if (!svg) {
+        return;
+      }
+
+      const point = getDiagramPointFromClientPoint(svg, event.clientX, event.clientY);
+      const factor = event.deltaY > 0 ? 0.85 : 1.15;
+      setViewport(
+        zoomViewportAtPoint(currentViewport, point, factor, 0.25, 4, fittedViewport),
+        "zoom",
+      );
+    },
+    onPointerDown: (event: React.PointerEvent<SVGSVGElement>) => {
+      if (!features.viewport || event.button !== 0 || shouldIgnoreCanvasPanTarget(event.target)) {
+        return;
+      }
+
+      if (!isSpacePressedRef.current && event.target !== event.currentTarget) {
+        return;
+      }
+
+      isPanningRef.current = true;
+      panStartRef.current = {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        viewport: currentViewport,
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    onPointerMove: (event: React.PointerEvent<SVGSVGElement>) => {
+      if (!isPanningRef.current || !panStartRef.current) {
+        return;
+      }
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      const scaleX = panStartRef.current.viewport.width / Math.max(rect.width, 1);
+      const scaleY = panStartRef.current.viewport.height / Math.max(rect.height, 1);
+
+      setViewport(
+        panViewport(panStartRef.current.viewport, {
+          x: -(event.clientX - panStartRef.current.clientX) * scaleX,
+          y: -(event.clientY - panStartRef.current.clientY) * scaleY,
+        }),
+        "pan",
+      );
+    },
+    onPointerUp: (event: React.PointerEvent<SVGSVGElement>) => {
+      if (!isPanningRef.current) {
+        return;
+      }
+
+      isPanningRef.current = false;
+      panStartRef.current = null;
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    },
+    onKeyDown: (event: React.KeyboardEvent<SVGSVGElement>) => {
+      if (!features.viewport) {
+        return;
+      }
+
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        zoomAtCenter(1.15);
+      } else if (event.key === "-" || event.key === "_") {
+        event.preventDefault();
+        zoomAtCenter(0.85);
+      } else if (event.key === "0") {
+        event.preventDefault();
+        reset();
+      } else if (event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        fit();
+      }
+    },
+  } satisfies React.SVGProps<SVGSVGElement>;
+
+  return {
+    viewport: currentViewport,
+    viewBox: `${currentViewport.x} ${currentViewport.y} ${currentViewport.width} ${currentViewport.height}`,
+    setScrollAreaElement,
+    setNodeElement,
+    svgProps: features.enabled ? svgProps : {},
+    overlay: features.enabled ? (
+      <DiagramCanvasInteractionOverlay
+        features={features}
+        query={query}
+        resultCount={searchResults.length}
+        resultIndex={effectiveFocusedSearchResult ? focusedResultIndex % searchResults.length : -1}
+        inspectedEdge={inspectedEdge}
+        inspectorRole={inspectorRole}
+        inspectorPoint={inspectorPoint}
+        scrollArea={scrollAreaElement}
+        viewport={currentViewport}
+        nodes={nodes}
+        renderEdgeInspector={renderEdgeInspector}
+        onZoomIn={() => zoomAtCenter(1.15)}
+        onZoomOut={() => zoomAtCenter(0.85)}
+        onFit={fit}
+        onReset={reset}
+        onQueryChange={setQuery}
+        onSearchNext={() => focusSearchResult(1)}
+        onSearchPrevious={() => focusSearchResult(-1)}
+        onSearchClear={clearSearch}
+        onInspectorClose={clearInspector}
+      />
+    ) : null,
+    getNodeHighlightState: (nodeId: string) =>
+      getElementHighlightState({ kind: "node", id: nodeId }, activeElement, connectedElements),
+    getEdgeHighlightState: (edgeId: string) =>
+      getElementHighlightState({ kind: "edge", id: edgeId }, activeElement, connectedElements),
+    getNodeInteractionProps: (nodeId: string) =>
+      features.pathHighlight
+        ? ({
+            onPointerEnter: () => {
+              const element = { kind: "node" as const, id: nodeId };
+              setHoveredElement(element);
+              setHighlighted(element);
+            },
+            onPointerLeave: () => {
+              setHoveredElement(null);
+              setHighlighted(null);
+            },
+            onFocus: () => {
+              const element = { kind: "node" as const, id: nodeId };
+              setHoveredElement(element);
+              setHighlighted(element);
+            },
+            onBlur: () => {
+              setHoveredElement(null);
+              setHighlighted(null);
+            },
+          } satisfies React.SVGProps<SVGGElement>)
+        : {},
+    getEdgeInteractionProps: (edgeId: string) => {
+      const edge = edges.find((item) => item.id === edgeId);
+      const describedBy = features.edgeInspector ? `diagram-edge-inspector-${edgeId}` : undefined;
+
+      return {
+        tabIndex: features.edgeInspector ? 0 : undefined,
+        "aria-describedby": inspectedId === edgeId ? describedBy : undefined,
+        onPointerEnter: () => {
+          const element = { kind: "edge" as const, id: edgeId };
+          setHoveredElement(element);
+          setHighlighted(element);
+          if (features.edgeInspector) {
+            inspectEdge(edgeId, "tooltip", edge?.labelPoint);
+          }
+        },
+        onPointerLeave: () => {
+          setHoveredElement(null);
+          setHighlighted(null);
+          if (
+            features.edgeInspector &&
+            inspectedEdgeId === undefined &&
+            inspectorRole === "tooltip"
+          ) {
+            inspectEdge(null);
+          }
+        },
+        onFocus: () => {
+          const element = { kind: "edge" as const, id: edgeId };
+          setHoveredElement(element);
+          setHighlighted(element);
+          if (features.edgeInspector) {
+            inspectEdge(edgeId, "tooltip", edge?.labelPoint);
+          }
+        },
+        onBlur: () => {
+          setHoveredElement(null);
+          setHighlighted(null);
+          if (
+            features.edgeInspector &&
+            inspectedEdgeId === undefined &&
+            inspectorRole === "tooltip"
+          ) {
+            inspectEdge(null);
+          }
+        },
+        onClick: () => {
+          if (features.edgeInspector) {
+            inspectEdge(edgeId, "dialog", edge?.labelPoint);
+          }
+        },
+        onKeyDown: (event: React.KeyboardEvent<SVGGElement>) => {
+          if (event.key === "Escape" && features.edgeInspector && inspectedEdgeId === undefined) {
+            inspectEdge(null);
+          }
+        },
+      } satisfies React.SVGProps<SVGGElement>;
+    },
+    searchResults,
+    focusedSearchResult: effectiveFocusedSearchResult,
+    inspectEdge,
+    clearInspector,
+  };
+}
+
+function DiagramCanvasInteractionOverlay<TNode, TEdge>({
+  features,
+  query,
+  resultCount,
+  resultIndex,
+  inspectedEdge,
+  inspectorRole,
+  inspectorPoint,
+  scrollArea,
+  viewport,
+  nodes,
+  renderEdgeInspector,
+  onZoomIn,
+  onZoomOut,
+  onFit,
+  onReset,
+  onQueryChange,
+  onSearchNext,
+  onSearchPrevious,
+  onSearchClear,
+  onInspectorClose,
+}: {
+  features: ResolvedDiagramInteractiveFeatures;
+  query: string;
+  resultCount: number;
+  resultIndex: number;
+  inspectedEdge?: DiagramEdgeDescriptor<TEdge>;
+  inspectorRole: "tooltip" | "dialog";
+  inspectorPoint: DiagramPoint | null;
+  scrollArea: HTMLDivElement | null;
+  viewport: DiagramViewport;
+  nodes: readonly DiagramNodeDescriptor<TNode>[];
+  renderEdgeInspector?: DiagramInteractiveProps<TNode, TEdge>["renderEdgeInspector"];
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFit: () => void;
+  onReset: () => void;
+  onQueryChange: (query: string) => void;
+  onSearchNext: () => void;
+  onSearchPrevious: () => void;
+  onSearchClear: () => void;
+  onInspectorClose: () => void;
+}) {
+  const [searchOpen, setSearchOpen] = React.useState(Boolean(query));
+  const effectiveSearchOpen = searchOpen || Boolean(query);
+  const showControls =
+    features.controls !== "none" &&
+    (features.controls === "always" || features.viewport || features.search);
+  const inspectorContext = inspectedEdge
+    ? getDiagramEdgeInspectorContext(inspectedEdge, nodes)
+    : null;
+  const customInspectorContent = inspectorContext
+    ? renderEdgeInspector?.(inspectorContext)
+    : undefined;
+  const inspectorContent =
+    customInspectorContent !== undefined
+      ? customInspectorContent
+      : inspectorContext
+        ? renderDefaultDiagramEdgeInspector(inspectorContext)
+        : null;
+
+  return (
+    <>
+      {showControls ? (
+        <div
+          data-slot="diagram-canvas-interaction-overlay"
+          className="absolute right-2 top-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1"
+        >
+          {features.search && effectiveSearchOpen ? (
+            <div className="flex min-w-0 items-center gap-1 rounded-sm border bg-background/90 p-1 shadow-sm">
+              <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+              <input
+                aria-label="Search diagram"
+                value={query}
+                className="h-7 w-32 min-w-0 bg-transparent px-1 text-sm outline-none sm:w-44"
+                onChange={(event) => onQueryChange(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (event.shiftKey) {
+                      onSearchPrevious();
+                    } else {
+                      onSearchNext();
+                    }
+                  } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    onSearchClear();
+                    setSearchOpen(false);
+                  }
+                }}
+              />
+              {query ? (
+                <span className="whitespace-nowrap px-1 text-xs text-muted-foreground">
+                  {resultCount ? `${resultIndex + 1} / ${resultCount}` : "0 / 0"}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                aria-label="Previous search result"
+                disabled={!resultCount}
+                className={diagramCanvasOverlayButtonClass}
+                onClick={onSearchPrevious}
+              >
+                <ChevronUpIcon aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next search result"
+                disabled={!resultCount}
+                className={diagramCanvasOverlayButtonClass}
+                onClick={onSearchNext}
+              >
+                <ChevronDownIcon aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Close search"
+                className={diagramCanvasOverlayButtonClass}
+                onClick={() => {
+                  onSearchClear();
+                  setSearchOpen(false);
+                }}
+              >
+                <XIcon aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
+          {features.search && !effectiveSearchOpen ? (
+            <button
+              type="button"
+              aria-label="Search diagram"
+              className={diagramCanvasOverlayButtonClass}
+              onClick={() => setSearchOpen(true)}
+            >
+              <SearchIcon aria-hidden="true" />
+            </button>
+          ) : null}
+          {features.viewport ? (
+            <>
+              <button
+                type="button"
+                aria-label="Zoom in"
+                className={diagramCanvasOverlayButtonClass}
+                onClick={onZoomIn}
+              >
+                <ZoomInIcon aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Zoom out"
+                className={diagramCanvasOverlayButtonClass}
+                onClick={onZoomOut}
+              >
+                <ZoomOutIcon aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Fit diagram"
+                className={diagramCanvasOverlayButtonClass}
+                onClick={onFit}
+              >
+                <Maximize2Icon aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Reset view"
+                className={diagramCanvasOverlayButtonClass}
+                onClick={onReset}
+              >
+                <RotateCcwIcon aria-hidden="true" />
+              </button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+      {inspectedEdge && inspectorContext && inspectorContent ? (
+        <div
+          id={`diagram-edge-inspector-${inspectedEdge.id}`}
+          role={inspectorRole}
+          aria-label={inspectorRole === "dialog" ? "Edge details" : undefined}
+          data-slot="diagram-edge-inspector"
+          className="absolute z-20 max-w-64 rounded-md border bg-popover p-3 text-sm text-popover-foreground shadow-md"
+          style={getInspectorOverlayStyle(
+            inspectorPoint ??
+              inspectedEdge.labelPoint ??
+              getDiagramEdgeFallbackPoint(inspectedEdge, nodes),
+            viewport,
+            scrollArea,
+          )}
+        >
+          {inspectorRole === "dialog" ? (
+            <button
+              type="button"
+              aria-label="Close edge details"
+              className="absolute right-1 top-1 inline-flex size-6 items-center justify-center rounded-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 [&_svg]:size-3.5"
+              onClick={onInspectorClose}
+            >
+              <XIcon aria-hidden="true" />
+            </button>
+          ) : null}
+          {inspectorContent}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function resolveDiagramInteractiveFeatures(
+  features: DiagramInteractiveFeatures | undefined,
+): ResolvedDiagramInteractiveFeatures {
+  if (features === true) {
+    return {
+      enabled: true,
+      viewport: true,
+      pathHighlight: true,
+      pathHighlightMode: "neighbors",
+      search: true,
+      edgeInspector: true,
+      controls: "auto",
+    };
+  }
+
+  if (!features) {
+    return {
+      enabled: false,
+      viewport: false,
+      pathHighlight: false,
+      pathHighlightMode: "neighbors",
+      search: false,
+      edgeInspector: false,
+      controls: "auto",
+    };
+  }
+
+  const pathHighlight = Boolean(features.pathHighlight);
+
+  return {
+    enabled: true,
+    viewport: Boolean(features.viewport),
+    pathHighlight,
+    pathHighlightMode:
+      typeof features.pathHighlight === "object"
+        ? (features.pathHighlight.mode ?? "neighbors")
+        : "neighbors",
+    search: Boolean(features.search),
+    edgeInspector: Boolean(features.edgeInspector),
+    controls: features.controls ?? "auto",
+  };
+}
+
+function getViewportZoom(viewport: DiagramViewport, fittedViewport: DiagramViewport) {
+  const widthZoom = fittedViewport.width / Math.max(viewport.width, 1);
+  const heightZoom = fittedViewport.height / Math.max(viewport.height, 1);
+
+  return Math.min(widthZoom, heightZoom);
+}
+
+function clampDiagramViewport(viewport: DiagramViewport, fittedViewport: DiagramViewport) {
+  const minScale = 1 / 4;
+  const maxScale = 4;
+  const minWidth = fittedViewport.width / maxScale;
+  const maxWidth = fittedViewport.width / minScale;
+  const minHeight = fittedViewport.height / maxScale;
+  const maxHeight = fittedViewport.height / minScale;
+  const width = Math.min(maxWidth, Math.max(minWidth, viewport.width));
+  const height = Math.min(maxHeight, Math.max(minHeight, viewport.height));
+  const marginX = fittedViewport.width * 0.25;
+  const marginY = fittedViewport.height * 0.25;
+  const minX = fittedViewport.x - width + marginX;
+  const maxX = fittedViewport.x + fittedViewport.width - marginX;
+  const minY = fittedViewport.y - height + marginY;
+  const maxY = fittedViewport.y + fittedViewport.height - marginY;
+
+  return {
+    x: Math.min(maxX, Math.max(minX, viewport.x)),
+    y: Math.min(maxY, Math.max(minY, viewport.y)),
+    width,
+    height,
+  };
+}
+
+function shouldIgnoreCanvasPanTarget(target: EventTarget) {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("button,a,input,select,textarea,[role='button'],[role='menuitem']"))
+  );
+}
+
+function getElementHighlightState(
+  element: DiagramElementRef,
+  activeElement: DiagramElementRef | null | undefined,
+  connectedElements: { nodeIds: Set<string>; edgeIds: Set<string> },
+) {
+  if (!activeElement) {
+    return undefined;
+  }
+
+  if (isSameDiagramElementRef(element, activeElement)) {
+    return "active" as const;
+  }
+
+  const related =
+    element.kind === "node"
+      ? connectedElements.nodeIds.has(element.id)
+      : connectedElements.edgeIds.has(element.id);
+
+  return related ? ("related" as const) : ("dimmed" as const);
+}
+
+function isSameDiagramElementRef(first: DiagramElementRef, second: DiagramElementRef) {
+  return first.kind === second.kind && first.id === second.id;
+}
+
+function getTraversalDirections<TEdge>(edge: DiagramEdgeDescriptor<TEdge>) {
+  if (edge.direction === "backward") {
+    return [{ from: edge.targetId, to: edge.sourceId }];
+  }
+
+  if (edge.direction === "both" || edge.direction === "none") {
+    return [
+      { from: edge.sourceId, to: edge.targetId },
+      { from: edge.targetId, to: edge.sourceId },
+    ];
+  }
+
+  return [{ from: edge.sourceId, to: edge.targetId }];
+}
+
+function focusViewportOnElement<TNode, TEdge>(
+  element: DiagramElementRef,
+  nodes: readonly DiagramNodeDescriptor<TNode>[],
+  edges: readonly DiagramEdgeDescriptor<TEdge>[],
+  viewport: DiagramViewport,
+  setViewport: (viewport: DiagramViewport, reason: DiagramViewportChangeReason) => void,
+) {
+  const point =
+    element.kind === "node"
+      ? getBoundsCenter(nodes.find((node) => node.id === element.id)?.bounds)
+      : (edges.find((edge) => edge.id === element.id)?.labelPoint ?? null);
+
+  if (!point || pointInViewport(point, viewport)) {
+    return;
+  }
+
+  setViewport(
+    {
+      ...viewport,
+      x: point.x - viewport.width / 2,
+      y: point.y - viewport.height / 2,
+    },
+    "search",
+  );
+}
+
+function pointInViewport(point: DiagramPoint, viewport: DiagramViewport) {
+  return (
+    point.x >= viewport.x &&
+    point.x <= viewport.x + viewport.width &&
+    point.y >= viewport.y &&
+    point.y <= viewport.y + viewport.height
+  );
+}
+
+function getBoundsCenter(bounds: DiagramBounds | undefined): DiagramPoint | null {
+  return bounds ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 } : null;
+}
+
+function getDefaultDiagramSearchText(
+  id: string,
+  label: React.ReactNode,
+  item: unknown,
+  ...extraValues: unknown[]
+) {
+  const values = [id, getPrimitiveReactNodeText(label), ...extraValues];
+
+  if (item && typeof item === "object") {
+    for (const value of Object.values(item as Record<string, unknown>)) {
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        values.push(String(value));
+      }
+    }
+  }
+
+  return values.filter(Boolean).join(" ");
+}
+
+function getDiagramSearchLabel(label: React.ReactNode, fallback: string) {
+  return getPrimitiveReactNodeText(label) || fallback;
+}
+
+function getPrimitiveReactNodeText(value: React.ReactNode) {
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+function getDiagramEdgeInspectorContext<TNode, TEdge>(
+  edge: DiagramEdgeDescriptor<TEdge>,
+  nodes: readonly DiagramNodeDescriptor<TNode>[],
+): DiagramEdgeInspectorContext<TNode, TEdge> {
+  return {
+    edge: edge.item,
+    source: nodes.find((node) => node.id === edge.sourceId)?.item,
+    target: nodes.find((node) => node.id === edge.targetId)?.item,
+    edgeId: edge.id,
+    sourceId: edge.sourceId,
+    targetId: edge.targetId,
+    label: edge.label,
+    kind: edge.kind,
+    direction: edge.direction,
+  };
+}
+
+function renderDefaultDiagramEdgeInspector<TNode, TEdge>(
+  context: DiagramEdgeInspectorContext<TNode, TEdge>,
+) {
+  const edge = context.edge as Record<string, unknown>;
+  const sourceLabel = getRecordLabel(context.source, context.sourceId);
+  const targetLabel = getRecordLabel(context.target, context.targetId);
+  const metadata = [
+    ["Kind", getRenderableMetadataValue(context.kind ?? edge.kind)],
+    ["Status", getRenderableMetadataValue(edge.status)],
+    ["Direction", getRenderableMetadataValue(context.direction)],
+    ["Protocol", getRenderableMetadataValue(edge.protocol)],
+    ["Source cardinality", getRenderableMetadataValue(edge.sourceCardinality)],
+    ["Target cardinality", getRenderableMetadataValue(edge.targetCardinality)],
+    [
+      "Identifying",
+      typeof edge.identifying === "boolean" ? (edge.identifying ? "Yes" : "No") : undefined,
+    ],
+    ["Event", getRenderableMetadataValue(edge.event)],
+    ["Guard", getRenderableMetadataValue(edge.guard)],
+    ["Action", getRenderableMetadataValue(edge.action)],
+    ["Message kind", getRenderableMetadataValue(edge.kind)],
+    ["Description", getRenderableMetadataValue(edge.description)],
+    ["Source label", getRenderableMetadataValue(edge.sourceLabel)],
+    ["Target label", getRenderableMetadataValue(edge.targetLabel)],
+  ].filter((item): item is [string, React.ReactNode] => item[1] != null && item[1] !== "");
+  const title =
+    getRenderableMetadataValue(context.label) ??
+    getRenderableMetadataValue(edge.label) ??
+    getRenderableMetadataValue(edge.event) ??
+    getRenderableMetadataValue(edge.id) ??
+    context.edgeId;
+
+  return (
+    <div className="grid gap-2 pr-4">
+      <div className="font-medium leading-5">{title}</div>
+      <dl className="grid gap-1 text-xs">
+        <div className="grid grid-cols-[auto_1fr] gap-x-2">
+          <dt className="text-muted-foreground">From</dt>
+          <dd className="min-w-0 truncate">{sourceLabel}</dd>
+        </div>
+        <div className="grid grid-cols-[auto_1fr] gap-x-2">
+          <dt className="text-muted-foreground">To</dt>
+          <dd className="min-w-0 truncate">{targetLabel}</dd>
+        </div>
+        {metadata.map(([label, value]) => (
+          <div key={label} className="grid grid-cols-[auto_1fr] gap-x-2">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 truncate">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function getRecordLabel(item: unknown, fallback: string | undefined) {
+  if (item && typeof item === "object") {
+    const record = item as Record<string, unknown>;
+    const label = record.label ?? record.name ?? record.title;
+
+    if (typeof label === "string" || typeof label === "number") {
+      return String(label);
+    }
+  }
+
+  return fallback ?? "";
+}
+
+function getRenderableMetadataValue(value: unknown): React.ReactNode | undefined {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    React.isValidElement(value)
+  ) {
+    return value;
+  }
+
+  return undefined;
+}
+
+function getDiagramEdgeFallbackPoint<TNode, TEdge>(
+  edge: DiagramEdgeDescriptor<TEdge>,
+  nodes: readonly DiagramNodeDescriptor<TNode>[],
+) {
+  const source = getBoundsCenter(nodes.find((node) => node.id === edge.sourceId)?.bounds);
+  const target = getBoundsCenter(nodes.find((node) => node.id === edge.targetId)?.bounds);
+
+  if (source && target) {
+    return { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 };
+  }
+
+  return source ?? target ?? { x: 0, y: 0 };
+}
+
+function getInspectorOverlayStyle(
+  point: DiagramPoint,
+  viewport: DiagramViewport,
+  scrollArea: HTMLDivElement | null,
+): React.CSSProperties {
+  if (!scrollArea) {
+    return { right: 8, top: 48 };
+  }
+
+  const width = scrollArea.clientWidth || 320;
+  const height = scrollArea.clientHeight || 240;
+  const x = ((point.x - viewport.x) / Math.max(viewport.width, 1)) * width + scrollArea.scrollLeft;
+  const y = ((point.y - viewport.y) / Math.max(viewport.height, 1)) * height + scrollArea.scrollTop;
+
+  return {
+    left: Math.min(
+      scrollArea.scrollLeft + width - 272,
+      Math.max(scrollArea.scrollLeft + 8, x + 12),
+    ),
+    top: Math.min(scrollArea.scrollTop + height - 140, Math.max(scrollArea.scrollTop + 8, y + 12)),
+  };
+}
+
 export function DiagramSvgItemInteraction<
   TItem extends Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">> & {
     id: string;
@@ -639,6 +2060,8 @@ export function DiagramSvgItemInteraction<
   onKeyDown,
   onActionSelect,
   setItemRef,
+  highlightState,
+  interactionProps,
   children,
 }: {
   item: TItem;
@@ -655,6 +2078,8 @@ export function DiagramSvgItemInteraction<
   onKeyDown: (event: React.KeyboardEvent<SVGGElement>, item: TItem) => void;
   onActionSelect?: (action: DiagramItemAction<TItem>, item: TItem) => void;
   setItemRef: (itemId: string, element: SVGGElement | null) => void;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
   children: React.ReactNode;
 }) {
   const resolvedActions = actions ?? [];
@@ -668,6 +2093,7 @@ export function DiagramSvgItemInteraction<
       data-selected={selected ? "true" : undefined}
       data-focused={focused ? "true" : undefined}
       data-disabled={disabled ? "true" : undefined}
+      data-highlight-state={highlightState}
       role={role}
       aria-label={role ? resolvedAccessibleName : undefined}
       aria-pressed={role ? selected : undefined}
@@ -677,12 +2103,22 @@ export function DiagramSvgItemInteraction<
         "outline-none",
         onSelect ? `cursor-pointer focus-visible:[&_[data-slot='${slot}-focus']]:stroke-ring` : "",
         disabled ? "opacity-60" : "",
+        "transition-opacity data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot$='-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot$='-node']>div]:ring-ring/60 data-[highlight-state=active]:[&_[data-slot$='-summary-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot$='-summary-node']>div]:ring-ring/60",
       ]
         .filter(Boolean)
         .join(" ")}
       onClick={onSelect && !disabled ? () => onSelect(item) : undefined}
-      onFocus={() => onFocus(item)}
-      onKeyDown={(event) => onKeyDown(event, item)}
+      onPointerEnter={interactionProps?.onPointerEnter}
+      onPointerLeave={interactionProps?.onPointerLeave}
+      onFocus={(event) => {
+        interactionProps?.onFocus?.(event);
+        onFocus(item);
+      }}
+      onBlur={interactionProps?.onBlur}
+      onKeyDown={(event) => {
+        interactionProps?.onKeyDown?.(event);
+        onKeyDown(event, item);
+      }}
       ref={(element) => setItemRef(item.id, element)}
     >
       {selected ? (

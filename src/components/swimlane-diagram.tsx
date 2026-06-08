@@ -5,6 +5,7 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  diagramCanvasLabelVisibilityClass,
   DiagramSvgItemInteraction,
   type DiagramItemAction,
   defaultEdgeToneClasses,
@@ -16,8 +17,11 @@ import {
   getSpatialBounds,
   isActivationKey,
   pointsToPath,
+  useDiagramCanvasInteractions,
+  useDiagramCanvasSettings,
   useControlledSetState,
   type DiagramDirection,
+  type DiagramInteractiveProps,
   type DiagramPoint,
   type DiagramTone,
 } from "./diagram-utils";
@@ -97,7 +101,7 @@ export type SwimlaneDiagramProps = Omit<React.ComponentProps<"figure">, "childre
     lane: PositionedSwimlaneDiagramLane,
     collapsed: boolean,
   ) => void;
-};
+} & DiagramInteractiveProps<PositionedSwimlaneDiagramStep, SwimlaneDiagramConnector>;
 
 type PositionedSwimlaneDiagramStep = SwimlaneDiagramStep &
   Required<Pick<SwimlaneDiagramStep, "x" | "y">> & {
@@ -163,10 +167,32 @@ function SwimlaneDiagram({
   collapsedLaneIds,
   defaultCollapsedLaneIds,
   onCollapsedLaneIdsChange,
+  interactiveFeatures,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  getSearchText,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  renderEdgeInspector,
   className,
   ...props
 }: SwimlaneDiagramProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
+  const {
+    menu: canvasSettingsMenu,
+    setScrollAreaElement: setCanvasSettingsScrollAreaElement,
+    svgProps: canvasSettingsSvgProps,
+  } = useDiagramCanvasSettings();
   const laneIds = React.useMemo(() => new Set(lanes.map((lane) => lane.id)), [lanes]);
   const validSteps = steps.filter((step) => laneIds.has(step.laneId));
   const positionedLanes = React.useMemo(
@@ -322,26 +348,76 @@ function SwimlaneDiagram({
     },
     [internalCollapsedLaneIds, onCollapsedLaneIdsChange, setInternalCollapsedLaneIds],
   );
-  const routePoints = validConnectors.flatMap((connector, index) => {
+  const connectorRoutes = validConnectors.flatMap((connector, index) => {
     const source = stepMap.get(connector.source);
     const target = stepMap.get(connector.target);
 
-    return source && target
-      ? getHullRoute({
-          source,
-          target,
-          edgeIndex: index,
-          obstacles: renderSteps,
-          points: connector.points,
-          waypoints: connector.waypoints,
-          selfLoop: source.id === target.id,
-        }).points
-      : [];
+    if (!source || !target) {
+      return [];
+    }
+
+    const route = getHullRoute({
+      source,
+      target,
+      edgeIndex: index,
+      obstacles: renderSteps,
+      points: connector.points,
+      waypoints: connector.waypoints,
+      selfLoop: source.id === target.id,
+    });
+
+    return [{ connector, connectorIndex: index, route }];
   });
+  const routePoints = connectorRoutes.flatMap(({ route }) => route.points);
   const bounds = getSpatialBounds([...positionedLanes, ...renderSteps], routePoints);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
+  const interaction = useDiagramCanvasInteractions({
+    interactiveFeatures,
+    contentBounds: bounds,
+    nodes: renderSteps.map((step) => ({
+      id: step.id,
+      item: step,
+      label: step.label,
+      bounds: { x: step.x, y: step.y, width: step.width, height: step.height },
+    })),
+    edges: connectorRoutes.map(({ connector, route }) => ({
+      id: connector.id,
+      item: connector,
+      sourceId: connector.source,
+      targetId: connector.target,
+      label: connector.label,
+      kind: connector.kind,
+      direction: connector.direction,
+      labelPoint:
+        route.labelPoint ?? route.points[Math.floor(route.points.length / 2)] ?? route.points[0],
+    })),
+    viewport,
+    defaultViewport,
+    onViewportChange,
+    highlightedElement,
+    defaultHighlightedElement,
+    onHighlightedElementChange,
+    searchQuery,
+    defaultSearchQuery,
+    onSearchQueryChange,
+    focusedSearchResult,
+    onFocusedSearchResultChange,
+    inspectedEdgeId,
+    defaultInspectedEdgeId,
+    onInspectedEdgeIdChange,
+    getSearchText,
+    renderEdgeInspector,
+    padding,
+  });
+  const setScrollAreaElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvasSettingsScrollAreaElement(element);
+      interaction.setScrollAreaElement(element);
+    },
+    [interaction, setCanvasSettingsScrollAreaElement],
+  );
   const markerId = `swimlane-diagram-arrow-${markerPrefix}`;
 
   return (
@@ -355,20 +431,26 @@ function SwimlaneDiagram({
       {...props}
     >
       <div
+        ref={setScrollAreaElement}
         data-slot="swimlane-diagram-scroll-area"
         role="region"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
       >
         <button type="button" className="sr-only">
           Focus swimlane diagram scroll area
         </button>
         <svg
+          {...canvasSettingsSvgProps}
           data-slot="swimlane-diagram-svg"
           role={onStepSelect || stepActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={viewBox}
-          className="block min-h-80 w-full min-w-160 text-foreground"
+          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          className={cn(
+            "block min-h-80 w-full min-w-160 text-foreground",
+            diagramCanvasLabelVisibilityClass,
+          )}
+          {...interaction.svgProps}
         >
           <defs>
             <marker
@@ -440,14 +522,17 @@ function SwimlaneDiagram({
                 ))}
               </g>
               <g data-slot="swimlane-diagram-connectors">
-                {validConnectors.map((connector, index) => (
+                {connectorRoutes.map(({ connector, connectorIndex, route }) => (
                   <SwimlaneConnectorShape
                     key={connector.id}
                     connector={connector}
                     steps={stepMap}
                     obstacles={renderSteps}
                     markerId={markerId}
-                    connectorIndex={index}
+                    connectorIndex={connectorIndex}
+                    route={route}
+                    highlightState={interaction.getEdgeHighlightState(connector.id)}
+                    interactionProps={interaction.getEdgeInteractionProps(connector.id)}
                   />
                 ))}
               </g>
@@ -469,7 +554,12 @@ function SwimlaneDiagram({
                     onFocus={handleStepFocus}
                     onKeyDown={handleStepKeyDown}
                     onActionSelect={onStepActionSelect}
-                    setItemRef={setStepRef}
+                    setItemRef={(stepId, element) => {
+                      setStepRef(stepId, element);
+                      interaction.setNodeElement(stepId, element);
+                    }}
+                    highlightState={interaction.getNodeHighlightState(step.id)}
+                    interactionProps={interaction.getNodeInteractionProps(step.id)}
                   >
                     <SwimlaneStepShape step={step} />
                     {step.summary ? (
@@ -509,6 +599,8 @@ function SwimlaneDiagram({
             </text>
           )}
         </svg>
+        {interaction.overlay}
+        {canvasSettingsMenu}
       </div>
       {caption ? (
         <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">
@@ -525,12 +617,18 @@ function SwimlaneConnectorShape({
   obstacles,
   markerId,
   connectorIndex,
+  route: providedRoute,
+  highlightState,
+  interactionProps,
 }: {
   connector: SwimlaneDiagramConnector;
   steps: Map<string, RenderSwimlaneDiagramStep>;
   obstacles: readonly RenderSwimlaneDiagramStep[];
   markerId: string;
   connectorIndex: number;
+  route?: ReturnType<typeof getHullRoute>;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const source = steps.get(connector.source);
   const target = steps.get(connector.target);
@@ -539,22 +637,31 @@ function SwimlaneConnectorShape({
     return null;
   }
 
-  const route = getHullRoute({
-    source,
-    target,
-    edgeIndex: connectorIndex,
-    obstacles,
-    points: connector.points,
-    waypoints: connector.waypoints,
-    selfLoop: source.id === target.id,
-  });
+  const route =
+    providedRoute ??
+    getHullRoute({
+      source,
+      target,
+      edgeIndex: connectorIndex,
+      obstacles,
+      points: connector.points,
+      waypoints: connector.waypoints,
+      selfLoop: source.id === target.id,
+    });
   const points = route.points;
   const direction = connector.direction ?? "forward";
   const markerUrl = `url(#${markerId})`;
   const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
 
   return (
-    <g data-slot="swimlane-diagram-connector" data-kind={connector.kind ?? "default"}>
+    <g
+      data-diagram-edge="true"
+      data-slot="swimlane-diagram-connector"
+      data-kind={connector.kind ?? "default"}
+      data-highlight-state={highlightState}
+      className="transition-opacity data-[highlight-state=dimmed]:opacity-25"
+      {...interactionProps}
+    >
       <path
         d={pointsToPath(points)}
         fill="none"
@@ -564,7 +671,13 @@ function SwimlaneConnectorShape({
         markerEnd={direction === "forward" || direction === "both" ? markerUrl : undefined}
       />
       {connector.label && labelPoint ? (
-        <foreignObject x={labelPoint.x - 68} y={labelPoint.y - 22} width={136} height={32}>
+        <foreignObject
+          data-diagram-label="true"
+          x={labelPoint.x - 68}
+          y={labelPoint.y - 22}
+          width={136}
+          height={32}
+        >
           <div className="inline-flex max-w-34 rounded-md border bg-background px-2 py-1 text-center text-xs text-muted-foreground shadow-sm">
             {connector.label}
           </div>

@@ -87,6 +87,37 @@ describe("UML diagram", () => {
     ).toContain("uml-triangle");
   });
 
+  test("inherits interactive search and edge inspection in class diagrams", async () => {
+    render(
+      <UmlClassDiagram
+        ariaLabel="Interactive billing classes"
+        interactiveFeatures={true}
+        classes={[
+          { id: "invoice", name: "Invoice", x: 0, y: 0 },
+          { id: "payable", name: "Payable", x: 300, y: 0 },
+        ]}
+        relationships={[
+          {
+            id: "implements",
+            source: "invoice",
+            target: "payable",
+            kind: "realization",
+            label: "implements",
+          },
+        ]}
+        renderEdgeInspector={(context) => <div>UML edge {context.edgeId}</div>}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Search diagram" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Search diagram" }), {
+      target: { value: "implements" },
+    });
+
+    expect(await screen.findByText("1 / 1")).toBeTruthy();
+    expect(await screen.findByText("UML edge implements")).toBeTruthy();
+  });
+
   test("renders state diagrams with pseudo states and transitions", () => {
     const { container } = render(
       <UmlStateDiagram

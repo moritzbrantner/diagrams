@@ -5,6 +5,7 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  diagramCanvasLabelVisibilityClass,
   DiagramSvgItemInteraction,
   type DiagramItemAction,
   defaultEdgeToneClasses,
@@ -15,7 +16,10 @@ import {
   getSpatialBounds,
   isActivationKey,
   pointsToPath,
+  useDiagramCanvasInteractions,
+  useDiagramCanvasSettings,
   useControlledSetState,
+  type DiagramInteractiveProps,
   type DiagramTone,
 } from "./diagram-utils";
 
@@ -97,7 +101,7 @@ export type DecisionTreeProps = Omit<React.ComponentProps<"figure">, "children">
     | readonly DecisionTreeBranchAction[]
     | ((edge: DecisionTreeEdge) => readonly DecisionTreeBranchAction[]);
   onBranchSelect?: (edge: DecisionTreeEdge) => void;
-};
+} & DiagramInteractiveProps<PositionedDecisionTreeNode, DecisionTreeEdge>;
 
 type PositionedDecisionTreeNode = DecisionTreeFlatNode & {
   x: number;
@@ -136,9 +140,31 @@ function DecisionTree({
   onExpandedNodeIdsChange,
   branchActions,
   onBranchSelect,
+  interactiveFeatures,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  getSearchText,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  renderEdgeInspector,
   className,
   ...props
 }: DecisionTreeProps) {
+  const {
+    menu: canvasSettingsMenu,
+    setScrollAreaElement: setCanvasSettingsScrollAreaElement,
+    svgProps: canvasSettingsSvgProps,
+  } = useDiagramCanvasSettings();
   const { flatNodes: allFlatNodes, flatEdges: allFlatEdges } = React.useMemo(
     () => (root ? flattenRoot(root) : { flatNodes: [...nodes], flatEdges: [...edges] }),
     [edges, nodes, root],
@@ -297,19 +323,66 @@ function DecisionTree({
       validEdges,
     ],
   );
-  const routePoints = validEdges.flatMap(
-    (edge, index) =>
-      getHullRoute({
-        source: nodeMap.get(edge.source)!,
-        target: nodeMap.get(edge.target)!,
-        edgeIndex: index,
-        obstacles: positionedNodes,
-      }).points,
-  );
+  const edgeRoutes = validEdges.map((edge, index) => ({
+    edge,
+    edgeIndex: index,
+    route: getHullRoute({
+      source: nodeMap.get(edge.source)!,
+      target: nodeMap.get(edge.target)!,
+      edgeIndex: index,
+      obstacles: positionedNodes,
+    }),
+  }));
+  const routePoints = edgeRoutes.flatMap(({ route }) => route.points);
   const bounds = getSpatialBounds(positionedNodes, routePoints);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
+  const interaction = useDiagramCanvasInteractions({
+    interactiveFeatures,
+    contentBounds: bounds,
+    nodes: positionedNodes.map((node) => ({
+      id: node.id,
+      item: node,
+      label: node.label,
+      bounds: { x: node.x, y: node.y, width: node.width, height: node.height },
+    })),
+    edges: edgeRoutes.map(({ edge, route }) => ({
+      id: edge.id,
+      item: edge,
+      sourceId: edge.source,
+      targetId: edge.target,
+      label: edge.label,
+      kind: edge.tone,
+      direction: "forward",
+      labelPoint:
+        route.labelPoint ?? route.points[Math.floor(route.points.length / 2)] ?? route.points[0],
+    })),
+    viewport,
+    defaultViewport,
+    onViewportChange,
+    highlightedElement,
+    defaultHighlightedElement,
+    onHighlightedElementChange,
+    searchQuery,
+    defaultSearchQuery,
+    onSearchQueryChange,
+    focusedSearchResult,
+    onFocusedSearchResultChange,
+    inspectedEdgeId,
+    defaultInspectedEdgeId,
+    onInspectedEdgeIdChange,
+    getSearchText,
+    renderEdgeInspector,
+    padding,
+  });
+  const setScrollAreaElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvasSettingsScrollAreaElement(element);
+      interaction.setScrollAreaElement(element);
+    },
+    [interaction, setCanvasSettingsScrollAreaElement],
+  );
 
   return (
     <figure
@@ -322,33 +395,42 @@ function DecisionTree({
       {...props}
     >
       <div
+        ref={setScrollAreaElement}
         data-slot="decision-tree-scroll-area"
         role="region"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
       >
         <button type="button" className="sr-only">
           Focus decision tree scroll area
         </button>
         <svg
+          {...canvasSettingsSvgProps}
           data-slot="decision-tree-svg"
           role={onNodeSelect || nodeActions || onBranchSelect ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={viewBox}
-          className="block min-h-80 w-full min-w-160 text-foreground"
+          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          className={cn(
+            "block min-h-80 w-full min-w-160 text-foreground",
+            diagramCanvasLabelVisibilityClass,
+          )}
+          {...interaction.svgProps}
         >
           {positionedNodes.length ? (
             <>
               <g data-slot="decision-tree-edges">
-                {validEdges.map((edge, index) => (
+                {edgeRoutes.map(({ edge, edgeIndex, route }) => (
                   <DecisionEdgeShape
                     key={edge.id}
                     edge={edge}
                     nodes={nodeMap}
                     obstacles={positionedNodes}
-                    edgeIndex={index}
+                    edgeIndex={edgeIndex}
+                    route={route}
                     branchActions={branchActions}
                     onBranchSelect={onBranchSelect}
+                    highlightState={interaction.getEdgeHighlightState(edge.id)}
+                    interactionProps={interaction.getEdgeInteractionProps(edge.id)}
                   />
                 ))}
               </g>
@@ -370,7 +452,12 @@ function DecisionTree({
                     onFocus={handleNodeFocus}
                     onKeyDown={handleNodeKeyDown}
                     onActionSelect={onNodeActionSelect}
-                    setItemRef={setNodeRef}
+                    setItemRef={(nodeId, element) => {
+                      setNodeRef(nodeId, element);
+                      interaction.setNodeElement(nodeId, element);
+                    }}
+                    highlightState={interaction.getNodeHighlightState(node.id)}
+                    interactionProps={interaction.getNodeInteractionProps(node.id)}
                   >
                     <DecisionNodeShape node={node} />
                     {onExpandedNodeIdsChange || expandedNodeIds || defaultExpandedNodeIds ? (
@@ -412,6 +499,8 @@ function DecisionTree({
             </text>
           )}
         </svg>
+        {interaction.overlay}
+        {canvasSettingsMenu}
       </div>
       {caption ? (
         <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">
@@ -427,15 +516,21 @@ function DecisionEdgeShape({
   nodes,
   obstacles,
   edgeIndex,
+  route: providedRoute,
   branchActions,
   onBranchSelect,
+  highlightState,
+  interactionProps,
 }: {
   edge: DecisionTreeEdge;
   nodes: Map<string, PositionedDecisionTreeNode>;
   obstacles: readonly PositionedDecisionTreeNode[];
   edgeIndex: number;
+  route?: ReturnType<typeof getHullRoute>;
   branchActions?: DecisionTreeProps["branchActions"];
   onBranchSelect?: DecisionTreeProps["onBranchSelect"];
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const source = nodes.get(edge.source);
   const target = nodes.get(edge.target);
@@ -444,7 +539,7 @@ function DecisionEdgeShape({
     return null;
   }
 
-  const route = getHullRoute({ source, target, edgeIndex, obstacles });
+  const route = providedRoute ?? getHullRoute({ source, target, edgeIndex, obstacles });
   const points = route.points;
   const labelPoint = route.labelPoint ?? points[Math.floor(points.length / 2)] ?? points[0];
   const resolvedActions =
@@ -452,16 +547,34 @@ function DecisionEdgeShape({
 
   return (
     <g
+      data-diagram-edge="true"
       data-slot="decision-tree-edge"
+      data-highlight-state={highlightState}
       role={onBranchSelect ? "button" : undefined}
       aria-label={onBranchSelect ? getReactNodeAccessibleName(edge.label, edge.id) : undefined}
-      tabIndex={onBranchSelect ? 0 : undefined}
-      className={onBranchSelect ? "cursor-pointer outline-none" : undefined}
-      onClick={onBranchSelect ? () => onBranchSelect(edge) : undefined}
-      onKeyDown={
-        onBranchSelect
+      aria-describedby={interactionProps?.["aria-describedby"]}
+      tabIndex={onBranchSelect ? 0 : interactionProps?.tabIndex}
+      className={cn(
+        "transition-opacity data-[highlight-state=dimmed]:opacity-25",
+        onBranchSelect && "cursor-pointer outline-none",
+      )}
+      onClick={
+        onBranchSelect || interactionProps?.onClick
           ? (event) => {
-              if (isActivationKey(event)) {
+              interactionProps?.onClick?.(event);
+              onBranchSelect?.(edge);
+            }
+          : undefined
+      }
+      onPointerEnter={interactionProps?.onPointerEnter}
+      onPointerLeave={interactionProps?.onPointerLeave}
+      onFocus={interactionProps?.onFocus}
+      onBlur={interactionProps?.onBlur}
+      onKeyDown={
+        onBranchSelect || interactionProps?.onKeyDown
+          ? (event) => {
+              interactionProps?.onKeyDown?.(event);
+              if (onBranchSelect && isActivationKey(event)) {
                 event.preventDefault();
                 onBranchSelect(edge);
               }
@@ -476,7 +589,13 @@ function DecisionEdgeShape({
         className={defaultEdgeToneClasses[edge.tone ?? "default"]}
       />
       {edge.label && labelPoint ? (
-        <foreignObject x={labelPoint.x - 54} y={labelPoint.y - 20} width={108} height={30}>
+        <foreignObject
+          data-diagram-label="true"
+          x={labelPoint.x - 54}
+          y={labelPoint.y - 20}
+          width={108}
+          height={30}
+        >
           <div className="flex items-center justify-center gap-1 rounded-md border bg-background px-2 py-1 text-center text-xs text-muted-foreground shadow-sm">
             {edge.label}
             {resolvedActions.map((action) => (

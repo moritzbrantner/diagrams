@@ -156,6 +156,36 @@ describe("DependencyGraph", () => {
     ).toBe("true");
   });
 
+  test("applies controlled interactive highlighting and shows edge inspector", async () => {
+    const { container } = render(
+      <DependencyGraph
+        ariaLabel="Interactive dependency graph"
+        interactiveFeatures={{ pathHighlight: true, edgeInspector: true, controls: "always" }}
+        highlightedElement={{ kind: "node", id: "app" }}
+        inspectedEdgeId="app-pkg"
+        nodes={[
+          { id: "app", label: "App", x: 0, y: 0 },
+          { id: "pkg", label: "Package", x: 260, y: 0 },
+          { id: "docs", label: "Docs", x: 520, y: 0 },
+        ]}
+        edges={[{ id: "app-pkg", source: "app", target: "pkg", label: "runtime", kind: "runtime" }]}
+      />,
+    );
+
+    expect(
+      container
+        .querySelector('[data-slot="dependency-graph-node-interaction"][data-node-id="app"]')
+        ?.getAttribute("data-highlight-state"),
+    ).toBe("active");
+    expect(
+      container
+        .querySelector('[data-slot="dependency-graph-node-interaction"][data-node-id="docs"]')
+        ?.getAttribute("data-highlight-state"),
+    ).toBe("dimmed");
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip.textContent).toContain("runtime");
+  });
+
   test("minimizes explicit parts into summary nodes and remaps external edges", () => {
     const onMinimizedPartIdsChange = vi.fn();
     const onNodeSelect = vi.fn();

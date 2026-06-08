@@ -203,6 +203,14 @@ export {
   D as DependencyGraphDirection,
   a as DependencyGraphPoint,
   b as DependencyGraphTone,
+  c as DiagramEdgeInspectorContext,
+  d as DiagramElementKind,
+  e as DiagramElementRef,
+  f as DiagramInteractiveFeatures,
+  g as DiagramPathHighlightMode,
+  h as DiagramSearchResult,
+  i as DiagramViewport,
+  j as DiagramViewportChangeReason,
   a as EntityRelationshipDiagramPoint,
   b as EntityRelationshipDiagramTone,
   b as JourneyMapTone,
@@ -215,6 +223,6 @@ export {
   a as SwimlaneDiagramPoint,
   b as SwimlaneDiagramTone,
   b as TimelineDiagramTone,
-} from "./diagram-utils-BlCnT5F3.js";
+} from "./diagram-utils-CU-wn8-5.js";
 import "react";
 ```

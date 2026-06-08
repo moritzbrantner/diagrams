@@ -3,6 +3,13 @@
 import { cn } from "@moritzbrantner/ui";
 import * as React from "react";
 
+import {
+  diagramCanvasLabelVisibilityClass,
+  useDiagramCanvasInteractions,
+  useDiagramCanvasSettings,
+  type DiagramInteractiveProps,
+} from "../diagram-utils";
+
 type UmlDiagramNodeVariant = "default" | "accent" | "muted" | "warning" | "danger";
 type UmlDiagramEdgeKind =
   | "association"
@@ -91,7 +98,7 @@ export type UmlDiagramProps = Omit<React.ComponentProps<"figure">, "children"> &
   onNodeActionSelect?: (action: UmlDiagramNodeAction, node: PositionedUmlDiagramNode) => void;
   renderNode?: (node: PositionedUmlDiagramNode) => React.ReactNode;
   renderEdge?: (edge: UmlDiagramEdge, context: UmlDiagramEdgeRenderContext) => React.ReactNode;
-};
+} & DiagramInteractiveProps<PositionedUmlDiagramNode, UmlDiagramEdge>;
 
 type UmlDiagramNodeAction = {
   id: string;
@@ -106,6 +113,7 @@ type UmlDiagramEdgeRenderContext = {
   nodes: Map<string, PositionedUmlDiagramNode>;
   markerIds: UmlDiagramMarkerIds;
   edgeIndex: number;
+  showLabels: boolean;
 };
 
 type UmlClassKind = "class" | "abstract" | "interface" | "enum";
@@ -208,10 +216,33 @@ function UmlDiagram({
   onNodeActionSelect,
   renderNode = renderDefaultUmlNode,
   renderEdge = renderDefaultUmlEdge,
+  interactiveFeatures,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  getSearchText,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  renderEdgeInspector,
   className,
   ...props
 }: UmlDiagramProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
+  const {
+    menu: canvasSettingsMenu,
+    setScrollAreaElement: setCanvasSettingsScrollAreaElement,
+    showLabels,
+    svgProps: canvasSettingsSvgProps,
+  } = useDiagramCanvasSettings();
   const positionedNodes = React.useMemo(
     () => getPositionedUmlDiagramNodes(nodes, autoLayoutColumns),
     [nodes, autoLayoutColumns],
@@ -330,6 +361,60 @@ function UmlDiagram({
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
+  const edgeRoutes = edges.flatMap((edge, edgeIndex) => {
+    const source = nodeMap.get(edge.source);
+    const target = nodeMap.get(edge.target);
+
+    if (!source || !target) {
+      return [];
+    }
+
+    return [{ edge, edgeIndex, route: getUmlDiagramEdgeRoute(edge, source, target, edgeIndex) }];
+  });
+  const interaction = useDiagramCanvasInteractions({
+    interactiveFeatures,
+    contentBounds: bounds,
+    nodes: positionedNodes.map((node) => ({
+      id: node.id,
+      item: node,
+      label: node.label,
+      bounds: { x: node.x, y: node.y, width: node.width, height: node.height },
+    })),
+    edges: edgeRoutes.map(({ edge, route }) => ({
+      id: edge.id,
+      item: edge,
+      sourceId: edge.source,
+      targetId: edge.target,
+      label: edge.label ?? edge.sourceLabel ?? edge.targetLabel,
+      kind: edge.kind,
+      direction: edge.direction,
+      labelPoint: route.labelPoint,
+    })),
+    viewport,
+    defaultViewport,
+    onViewportChange,
+    highlightedElement,
+    defaultHighlightedElement,
+    onHighlightedElementChange,
+    searchQuery,
+    defaultSearchQuery,
+    onSearchQueryChange,
+    focusedSearchResult,
+    onFocusedSearchResultChange,
+    inspectedEdgeId,
+    defaultInspectedEdgeId,
+    onInspectedEdgeIdChange,
+    getSearchText,
+    renderEdgeInspector,
+    padding,
+  });
+  const setScrollAreaElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvasSettingsScrollAreaElement(element);
+      interaction.setScrollAreaElement(element);
+    },
+    [interaction, setCanvasSettingsScrollAreaElement],
+  );
   const markerIds: UmlDiagramMarkerIds = {
     arrow: `uml-arrow-${markerPrefix}`,
     diamond: `uml-diamond-${markerPrefix}`,
@@ -347,26 +432,44 @@ function UmlDiagram({
       {...props}
     >
       <div
+        ref={setScrollAreaElement}
         data-slot="uml-diagram-scroll-area"
         aria-label={`${ariaLabel} viewport`}
-        className="overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+        className="relative overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
         {...SCROLL_AREA_KEYBOARD_PROPS}
       >
         <svg
+          {...canvasSettingsSvgProps}
           data-slot="uml-diagram-svg"
           role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={viewBox}
-          className="block min-h-64 w-full min-w-160 text-foreground"
+          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          className={cn(
+            "block min-h-64 w-full min-w-160 text-foreground",
+            diagramCanvasLabelVisibilityClass,
+          )}
+          {...interaction.svgProps}
         >
           <UmlDiagramMarkers ids={markerIds} />
           {positionedNodes.length ? (
             <>
               <g data-slot="uml-diagram-edges">
-                {edges.map((edge, edgeIndex) => (
-                  <React.Fragment key={edge.id}>
-                    {renderEdge(edge, { nodes: nodeMap, markerIds, edgeIndex })}
-                  </React.Fragment>
+                {edgeRoutes.map(({ edge, edgeIndex }) => (
+                  <g
+                    key={edge.id}
+                    data-slot="uml-diagram-edge-interaction"
+                    data-edge-id={edge.id}
+                    data-highlight-state={interaction.getEdgeHighlightState(edge.id)}
+                    className="transition-opacity data-[highlight-state=dimmed]:opacity-25"
+                    {...interaction.getEdgeInteractionProps(edge.id)}
+                  >
+                    {renderEdge(edge, {
+                      nodes: nodeMap,
+                      markerIds,
+                      edgeIndex,
+                      showLabels,
+                    })}
+                  </g>
                 ))}
               </g>
               <g data-slot="uml-diagram-nodes">
@@ -386,7 +489,12 @@ function UmlDiagram({
                     onNodeKeyDown={handleNodeKeyDown}
                     renderNode={renderNode}
                     selected={selectedNodeId === node.id}
-                    setNodeRef={setNodeRef}
+                    setNodeRef={(nodeId, element) => {
+                      setNodeRef(nodeId, element);
+                      interaction.setNodeElement(nodeId, element);
+                    }}
+                    highlightState={interaction.getNodeHighlightState(node.id)}
+                    interactionProps={interaction.getNodeInteractionProps(node.id)}
                   />
                 ))}
               </g>
@@ -404,6 +512,8 @@ function UmlDiagram({
             </text>
           )}
         </svg>
+        {interaction.overlay}
+        {canvasSettingsMenu}
       </div>
       {caption ? (
         <figcaption
@@ -474,6 +584,8 @@ function UmlDiagramInteractiveNode({
   onNodeKeyDown,
   onNodeActionSelect,
   setNodeRef,
+  highlightState,
+  interactionProps,
 }: {
   node: PositionedUmlDiagramNode;
   nodeActions?: UmlDiagramProps["nodeActions"];
@@ -489,6 +601,8 @@ function UmlDiagramInteractiveNode({
   onNodeKeyDown: (event: React.KeyboardEvent<SVGGElement>, node: PositionedUmlDiagramNode) => void;
   onNodeActionSelect?: UmlDiagramProps["onNodeActionSelect"];
   setNodeRef: (nodeId: string, element: SVGGElement | null) => void;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const resolvedActions =
     typeof nodeActions === "function" ? nodeActions(node) : (nodeActions ?? []);
@@ -513,6 +627,7 @@ function UmlDiagramInteractiveNode({
       data-selected={selected ? "true" : undefined}
       data-focused={focused ? "true" : undefined}
       data-disabled={disabled ? "true" : undefined}
+      data-highlight-state={highlightState}
       role={onNodeSelect && resolvedActions.length === 0 ? "button" : undefined}
       aria-label={onNodeSelect && resolvedActions.length === 0 ? accessibleName : undefined}
       aria-pressed={onNodeSelect && resolvedActions.length === 0 ? selected : undefined}
@@ -525,10 +640,20 @@ function UmlDiagramInteractiveNode({
         onNodeSelect &&
           "cursor-pointer focus-visible:[&_[data-slot='uml-diagram-node-focus']]:stroke-ring",
         disabled && "opacity-60",
+        "transition-opacity data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot='uml-diagram-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot='uml-diagram-node']>div]:ring-ring/60",
       )}
       onClick={interactive ? selectNode : undefined}
-      onFocus={() => onNodeFocus(node)}
-      onKeyDown={handleKeyDown}
+      onPointerEnter={interactionProps?.onPointerEnter}
+      onPointerLeave={interactionProps?.onPointerLeave}
+      onFocus={(event) => {
+        interactionProps?.onFocus?.(event);
+        onNodeFocus(node);
+      }}
+      onBlur={interactionProps?.onBlur}
+      onKeyDown={(event) => {
+        interactionProps?.onKeyDown?.(event);
+        handleKeyDown(event);
+      }}
       ref={(element) => setNodeRef(node.id, element)}
     >
       {selected ? (
@@ -923,6 +1048,7 @@ function renderDefaultUmlEdge(
 
   return (
     <g
+      data-diagram-edge="true"
       data-slot="uml-diagram-edge-group"
       data-edge-id={edge.id}
       data-kind={edge.kind ?? "association"}
@@ -964,7 +1090,11 @@ function UmlDiagramEdgeLabel({
   children,
 }: React.PropsWithChildren<{ x: number; y: number }>) {
   return (
-    <g data-slot="uml-diagram-edge-label" transform={`translate(${x} ${y})`}>
+    <g
+      data-diagram-label="true"
+      data-slot="uml-diagram-edge-label"
+      transform={`translate(${x} ${y})`}
+    >
       <text
         textAnchor="middle"
         dominantBaseline="middle"

@@ -5,11 +5,15 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  diagramCanvasLabelVisibilityClass,
   defaultEdgeToneClasses,
   defaultToneClasses,
   getReactNodeAccessibleName,
   isActivationKey,
+  useDiagramCanvasInteractions,
+  useDiagramCanvasSettings,
   type DiagramDirection,
+  type DiagramInteractiveProps,
   type DiagramTone,
 } from "./diagram-utils";
 
@@ -102,7 +106,7 @@ export type SequenceDiagramProps = Omit<React.ComponentProps<"figure">, "childre
     participant: PositionedParticipant,
   ) => void;
   hiddenParticipantIds?: readonly string[];
-};
+} & DiagramInteractiveProps<PositionedParticipant, SequenceDiagramMessage>;
 
 type PositionedParticipant = SequenceDiagramParticipant & {
   x: number;
@@ -140,10 +144,32 @@ function SequenceDiagram({
   onMessageActionSelect,
   onParticipantActionSelect,
   hiddenParticipantIds,
+  interactiveFeatures,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  getSearchText,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  renderEdgeInspector,
   className,
   ...props
 }: SequenceDiagramProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
+  const {
+    menu: canvasSettingsMenu,
+    setScrollAreaElement: setCanvasSettingsScrollAreaElement,
+    svgProps: canvasSettingsSvgProps,
+  } = useDiagramCanvasSettings();
   const visibleParticipants = React.useMemo(
     () => participants.filter((participant) => !hiddenParticipantIds?.includes(participant.id)),
     [hiddenParticipantIds, participants],
@@ -225,6 +251,64 @@ function SequenceDiagram({
     260,
     TOP_PADDING + HEADER_HEIGHT + validMessages.length * MESSAGE_GAP + 96,
   );
+  const bounds = { x: 0, y: 0, width, height };
+  const interaction = useDiagramCanvasInteractions({
+    interactiveFeatures,
+    contentBounds: bounds,
+    nodes: positionedParticipants.map((participant) => ({
+      id: participant.id,
+      item: participant,
+      label: participant.label,
+      bounds: {
+        x: participant.x,
+        y: TOP_PADDING,
+        width: participant.width,
+        height: HEADER_HEIGHT,
+      },
+    })),
+    edges: validMessages.map((message) => {
+      const from = participantMap.get(message.from);
+      const to = participantMap.get(message.to);
+      const y = messageY.get(message.id) ?? HEADER_HEIGHT;
+      const x1 = from ? from.x + from.width / 2 : 0;
+      const x2 = to ? to.x + to.width / 2 : x1;
+
+      return {
+        id: message.id,
+        item: message,
+        sourceId: message.from,
+        targetId: message.to,
+        label: message.label,
+        kind: message.kind,
+        direction: message.direction,
+        labelPoint: { x: (x1 + x2) / 2, y },
+      };
+    }),
+    viewport,
+    defaultViewport,
+    onViewportChange,
+    highlightedElement,
+    defaultHighlightedElement,
+    onHighlightedElementChange,
+    searchQuery,
+    defaultSearchQuery,
+    onSearchQueryChange,
+    focusedSearchResult,
+    onFocusedSearchResultChange,
+    inspectedEdgeId,
+    defaultInspectedEdgeId,
+    onInspectedEdgeIdChange,
+    getSearchText,
+    renderEdgeInspector,
+    padding,
+  });
+  const setScrollAreaElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvasSettingsScrollAreaElement(element);
+      interaction.setScrollAreaElement(element);
+    },
+    [interaction, setCanvasSettingsScrollAreaElement],
+  );
   const markerId = `sequence-diagram-arrow-${markerPrefix}`;
 
   return (
@@ -237,15 +321,17 @@ function SequenceDiagram({
       {...props}
     >
       <div
+        ref={setScrollAreaElement}
         data-slot="sequence-diagram-scroll-area"
         role="region"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
       >
         <button type="button" className="sr-only">
           Focus sequence diagram scroll area
         </button>
         <svg
+          {...canvasSettingsSvgProps}
           data-slot="sequence-diagram-svg"
           role={
             onMessageSelect || onParticipantSelect || messageActions || participantActions
@@ -253,8 +339,16 @@ function SequenceDiagram({
               : "img"
           }
           aria-label={ariaLabel}
-          viewBox={`${-padding} ${-padding} ${width + padding * 2} ${height + padding * 2}`}
-          className="block min-h-80 w-full min-w-160 text-foreground"
+          viewBox={
+            interactiveFeatures
+              ? interaction.viewBox
+              : `${-padding} ${-padding} ${width + padding * 2} ${height + padding * 2}`
+          }
+          className={cn(
+            "block min-h-80 w-full min-w-160 text-foreground",
+            diagramCanvasLabelVisibilityClass,
+          )}
+          {...interaction.svgProps}
         >
           <defs>
             <marker
@@ -327,7 +421,10 @@ function SequenceDiagram({
                       } else {
                         participantRefs.current.delete(participantId);
                       }
+                      interaction.setNodeElement(participantId, element);
                     }}
+                    highlightState={interaction.getNodeHighlightState(participant.id)}
+                    interactionProps={interaction.getNodeInteractionProps(participant.id)}
                   />
                 ))}
               </g>
@@ -399,6 +496,8 @@ function SequenceDiagram({
                         messageRefs.current.delete(messageId);
                       }
                     }}
+                    highlightState={interaction.getEdgeHighlightState(message.id)}
+                    interactionProps={interaction.getEdgeInteractionProps(message.id)}
                   />
                 ))}
               </g>
@@ -426,6 +525,8 @@ function SequenceDiagram({
             </text>
           )}
         </svg>
+        {interaction.overlay}
+        {canvasSettingsMenu}
       </div>
       {caption ? (
         <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">
@@ -449,6 +550,8 @@ function ParticipantShape({
   onParticipantFocus,
   onParticipantKeyDown,
   setParticipantRef,
+  highlightState,
+  interactionProps,
 }: {
   participant: PositionedParticipant;
   height: number;
@@ -465,6 +568,8 @@ function ParticipantShape({
     participant: PositionedParticipant,
   ) => void;
   setParticipantRef: (participantId: string, element: SVGGElement | null) => void;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const centerX = participant.x + participant.width / 2;
 
@@ -475,6 +580,7 @@ function ParticipantShape({
       data-selected={selected ? "true" : undefined}
       data-focused={focused ? "true" : undefined}
       data-disabled={disabled ? "true" : undefined}
+      data-highlight-state={highlightState}
       role={onParticipantSelect && !actions.length ? "button" : undefined}
       aria-label={
         onParticipantSelect && !actions.length
@@ -487,12 +593,22 @@ function ParticipantShape({
         "outline-none",
         onParticipantSelect && "cursor-pointer",
         disabled && "opacity-60",
+        "transition-opacity data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_foreignObject>div]:ring-2 data-[highlight-state=active]:[&_foreignObject>div]:ring-ring/60",
       )}
       onClick={
         onParticipantSelect && !disabled ? () => onParticipantSelect(participant) : undefined
       }
-      onFocus={() => onParticipantFocus(participant)}
-      onKeyDown={(event) => onParticipantKeyDown(event, participant)}
+      onPointerEnter={interactionProps?.onPointerEnter}
+      onPointerLeave={interactionProps?.onPointerLeave}
+      onFocus={(event) => {
+        interactionProps?.onFocus?.(event);
+        onParticipantFocus(participant);
+      }}
+      onBlur={interactionProps?.onBlur}
+      onKeyDown={(event) => {
+        interactionProps?.onKeyDown?.(event);
+        onParticipantKeyDown(event, participant);
+      }}
       ref={(element) => setParticipantRef(participant.id, element)}
     >
       {selected || focused ? (
@@ -562,6 +678,8 @@ function MessageShape({
   onMessageFocus,
   onMessageKeyDown,
   setMessageRef,
+  highlightState,
+  interactionProps,
 }: {
   message: SequenceDiagramMessage;
   participants: Map<string, PositionedParticipant>;
@@ -580,6 +698,8 @@ function MessageShape({
     message: SequenceDiagramMessage,
   ) => void;
   setMessageRef: (messageId: string, element: SVGGElement | null) => void;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const from = participants.get(message.from);
   const to = participants.get(message.to);
@@ -595,12 +715,14 @@ function MessageShape({
 
   return (
     <g
+      data-diagram-edge="true"
       data-slot="sequence-diagram-message"
       data-kind={message.kind ?? "sync"}
       data-message-id={message.id}
       data-selected={selected ? "true" : undefined}
       data-focused={focused ? "true" : undefined}
       data-disabled={disabled ? "true" : undefined}
+      data-highlight-state={highlightState}
       role={onMessageSelect && !actions.length ? "button" : undefined}
       aria-label={
         onMessageSelect && !actions.length
@@ -608,11 +730,36 @@ function MessageShape({
           : undefined
       }
       aria-pressed={onMessageSelect && !actions.length ? selected : undefined}
-      tabIndex={keyboardMode === "nodes" && focused && !disabled ? 0 : -1}
-      className={cn("outline-none", onMessageSelect && "cursor-pointer", disabled && "opacity-60")}
-      onClick={onMessageSelect && !disabled ? () => onMessageSelect(message) : undefined}
-      onFocus={() => onMessageFocus(message)}
-      onKeyDown={(event) => onMessageKeyDown(event, message)}
+      aria-describedby={interactionProps?.["aria-describedby"]}
+      tabIndex={
+        keyboardMode === "nodes" && focused && !disabled ? 0 : (interactionProps?.tabIndex ?? -1)
+      }
+      className={cn(
+        "outline-none transition-opacity data-[highlight-state=dimmed]:opacity-25",
+        onMessageSelect && "cursor-pointer",
+        disabled && "opacity-60",
+      )}
+      onClick={
+        (onMessageSelect && !disabled) || interactionProps?.onClick
+          ? (event) => {
+              interactionProps?.onClick?.(event);
+              if (onMessageSelect && !disabled) {
+                onMessageSelect(message);
+              }
+            }
+          : undefined
+      }
+      onPointerEnter={interactionProps?.onPointerEnter}
+      onPointerLeave={interactionProps?.onPointerLeave}
+      onFocus={(event) => {
+        interactionProps?.onFocus?.(event);
+        onMessageFocus(message);
+      }}
+      onBlur={interactionProps?.onBlur}
+      onKeyDown={(event) => {
+        interactionProps?.onKeyDown?.(event);
+        onMessageKeyDown(event, message);
+      }}
       ref={(element) => setMessageRef(message.id, element)}
     >
       {selected || focused ? (
@@ -638,7 +785,13 @@ function MessageShape({
         markerStart={direction === "backward" || direction === "both" ? markerUrl : undefined}
         markerEnd={direction === "forward" || direction === "both" ? markerUrl : undefined}
       />
-      <foreignObject x={(x1 + x2) / 2 - 90} y={y - 42} width={180} height={38}>
+      <foreignObject
+        data-diagram-label="true"
+        x={(x1 + x2) / 2 - 90}
+        y={y - 42}
+        width={180}
+        height={38}
+      >
         <div className="grid rounded-md border bg-background px-2 py-1 text-center text-xs text-muted-foreground shadow-sm">
           <span className="font-medium text-foreground">{message.label}</span>
           {message.description ? <span>{message.description}</span> : null}
@@ -758,6 +911,7 @@ function NoteShape({
 
   return (
     <foreignObject
+      data-diagram-label="true"
       data-slot="sequence-diagram-note"
       x={participant.x + participant.width / 2 + 18}
       y={(note.messageId ? messageY.get(note.messageId) : fallbackY) ?? fallbackY}

@@ -6,6 +6,7 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  diagramCanvasLabelVisibilityClass,
   defaultEdgeToneClasses,
   defaultSvgToneClasses,
   defaultToneClasses,
@@ -14,8 +15,11 @@ import {
   getSpatialBounds,
   pointsToPath,
   type DiagramDirection,
+  type DiagramInteractiveProps,
   type DiagramPoint,
   type DiagramTone,
+  useDiagramCanvasInteractions,
+  useDiagramCanvasSettings,
 } from "./diagram-utils";
 
 export type DependencyGraphStatus = "stable" | "active" | "deprecated" | "blocked" | "at-risk";
@@ -123,7 +127,7 @@ export type DependencyGraphProps = Omit<React.ComponentProps<"figure">, "childre
     action: DependencyGraphNodeAction,
     node: PositionedDependencyGraphNode,
   ) => void;
-};
+} & DiagramInteractiveProps<PositionedDependencyGraphNode, DependencyGraphEdge>;
 
 type PositionedDependencyGraphNode = DependencyGraphNode &
   Required<Pick<DependencyGraphNode, "x" | "y">> & {
@@ -221,10 +225,32 @@ function DependencyGraph({
   onNodeSelect,
   onNodeDeselect,
   onNodeActionSelect,
+  interactiveFeatures,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  getSearchText,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  renderEdgeInspector,
   className,
   ...props
 }: DependencyGraphProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
+  const {
+    menu: canvasSettingsMenu,
+    setScrollAreaElement: setCanvasSettingsScrollAreaElement,
+    svgProps: canvasSettingsSvgProps,
+  } = useDiagramCanvasSettings();
   const originalPositionedNodes = React.useMemo(
     () => positionNodes(nodes, autoLayoutColumns),
     [autoLayoutColumns, nodes],
@@ -460,19 +486,87 @@ function DependencyGraph({
       selectedNodeId,
     ],
   );
-  const routePoints = validEdges.flatMap((edge, index) => {
-    const source = nodeMap.get(edge.source);
-    const target = nodeMap.get(edge.target);
+  const edgeRoutes = React.useMemo(
+    () =>
+      validEdges.flatMap((edge, index) => {
+        const source = nodeMap.get(edge.source);
+        const target = nodeMap.get(edge.target);
 
-    return source && target
-      ? getDependencyGraphEdgeRoute(edge, source, target, index, positionedNodes).points
-      : [];
-  });
+        if (!source || !target) {
+          return [];
+        }
+
+        return [
+          {
+            edge,
+            edgeIndex: index,
+            route: getDependencyGraphEdgeRoute(edge, source, target, index, positionedNodes),
+          },
+        ];
+      }),
+    [nodeMap, positionedNodes, validEdges],
+  );
+  const routePoints = edgeRoutes.flatMap(({ route }) => route.points);
   const partBounds = partProjection.expandedParts.map((part) => part.bounds);
   const bounds = getSpatialBounds([...positionedNodes, ...partBounds], routePoints);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
+  const nodeDescriptors = React.useMemo(
+    () =>
+      positionedNodes.map((node) => ({
+        id: node.id,
+        item: node,
+        label: node.label,
+        bounds: { x: node.x, y: node.y, width: node.width, height: node.height },
+      })),
+    [positionedNodes],
+  );
+  const edgeDescriptors = React.useMemo(
+    () =>
+      edgeRoutes.map(({ edge, route }) => ({
+        id: edge.id,
+        item: edge,
+        sourceId: edge.source,
+        targetId: edge.target,
+        label: edge.label,
+        kind: edge.kind,
+        direction: edge.direction,
+        labelPoint:
+          route.labelPoint ?? route.points[Math.floor(route.points.length / 2)] ?? route.points[0],
+      })),
+    [edgeRoutes],
+  );
+  const interaction = useDiagramCanvasInteractions({
+    interactiveFeatures,
+    contentBounds: bounds,
+    nodes: nodeDescriptors,
+    edges: edgeDescriptors,
+    viewport,
+    defaultViewport,
+    onViewportChange,
+    highlightedElement,
+    defaultHighlightedElement,
+    onHighlightedElementChange,
+    searchQuery,
+    defaultSearchQuery,
+    onSearchQueryChange,
+    focusedSearchResult,
+    onFocusedSearchResultChange,
+    inspectedEdgeId,
+    defaultInspectedEdgeId,
+    onInspectedEdgeIdChange,
+    getSearchText,
+    renderEdgeInspector,
+    padding,
+  });
+  const setScrollAreaElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvasSettingsScrollAreaElement(element);
+      interaction.setScrollAreaElement(element);
+    },
+    [interaction, setCanvasSettingsScrollAreaElement],
+  );
   const markerId = `dependency-graph-arrow-${markerPrefix}`;
 
   return (
@@ -485,20 +579,26 @@ function DependencyGraph({
       {...props}
     >
       <div
+        ref={setScrollAreaElement}
         data-slot="dependency-graph-scroll-area"
         role="region"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
       >
         <button type="button" className="sr-only">
           Focus dependency graph scroll area
         </button>
         <svg
+          {...canvasSettingsSvgProps}
           data-slot="dependency-graph-svg"
           role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={viewBox}
-          className="block min-h-72 w-full min-w-160 text-foreground"
+          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          className={cn(
+            "block min-h-72 w-full min-w-160 text-foreground",
+            diagramCanvasLabelVisibilityClass,
+          )}
+          {...interaction.svgProps}
         >
           <defs>
             <marker
@@ -527,14 +627,17 @@ function DependencyGraph({
                 ))}
               </g>
               <g data-slot="dependency-graph-edges">
-                {validEdges.map((edge, index) => (
+                {edgeRoutes.map(({ edge, edgeIndex, route }) => (
                   <DependencyGraphEdgeShape
                     key={edge.id}
                     edge={edge}
                     nodes={nodeMap}
                     obstacles={positionedNodes}
                     markerId={markerId}
-                    edgeIndex={index}
+                    edgeIndex={edgeIndex}
+                    route={route}
+                    highlightState={interaction.getEdgeHighlightState(edge.id)}
+                    interactionProps={interaction.getEdgeInteractionProps(edge.id)}
                   />
                 ))}
               </g>
@@ -562,7 +665,12 @@ function DependencyGraph({
                     onNodeFocus={handleNodeFocus}
                     onNodeKeyDown={handleNodeKeyDown}
                     onNodeSelect={onNodeSelect}
-                    setNodeRef={setNodeRef}
+                    setNodeRef={(nodeId, element) => {
+                      setNodeRef(nodeId, element);
+                      interaction.setNodeElement(nodeId, element);
+                    }}
+                    highlightState={interaction.getNodeHighlightState(node.id)}
+                    interactionProps={interaction.getNodeInteractionProps(node.id)}
                   />
                 ))}
               </g>
@@ -579,6 +687,8 @@ function DependencyGraph({
             </text>
           )}
         </svg>
+        {interaction.overlay}
+        {canvasSettingsMenu}
       </div>
       {showLegend ? (
         <div
@@ -704,6 +814,8 @@ function DependencyGraphInteractiveNode({
   onNodeKeyDown,
   onNodeSelect,
   setNodeRef,
+  highlightState,
+  interactionProps,
 }: {
   node: RenderDependencyGraphNode;
   minimizeControl?: DependencyGraphNodeMinimizeControl;
@@ -722,6 +834,8 @@ function DependencyGraphInteractiveNode({
   ) => void;
   onNodeSelect?: DependencyGraphProps["onNodeSelect"];
   setNodeRef: (nodeId: string, element: SVGGElement | null) => void;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const resolvedActions =
     typeof nodeActions === "function" ? nodeActions(node) : (nodeActions ?? []);
@@ -746,6 +860,7 @@ function DependencyGraphInteractiveNode({
       data-selected={selected ? "true" : undefined}
       data-focused={focused ? "true" : undefined}
       data-disabled={disabled ? "true" : undefined}
+      data-highlight-state={highlightState}
       role={onNodeSelect && resolvedActions.length === 0 ? "button" : undefined}
       aria-label={onNodeSelect && resolvedActions.length === 0 ? accessibleName : undefined}
       aria-pressed={onNodeSelect && resolvedActions.length === 0 ? selected : undefined}
@@ -758,10 +873,20 @@ function DependencyGraphInteractiveNode({
         onNodeSelect &&
           "cursor-pointer focus-visible:[&_[data-slot='dependency-graph-node-focus']]:stroke-ring",
         disabled && "opacity-60",
+        "transition-opacity data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot='dependency-graph-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot='dependency-graph-summary-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot='dependency-graph-node']>div]:ring-ring/60 data-[highlight-state=active]:[&_[data-slot='dependency-graph-summary-node']>div]:ring-ring/60",
       )}
       onClick={interactive ? selectNode : undefined}
-      onFocus={() => onNodeFocus(node)}
-      onKeyDown={handleKeyDown}
+      onPointerEnter={interactionProps?.onPointerEnter}
+      onPointerLeave={interactionProps?.onPointerLeave}
+      onFocus={(event) => {
+        interactionProps?.onFocus?.(event);
+        onNodeFocus(node);
+      }}
+      onBlur={interactionProps?.onBlur}
+      onKeyDown={(event) => {
+        interactionProps?.onKeyDown?.(event);
+        handleKeyDown(event);
+      }}
       ref={(element) => setNodeRef(node.id, element)}
     >
       {selected ? (
@@ -899,12 +1024,18 @@ function DependencyGraphEdgeShape({
   obstacles,
   markerId,
   edgeIndex,
+  route: providedRoute,
+  highlightState,
+  interactionProps,
 }: {
   edge: RenderDependencyGraphEdge;
   nodes: Map<string, RenderDependencyGraphNode>;
   obstacles: readonly RenderDependencyGraphNode[];
   markerId: string;
   edgeIndex: number;
+  route?: DependencyGraphEdgeRoute;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const source = nodes.get(edge.source);
   const target = nodes.get(edge.target);
@@ -913,7 +1044,8 @@ function DependencyGraphEdgeShape({
     return null;
   }
 
-  const route = getDependencyGraphEdgeRoute(edge, source, target, edgeIndex, obstacles);
+  const route =
+    providedRoute ?? getDependencyGraphEdgeRoute(edge, source, target, edgeIndex, obstacles);
   const points = route.points;
   const direction = edge.direction ?? "forward";
   const markerUrl = `url(#${markerId})`;
@@ -921,7 +1053,14 @@ function DependencyGraphEdgeShape({
   const tone = edgeToneByKind[edge.kind ?? "runtime"];
 
   return (
-    <g data-slot="dependency-graph-edge" data-kind={edge.kind ?? "runtime"}>
+    <g
+      data-diagram-edge="true"
+      data-slot="dependency-graph-edge"
+      data-kind={edge.kind ?? "runtime"}
+      data-highlight-state={highlightState}
+      className="transition-opacity data-[highlight-state=dimmed]:opacity-25"
+      {...interactionProps}
+    >
       <path
         d={pointsToPath(points)}
         fill="none"
@@ -932,7 +1071,13 @@ function DependencyGraphEdgeShape({
         markerEnd={direction === "forward" || direction === "both" ? markerUrl : undefined}
       />
       {edge.label && labelPoint ? (
-        <foreignObject x={labelPoint.x - 70} y={labelPoint.y - 22} width={140} height={34}>
+        <foreignObject
+          data-diagram-label="true"
+          x={labelPoint.x - 70}
+          y={labelPoint.y - 22}
+          width={140}
+          height={34}
+        >
           <div
             data-slot="dependency-graph-edge-label"
             className="inline-flex max-w-36 rounded-md border bg-background px-2 py-1 text-center text-xs text-muted-foreground shadow-sm"

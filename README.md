@@ -292,6 +292,91 @@ export function OrderFlow() {
 }
 ```
 
+## Canvas Interactions
+
+Node-edge SVG diagrams are static by default. Pass `interactiveFeatures={true}` to enable built-in
+pan/zoom controls, connected-path highlighting, local search, and the edge inspector.
+
+```tsx
+<RelationshipMap
+  interactiveFeatures={true}
+  nodes={[
+    { id: "product", label: "Product" },
+    { id: "engineering", label: "Engineering" },
+  ]}
+  edges={[{ id: "handoff", source: "product", target: "engineering", label: "handoff" }]}
+/>
+```
+
+Viewport, search, highlight, and inspector state can be controlled by host applications.
+
+```tsx
+import * as React from "react";
+import { RelationshipMap, type DiagramViewport } from "@moritzbrantner/diagrams";
+
+export function ControlledCanvas() {
+  const [viewport, setViewport] = React.useState<DiagramViewport>({
+    x: -40,
+    y: -40,
+    width: 720,
+    height: 420,
+  });
+
+  return (
+    <RelationshipMap
+      interactiveFeatures={{ viewport: true, controls: "always" }}
+      viewport={viewport}
+      onViewportChange={setViewport}
+      nodes={[
+        { id: "api", label: "API" },
+        { id: "db", label: "DB" },
+      ]}
+      edges={[{ id: "api-db", source: "api", target: "db", label: "writes" }]}
+    />
+  );
+}
+```
+
+```tsx
+import * as React from "react";
+import { DependencyGraph } from "@moritzbrantner/diagrams";
+
+export function SearchableGraph() {
+  const [query, setQuery] = React.useState("orders");
+
+  return (
+    <DependencyGraph
+      interactiveFeatures={{ search: true, pathHighlight: true }}
+      searchQuery={query}
+      onSearchQueryChange={setQuery}
+      nodes={[
+        { id: "orders", label: "Orders" },
+        { id: "billing", label: "Billing" },
+      ]}
+      edges={[{ id: "orders-billing", source: "orders", target: "billing", label: "events" }]}
+    />
+  );
+}
+```
+
+```tsx
+import { ArchitectureDiagram } from "@moritzbrantner/diagrams";
+
+<ArchitectureDiagram
+  interactiveFeatures={{ edgeInspector: true }}
+  nodes={[
+    { id: "api", label: "API" },
+    { id: "orders", label: "Orders" },
+  ]}
+  connections={[{ id: "api-orders", source: "api", target: "orders", protocol: "HTTP" }]}
+  renderEdgeInspector={(context) => (
+    <div>
+      {context.edgeId}: {context.sourceId} to {context.targetId}
+    </div>
+  )}
+/>;
+```
+
 ## Additional Diagram Primitives
 
 ```tsx

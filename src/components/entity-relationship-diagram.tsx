@@ -5,6 +5,7 @@ import * as React from "react";
 
 import {
   clampFiniteNumber,
+  diagramCanvasLabelVisibilityClass,
   DiagramSvgItemInteraction,
   type DiagramItemAction,
   defaultEdgeToneClasses,
@@ -16,6 +17,9 @@ import {
   getSpatialBounds,
   isActivationKey,
   pointsToPath,
+  useDiagramCanvasInteractions,
+  useDiagramCanvasSettings,
+  type DiagramInteractiveProps,
   type DiagramPoint,
   type DiagramTone,
   useControlledSetState,
@@ -91,7 +95,7 @@ export type EntityRelationshipDiagramProps = Omit<React.ComponentProps<"figure">
     entity: PositionedEntityRelationshipEntity,
     collapsed: boolean,
   ) => void;
-};
+} & DiagramInteractiveProps<PositionedEntityRelationshipEntity, EntityRelationshipRelation>;
 
 type PositionedEntityRelationshipEntity = EntityRelationshipEntity &
   Required<Pick<EntityRelationshipEntity, "x" | "y">> & {
@@ -127,9 +131,31 @@ function EntityRelationshipDiagram({
   collapsedEntityIds,
   defaultCollapsedEntityIds,
   onCollapsedEntityIdsChange,
+  interactiveFeatures,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  getSearchText,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  renderEdgeInspector,
   className,
   ...props
 }: EntityRelationshipDiagramProps) {
+  const {
+    menu: canvasSettingsMenu,
+    setScrollAreaElement: setCanvasSettingsScrollAreaElement,
+    svgProps: canvasSettingsSvgProps,
+  } = useDiagramCanvasSettings();
   const positionedEntities = React.useMemo(
     () => positionEntities(entities, autoLayoutColumns),
     [autoLayoutColumns, entities],
@@ -273,26 +299,76 @@ function EntityRelationshipDiagram({
     },
     [internalCollapsedEntityIds, onCollapsedEntityIdsChange, setInternalCollapsedEntityIds],
   );
-  const routePoints = validRelations.flatMap((relation, index) => {
+  const relationRoutes = validRelations.flatMap((relation, index) => {
     const source = entityMap.get(relation.source);
     const target = entityMap.get(relation.target);
 
-    return source && target
-      ? getHullRoute({
-          source,
-          target,
-          edgeIndex: index,
-          obstacles: renderEntities,
-          points: relation.points,
-          waypoints: relation.waypoints,
-          selfLoop: source.id === target.id,
-        }).points
-      : [];
+    if (!source || !target) {
+      return [];
+    }
+
+    const route = getHullRoute({
+      source,
+      target,
+      edgeIndex: index,
+      obstacles: renderEntities,
+      points: relation.points,
+      waypoints: relation.waypoints,
+      selfLoop: source.id === target.id,
+    });
+
+    return [{ relation, relationIndex: index, route }];
   });
+  const routePoints = relationRoutes.flatMap(({ route }) => route.points);
   const bounds = getSpatialBounds(renderEntities, routePoints);
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
+  const interaction = useDiagramCanvasInteractions({
+    interactiveFeatures,
+    contentBounds: bounds,
+    nodes: renderEntities.map((entity) => ({
+      id: entity.id,
+      item: entity,
+      label: entity.name,
+      bounds: { x: entity.x, y: entity.y, width: entity.width, height: entity.height },
+    })),
+    edges: relationRoutes.map(({ relation, route }) => ({
+      id: relation.id,
+      item: relation,
+      sourceId: relation.source,
+      targetId: relation.target,
+      label: relation.label,
+      kind: relation.identifying ? "identifying" : "non-identifying",
+      direction: "both",
+      labelPoint:
+        route.labelPoint ?? route.points[Math.floor(route.points.length / 2)] ?? route.points[0],
+    })),
+    viewport,
+    defaultViewport,
+    onViewportChange,
+    highlightedElement,
+    defaultHighlightedElement,
+    onHighlightedElementChange,
+    searchQuery,
+    defaultSearchQuery,
+    onSearchQueryChange,
+    focusedSearchResult,
+    onFocusedSearchResultChange,
+    inspectedEdgeId,
+    defaultInspectedEdgeId,
+    onInspectedEdgeIdChange,
+    getSearchText,
+    renderEdgeInspector,
+    padding,
+  });
+  const setScrollAreaElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvasSettingsScrollAreaElement(element);
+      interaction.setScrollAreaElement(element);
+    },
+    [interaction, setCanvasSettingsScrollAreaElement],
+  );
 
   return (
     <figure
@@ -304,31 +380,40 @@ function EntityRelationshipDiagram({
       {...props}
     >
       <div
+        ref={setScrollAreaElement}
         data-slot="entity-relationship-diagram-scroll-area"
         role="region"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
       >
         <button type="button" className="sr-only">
           Focus entity relationship diagram scroll area
         </button>
         <svg
+          {...canvasSettingsSvgProps}
           data-slot="entity-relationship-diagram-svg"
           role={onEntitySelect || entityActions || onFieldSelect ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={viewBox}
-          className="block min-h-80 w-full min-w-160 text-foreground"
+          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          className={cn(
+            "block min-h-80 w-full min-w-160 text-foreground",
+            diagramCanvasLabelVisibilityClass,
+          )}
+          {...interaction.svgProps}
         >
           {renderEntities.length ? (
             <>
               <g data-slot="entity-relationship-diagram-relations">
-                {validRelations.map((relation, index) => (
+                {relationRoutes.map(({ relation, relationIndex, route }) => (
                   <RelationShape
                     key={relation.id}
                     relation={relation}
                     entities={entityMap}
                     obstacles={renderEntities}
-                    relationIndex={index}
+                    relationIndex={relationIndex}
+                    route={route}
+                    highlightState={interaction.getEdgeHighlightState(relation.id)}
+                    interactionProps={interaction.getEdgeInteractionProps(relation.id)}
                   />
                 ))}
               </g>
@@ -353,7 +438,12 @@ function EntityRelationshipDiagram({
                     onFocus={handleEntityFocus}
                     onKeyDown={handleEntityKeyDown}
                     onActionSelect={onEntityActionSelect}
-                    setItemRef={setEntityRef}
+                    setItemRef={(entityId, element) => {
+                      setEntityRef(entityId, element);
+                      interaction.setNodeElement(entityId, element);
+                    }}
+                    highlightState={interaction.getNodeHighlightState(entity.id)}
+                    interactionProps={interaction.getNodeInteractionProps(entity.id)}
                   >
                     <EntityShape
                       entity={entity}
@@ -400,6 +490,8 @@ function EntityRelationshipDiagram({
             </text>
           )}
         </svg>
+        {interaction.overlay}
+        {canvasSettingsMenu}
       </div>
       {caption ? (
         <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">
@@ -415,11 +507,17 @@ function RelationShape({
   entities,
   obstacles,
   relationIndex,
+  route: providedRoute,
+  highlightState,
+  interactionProps,
 }: {
   relation: EntityRelationshipRelation;
   entities: Map<string, PositionedEntityRelationshipEntity>;
   obstacles: readonly PositionedEntityRelationshipEntity[];
   relationIndex: number;
+  route?: ReturnType<typeof getHullRoute>;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const source = entities.get(relation.source);
   const target = entities.get(relation.target);
@@ -428,15 +526,17 @@ function RelationShape({
     return null;
   }
 
-  const route = getHullRoute({
-    source,
-    target,
-    edgeIndex: relationIndex,
-    obstacles,
-    points: relation.points,
-    waypoints: relation.waypoints,
-    selfLoop: source.id === target.id,
-  });
+  const route =
+    providedRoute ??
+    getHullRoute({
+      source,
+      target,
+      edgeIndex: relationIndex,
+      obstacles,
+      points: relation.points,
+      waypoints: relation.waypoints,
+      selfLoop: source.id === target.id,
+    });
   const points = route.points;
   const start = points[0];
   const end = points[points.length - 1];
@@ -444,8 +544,12 @@ function RelationShape({
 
   return (
     <g
+      data-diagram-edge="true"
       data-slot="entity-relationship-diagram-relation"
       data-identifying={relation.identifying ? "true" : undefined}
+      data-highlight-state={highlightState}
+      className="transition-opacity data-[highlight-state=dimmed]:opacity-25"
+      {...interactionProps}
     >
       <path
         d={pointsToPath(points)}
@@ -455,17 +559,33 @@ function RelationShape({
         className={defaultEdgeToneClasses.default}
       />
       {start ? (
-        <text x={start.x + 8} y={start.y - 8} className="fill-muted-foreground text-xs">
+        <text
+          data-diagram-label="true"
+          x={start.x + 8}
+          y={start.y - 8}
+          className="fill-muted-foreground text-xs"
+        >
           {formatCardinality(relation.sourceCardinality)}
         </text>
       ) : null}
       {end ? (
-        <text x={end.x - 28} y={end.y - 8} className="fill-muted-foreground text-xs">
+        <text
+          data-diagram-label="true"
+          x={end.x - 28}
+          y={end.y - 8}
+          className="fill-muted-foreground text-xs"
+        >
           {formatCardinality(relation.targetCardinality)}
         </text>
       ) : null}
       {relation.label && labelPoint ? (
-        <foreignObject x={labelPoint.x - 70} y={labelPoint.y - 22} width={140} height={32}>
+        <foreignObject
+          data-diagram-label="true"
+          x={labelPoint.x - 70}
+          y={labelPoint.y - 22}
+          width={140}
+          height={32}
+        >
           <div className="inline-flex max-w-36 rounded-md border bg-background px-2 py-1 text-center text-xs text-muted-foreground shadow-sm">
             {relation.label}
           </div>

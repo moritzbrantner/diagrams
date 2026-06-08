@@ -325,6 +325,31 @@ export const KeyboardNodeSelection: Story = {
   },
 };
 
+export const InteractiveCanvasUmlDiagram: Story = {
+  name: "Interactive Canvas UML Diagram",
+  render: () => (
+    <UmlDiagram
+      ariaLabel="Interactive canvas UML diagram"
+      interactiveFeatures={true}
+      nodes={serviceNodes}
+      edges={serviceEdges}
+      renderEdgeInspector={(context) => (
+        <div className="grid gap-1">
+          <div className="font-medium">Edge {context.edgeId}</div>
+          <div className="text-xs text-muted-foreground">{context.kind}</div>
+        </div>
+      )}
+    />
+  ),
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Zoom in" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Search diagram" }));
+    await userEvent.type(canvas.getByRole("textbox", { name: "Search diagram" }), "command");
+    await expect(canvas.getByText("1 / 1")).toBeVisible();
+    await expect(canvas.getByRole("dialog")).toBeVisible();
+  },
+};
+
 function KeyboardNodeSelectionDemo() {
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>("orders");
   const [focusedNodeId, setFocusedNodeId] = React.useState<string | null>("orders");

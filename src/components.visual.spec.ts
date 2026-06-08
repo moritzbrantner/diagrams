@@ -17,6 +17,11 @@ const stories = [
     responsive: true,
   },
   {
+    id: "diagrams-components--interactive-canvas-relationship-map-story",
+    name: "interactive-canvas-relationship-map",
+    responsive: true,
+  },
+  {
     id: "diagrams-components--gantt-chart-story",
     name: "gantt-chart",
     responsive: true,
@@ -24,6 +29,11 @@ const stories = [
   {
     id: "diagrams-uml-diagram--default",
     name: "uml-diagram",
+    responsive: true,
+  },
+  {
+    id: "diagrams-uml-diagram--interactive-canvas-uml-diagram",
+    name: "interactive-canvas-uml-diagram",
     responsive: true,
   },
   {
@@ -39,6 +49,11 @@ const stories = [
   {
     id: "diagrams-components--dependency-graph-story",
     name: "dependency-graph",
+    responsive: true,
+  },
+  {
+    id: "diagrams-components--interactive-canvas-dependency-graph-story",
+    name: "interactive-canvas-dependency-graph",
     responsive: true,
   },
   {

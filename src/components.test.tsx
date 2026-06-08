@@ -216,6 +216,93 @@ describe("RelationshipMap", () => {
     expect(screen.getByText("No dependencies")).toBeTruthy();
   });
 
+  test("opens canvas settings from the context menu and toggles labels", () => {
+    const { container } = render(
+      <RelationshipMap
+        ariaLabel="Label settings map"
+        nodes={[
+          { id: "product", label: "Product", x: 0, y: 0 },
+          { id: "sales", label: "Sales", x: 280, y: 0 },
+        ]}
+        edges={[{ id: "briefs", source: "product", target: "sales", label: "briefs" }]}
+      />,
+    );
+    const svg = screen.getByRole("img", { name: "Label settings map" });
+
+    expect(svg.getAttribute("data-show-labels")).toBe("true");
+
+    fireEvent.contextMenu(svg, { clientX: 24, clientY: 32 });
+    expect(screen.getByRole("menu", { name: "Diagram settings" })).toBeTruthy();
+
+    const labelsToggle = screen.getByRole("menuitemcheckbox", { name: /labels/i });
+    expect(labelsToggle.getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.click(labelsToggle);
+    expect(svg.getAttribute("data-show-labels")).toBe("false");
+    expect(labelsToggle.getAttribute("aria-checked")).toBe("false");
+    expect(container.querySelector('[data-diagram-label="true"]')).toBeTruthy();
+    expect(container.querySelector('[data-diagram-edge="true"]')).toBeTruthy();
+    expect(svg.getAttribute("class")).toContain("hover");
+  });
+
+  test("supports interactive viewport controls, highlighting, search, and edge inspection", async () => {
+    const onViewportChange = vi.fn();
+    const { container } = render(
+      <RelationshipMap
+        ariaLabel="Interactive canvas map"
+        interactiveFeatures={true}
+        defaultViewport={{ x: -50, y: -50, width: 500, height: 300 }}
+        onViewportChange={onViewportChange}
+        nodes={[
+          { id: "product", label: "Product", x: 0, y: 0 },
+          { id: "sales", label: "Sales", x: 260, y: 0 },
+          { id: "support", label: "Support", x: 520, y: 0 },
+        ]}
+        edges={[{ id: "briefs", source: "product", target: "sales", label: "briefs" }]}
+        renderEdgeInspector={(context) => <div>Edge {context.edgeId}</div>}
+      />,
+    );
+    const svg = screen.getByRole("img", { name: "Interactive canvas map" });
+    const initialViewBox = svg.getAttribute("viewBox");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(svg.getAttribute("viewBox")).not.toBe(initialViewBox);
+    expect(onViewportChange).toHaveBeenCalledWith(expect.any(Object), "zoom");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
+    expect(svg.getAttribute("viewBox")).toBe("-50 -50 500 300");
+    expect(onViewportChange).toHaveBeenCalledWith(expect.any(Object), "reset");
+
+    const product = container.querySelector<SVGGElement>(
+      '[data-slot="relationship-map-node-interaction"][data-node-id="product"]',
+    );
+    const sales = container.querySelector<SVGGElement>(
+      '[data-slot="relationship-map-node-interaction"][data-node-id="sales"]',
+    );
+    const support = container.querySelector<SVGGElement>(
+      '[data-slot="relationship-map-node-interaction"][data-node-id="support"]',
+    );
+    const edge = container.querySelector<SVGGElement>('[data-slot="relationship-map-edge"]');
+
+    if (!product || !sales || !support || !edge) {
+      throw new Error("Expected relationship map interaction targets");
+    }
+
+    fireEvent.pointerEnter(product);
+    expect(product.getAttribute("data-highlight-state")).toBe("active");
+    expect(sales.getAttribute("data-highlight-state")).toBe("related");
+    expect(support.getAttribute("data-highlight-state")).toBe("dimmed");
+    expect(edge.getAttribute("data-highlight-state")).toBe("related");
+
+    fireEvent.click(screen.getByRole("button", { name: "Search diagram" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Search diagram" }), {
+      target: { value: "briefs" },
+    });
+
+    await screen.findByText("1 / 1");
+    await screen.findByText("Edge briefs");
+  });
+
   test("supports node selection, actions, disabled nodes, waypoints, and group collapse", () => {
     const onNodeSelect = vi.fn();
     const onNodeActionSelect = vi.fn();

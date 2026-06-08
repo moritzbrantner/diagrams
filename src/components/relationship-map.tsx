@@ -4,13 +4,17 @@ import * as React from "react";
 
 import { cn } from "@moritzbrantner/ui";
 import {
+  diagramCanvasLabelVisibilityClass,
   getHullRoute,
   getNearestDiagramItem,
   getReactNodeAccessibleName,
   getSpatialBounds,
   isActivationKey,
   pointsToPath,
+  useDiagramCanvasInteractions,
+  useDiagramCanvasSettings,
   useControlledSetState,
+  type DiagramInteractiveProps,
   type DiagramPoint,
 } from "./diagram-utils";
 
@@ -89,7 +93,7 @@ type RelationshipMapProps = Omit<React.ComponentProps<"figure">, "children"> & {
   collapsedGroupIds?: readonly string[];
   defaultCollapsedGroupIds?: readonly string[];
   onCollapsedGroupIdsChange?: (groupIds: string[], groupId: string, collapsed: boolean) => void;
-};
+} & DiagramInteractiveProps<PositionedRelationshipMapNode, RelationshipMapEdge>;
 
 type RenderRelationshipMapNode = PositionedRelationshipMapNode & {
   summary?: {
@@ -143,10 +147,32 @@ function RelationshipMap({
   collapsedGroupIds,
   defaultCollapsedGroupIds,
   onCollapsedGroupIdsChange,
+  interactiveFeatures,
+  viewport,
+  defaultViewport,
+  onViewportChange,
+  highlightedElement,
+  defaultHighlightedElement,
+  onHighlightedElementChange,
+  searchQuery,
+  defaultSearchQuery,
+  onSearchQueryChange,
+  focusedSearchResult,
+  onFocusedSearchResultChange,
+  getSearchText,
+  inspectedEdgeId,
+  defaultInspectedEdgeId,
+  onInspectedEdgeIdChange,
+  renderEdgeInspector,
   className,
   ...props
 }: RelationshipMapProps) {
   const markerPrefix = React.useId().replace(/:/g, "");
+  const {
+    menu: canvasSettingsMenu,
+    setScrollAreaElement: setCanvasSettingsScrollAreaElement,
+    svgProps: canvasSettingsSvgProps,
+  } = useDiagramCanvasSettings();
   const originalPositionedNodes = React.useMemo(
     () => getPositionedNodes(nodes, autoLayoutColumns),
     [nodes, autoLayoutColumns],
@@ -295,22 +321,27 @@ function RelationshipMap({
     },
     [internalCollapsedGroups, onCollapsedGroupIdsChange, setInternalCollapsedGroups],
   );
-  const routePoints = validEdges.flatMap((edge, edgeIndex) => {
+  const edgeRoutes = validEdges.flatMap((edge, edgeIndex) => {
     const source = nodeMap.get(edge.source);
     const target = nodeMap.get(edge.target);
 
-    return source && target
-      ? getHullRoute({
-          source,
-          target,
-          edgeIndex,
-          obstacles: positionedNodes,
-          points: edge.points,
-          waypoints: edge.waypoints,
-          selfLoop: source.id === target.id,
-        }).points
-      : [];
+    if (!source || !target) {
+      return [];
+    }
+
+    const route = getHullRoute({
+      source,
+      target,
+      edgeIndex,
+      obstacles: positionedNodes,
+      points: edge.points,
+      waypoints: edge.waypoints,
+      selfLoop: source.id === target.id,
+    });
+
+    return [{ edge, edgeIndex, route }];
   });
+  const routePoints = edgeRoutes.flatMap(({ route }) => route.points);
   const bounds = getSpatialBounds(positionedNodes, routePoints, {
     x: 0,
     y: 0,
@@ -320,6 +351,61 @@ function RelationshipMap({
   const viewBox = `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${
     bounds.height + padding * 2
   }`;
+  const nodeDescriptors = React.useMemo(
+    () =>
+      positionedNodes.map((node) => ({
+        id: node.id,
+        item: node,
+        label: node.label,
+        bounds: { x: node.x, y: node.y, width: node.width, height: node.height },
+      })),
+    [positionedNodes],
+  );
+  const edgeDescriptors = React.useMemo(
+    () =>
+      edgeRoutes.map(({ edge, route }) => ({
+        id: edge.id,
+        item: edge,
+        sourceId: edge.source,
+        targetId: edge.target,
+        label: edge.label,
+        kind: edge.kind,
+        direction: edge.direction,
+        labelPoint:
+          route.labelPoint ?? route.points[Math.floor(route.points.length / 2)] ?? route.points[0],
+      })),
+    [edgeRoutes],
+  );
+  const interaction = useDiagramCanvasInteractions({
+    interactiveFeatures,
+    contentBounds: bounds,
+    nodes: nodeDescriptors,
+    edges: edgeDescriptors,
+    viewport,
+    defaultViewport,
+    onViewportChange,
+    highlightedElement,
+    defaultHighlightedElement,
+    onHighlightedElementChange,
+    searchQuery,
+    defaultSearchQuery,
+    onSearchQueryChange,
+    focusedSearchResult,
+    onFocusedSearchResultChange,
+    inspectedEdgeId,
+    defaultInspectedEdgeId,
+    onInspectedEdgeIdChange,
+    getSearchText,
+    renderEdgeInspector,
+    padding,
+  });
+  const setScrollAreaElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvasSettingsScrollAreaElement(element);
+      interaction.setScrollAreaElement(element);
+    },
+    [interaction, setCanvasSettingsScrollAreaElement],
+  );
   const markerIds = {
     arrow: `relationship-arrow-${markerPrefix}`,
   };
@@ -334,17 +420,23 @@ function RelationshipMap({
       {...props}
     >
       <div
+        ref={setScrollAreaElement}
         data-slot="relationship-map-scroll-area"
         aria-label={`${ariaLabel} scroll area`}
-        className="overflow-auto"
+        className="relative overflow-auto"
         tabIndex={0}
       >
         <svg
+          {...canvasSettingsSvgProps}
           data-slot="relationship-map-svg"
           role={onNodeSelect || nodeActions ? "group" : "img"}
           aria-label={ariaLabel}
-          viewBox={viewBox}
-          className="block min-h-72 w-full min-w-160 text-foreground"
+          viewBox={interactiveFeatures ? interaction.viewBox : viewBox}
+          className={cn(
+            "block min-h-72 w-full min-w-160 text-foreground",
+            diagramCanvasLabelVisibilityClass,
+          )}
+          {...interaction.svgProps}
         >
           <defs>
             <marker
@@ -363,7 +455,7 @@ function RelationshipMap({
           {positionedNodes.length ? (
             <>
               <g data-slot="relationship-map-edges">
-                {validEdges.map((edge, edgeIndex) => (
+                {edgeRoutes.map(({ edge, edgeIndex, route }) => (
                   <RelationshipMapEdgeShape
                     key={edge.id}
                     edge={edge}
@@ -371,6 +463,9 @@ function RelationshipMap({
                     obstacles={positionedNodes}
                     markerId={markerIds.arrow}
                     edgeIndex={edgeIndex}
+                    route={route}
+                    highlightState={interaction.getEdgeHighlightState(edge.id)}
+                    interactionProps={interaction.getEdgeInteractionProps(edge.id)}
                   />
                 ))}
               </g>
@@ -392,7 +487,12 @@ function RelationshipMap({
                     onToggleGroup={
                       node.summary ? () => toggleGroup(node.summary!.groupId, false) : undefined
                     }
-                    setNodeRef={setNodeRef}
+                    setNodeRef={(nodeId, element) => {
+                      setNodeRef(nodeId, element);
+                      interaction.setNodeElement(nodeId, element);
+                    }}
+                    highlightState={interaction.getNodeHighlightState(node.id)}
+                    interactionProps={interaction.getNodeInteractionProps(node.id)}
                   />
                 ))}
               </g>
@@ -410,6 +510,8 @@ function RelationshipMap({
             </text>
           )}
         </svg>
+        {interaction.overlay}
+        {canvasSettingsMenu}
       </div>
       {caption ? (
         <figcaption
@@ -429,12 +531,18 @@ function RelationshipMapEdgeShape({
   obstacles,
   markerId,
   edgeIndex,
+  route: providedRoute,
+  highlightState,
+  interactionProps,
 }: {
   edge: RelationshipMapEdge;
   nodes: Map<string, RenderRelationshipMapNode>;
   obstacles: readonly RenderRelationshipMapNode[];
   markerId: string;
   edgeIndex: number;
+  route?: ReturnType<typeof getHullRoute>;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const source = nodes.get(edge.source);
   const target = nodes.get(edge.target);
@@ -443,15 +551,17 @@ function RelationshipMapEdgeShape({
     return null;
   }
 
-  const route = getHullRoute({
-    source,
-    target,
-    edgeIndex,
-    obstacles,
-    points: edge.points,
-    waypoints: edge.waypoints,
-    selfLoop: source.id === target.id,
-  });
+  const route =
+    providedRoute ??
+    getHullRoute({
+      source,
+      target,
+      edgeIndex,
+      obstacles,
+      points: edge.points,
+      waypoints: edge.waypoints,
+      selfLoop: source.id === target.id,
+    });
   const points = route.points;
   const path = pointsToPath(points);
   const direction = edge.direction ?? "forward";
@@ -459,7 +569,14 @@ function RelationshipMapEdgeShape({
   const markerUrl = `url(#${markerId})`;
 
   return (
-    <g data-slot="relationship-map-edge" data-kind={edge.kind ?? "default"}>
+    <g
+      data-diagram-edge="true"
+      data-slot="relationship-map-edge"
+      data-kind={edge.kind ?? "default"}
+      data-highlight-state={highlightState}
+      className="transition-opacity data-[highlight-state=dimmed]:opacity-25"
+      {...interactionProps}
+    >
       <path
         d={path}
         fill="none"
@@ -470,6 +587,7 @@ function RelationshipMapEdgeShape({
       />
       {edge.label && labelPoint ? (
         <foreignObject
+          data-diagram-label="true"
           data-slot="relationship-map-edge-label"
           x={labelPoint.x - 70}
           y={labelPoint.y - 26}
@@ -499,6 +617,8 @@ function RelationshipMapInteractiveNode({
   onNodeActionSelect,
   onToggleGroup,
   setNodeRef,
+  highlightState,
+  interactionProps,
 }: {
   node: RenderRelationshipMapNode;
   selected: boolean;
@@ -516,6 +636,8 @@ function RelationshipMapInteractiveNode({
   onNodeActionSelect?: RelationshipMapProps["onNodeActionSelect"];
   onToggleGroup?: () => void;
   setNodeRef: (nodeId: string, element: SVGGElement | null) => void;
+  highlightState?: "active" | "related" | "dimmed";
+  interactionProps?: React.SVGProps<SVGGElement>;
 }) {
   const resolvedActions =
     typeof nodeActions === "function" ? nodeActions(node) : (nodeActions ?? []);
@@ -528,6 +650,7 @@ function RelationshipMapInteractiveNode({
       data-selected={selected ? "true" : undefined}
       data-focused={focused ? "true" : undefined}
       data-disabled={disabled ? "true" : undefined}
+      data-highlight-state={highlightState}
       role={onNodeSelect && !resolvedActions.length ? "button" : undefined}
       aria-label={onNodeSelect && !resolvedActions.length ? accessibleName : undefined}
       aria-pressed={onNodeSelect && !resolvedActions.length ? selected : undefined}
@@ -538,6 +661,7 @@ function RelationshipMapInteractiveNode({
         onNodeSelect &&
           "cursor-pointer focus-visible:[&_[data-slot='relationship-map-node-focus']]:stroke-ring",
         disabled && "opacity-60",
+        "transition-opacity data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot='relationship-map-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot='relationship-map-node']>div]:ring-ring/60",
       )}
       onClick={
         onNodeSelect && !disabled
@@ -546,8 +670,17 @@ function RelationshipMapInteractiveNode({
             }
           : undefined
       }
-      onFocus={() => onNodeFocus(node)}
-      onKeyDown={(event) => onNodeKeyDown(event, node)}
+      onPointerEnter={interactionProps?.onPointerEnter}
+      onPointerLeave={interactionProps?.onPointerLeave}
+      onFocus={(event) => {
+        interactionProps?.onFocus?.(event);
+        onNodeFocus(node);
+      }}
+      onBlur={interactionProps?.onBlur}
+      onKeyDown={(event) => {
+        interactionProps?.onKeyDown?.(event);
+        onNodeKeyDown(event, node);
+      }}
       ref={(element) => setNodeRef(node.id, element)}
     >
       {selected ? (

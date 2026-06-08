@@ -182,6 +182,45 @@ export const RelationshipMapStory: Story = {
   },
 };
 
+export const InteractiveCanvasRelationshipMapStory: Story = {
+  name: "Interactive Canvas Relationship Map",
+  render: () => (
+    <StoryFrame>
+      <RelationshipMap
+        ariaLabel="Interactive canvas relationship map"
+        interactiveFeatures={true}
+        nodes={[
+          { id: "product", label: "Product", description: "Priorities", x: 0, y: 90 },
+          { id: "design", label: "Design", description: "Components", x: 280, y: 0 },
+          { id: "engineering", label: "Engineering", description: "Package", x: 280, y: 180 },
+          { id: "governance", label: "Governance", description: "Approval", x: 560, y: 90 },
+        ]}
+        edges={[
+          { id: "product-design", source: "product", target: "design", label: "briefs" },
+          {
+            id: "engineering-governance",
+            source: "engineering",
+            target: "governance",
+            label: "submits",
+            kind: "risk",
+          },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Zoom in" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Search diagram" }));
+    await userEvent.type(canvas.getByRole("textbox", { name: "Search diagram" }), "briefs");
+    await expect(canvas.getByText("1 / 1")).toBeVisible();
+    const edge = canvasElement.querySelector('[data-slot="relationship-map-edge"]');
+    if (edge instanceof Element) {
+      await userEvent.hover(edge);
+    }
+    await expect(canvas.getByRole("tooltip")).toBeVisible();
+  },
+};
+
 export const GanttChartStory: Story = {
   name: "Gantt Chart",
   render: () => (
@@ -322,6 +361,36 @@ export const DependencyGraphStory: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("img", { name: "Story dependency graph" })).toBeVisible();
     await expect(canvas.getByText("Diagrams")).toBeVisible();
+  },
+};
+
+export const InteractiveCanvasDependencyGraphStory: Story = {
+  name: "Interactive Canvas Dependency Graph",
+  render: () => (
+    <StoryFrame>
+      <DependencyGraph
+        ariaLabel="Interactive canvas dependency graph"
+        interactiveFeatures={true}
+        nodes={[
+          { id: "app", label: "App", x: 0, y: 90 },
+          { id: "diagrams", label: "Diagrams", status: "active", x: 280, y: 0 },
+          { id: "ui", label: "UI", status: "stable", x: 560, y: 90 },
+          { id: "docs", label: "Docs", status: "stable", x: 280, y: 190 },
+        ]}
+        edges={[
+          { id: "app-diagrams", source: "app", target: "diagrams", label: "imports" },
+          { id: "diagrams-ui", source: "diagrams", target: "ui", label: "peer", kind: "peer" },
+          { id: "diagrams-docs", source: "diagrams", target: "docs", label: "documents" },
+        ]}
+      />
+    </StoryFrame>
+  ),
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Zoom in" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Search diagram" }));
+    await userEvent.type(canvas.getByRole("textbox", { name: "Search diagram" }), "documents");
+    await expect(canvas.getByText("1 / 1")).toBeVisible();
+    await expect(canvas.getByRole("dialog")).toBeVisible();
   },
 };
 

@@ -13,3 +13,13 @@ export * from "./state-machine-diagram";
 export * from "./swimlane-diagram";
 export * from "./timeline-diagram";
 export * from "./uml-diagram";
+export type {
+  DiagramEdgeInspectorContext,
+  DiagramElementKind,
+  DiagramElementRef,
+  DiagramInteractiveFeatures,
+  DiagramPathHighlightMode,
+  DiagramSearchResult,
+  DiagramViewport,
+  DiagramViewportChangeReason,
+} from "./components/diagram-utils";
