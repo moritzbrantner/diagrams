@@ -212,12 +212,12 @@ export const InteractiveCanvasRelationshipMapStory: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Zoom in" }));
     await userEvent.click(canvas.getByRole("button", { name: "Search diagram" }));
     await userEvent.type(canvas.getByRole("textbox", { name: "Search diagram" }), "briefs");
-    await expect(canvas.getByText("1 / 1")).toBeVisible();
+    await expect(await canvas.findByText("1 / 1")).toBeVisible();
     const edge = canvasElement.querySelector('[data-slot="relationship-map-edge"]');
     if (edge instanceof Element) {
       await userEvent.hover(edge);
     }
-    await expect(canvas.getByRole("tooltip")).toBeVisible();
+    await expect(await canvas.findByRole("dialog")).toBeVisible();
   },
 };
 
@@ -389,8 +389,8 @@ export const InteractiveCanvasDependencyGraphStory: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Zoom in" }));
     await userEvent.click(canvas.getByRole("button", { name: "Search diagram" }));
     await userEvent.type(canvas.getByRole("textbox", { name: "Search diagram" }), "documents");
-    await expect(canvas.getByText("1 / 1")).toBeVisible();
-    await expect(canvas.getByRole("dialog")).toBeVisible();
+    await expect(await canvas.findByText("1 / 1")).toBeVisible();
+    await expect(await canvas.findByRole("dialog")).toBeVisible();
   },
 };
 

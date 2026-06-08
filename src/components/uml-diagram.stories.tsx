@@ -345,8 +345,8 @@ export const InteractiveCanvasUmlDiagram: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Zoom in" }));
     await userEvent.click(canvas.getByRole("button", { name: "Search diagram" }));
     await userEvent.type(canvas.getByRole("textbox", { name: "Search diagram" }), "command");
-    await expect(canvas.getByText("1 / 1")).toBeVisible();
-    await expect(canvas.getByRole("dialog")).toBeVisible();
+    await expect(await canvas.findByText("1 / 1")).toBeVisible();
+    await expect(await canvas.findByRole("dialog")).toBeVisible();
   },
 };
 
