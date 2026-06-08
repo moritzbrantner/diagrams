@@ -848,6 +848,15 @@ export function getFittedViewport(bounds: DiagramBounds, padding = 32): DiagramV
   };
 }
 
+function diagramViewportEquals(first: DiagramViewport, second: DiagramViewport) {
+  return (
+    first.x === second.x &&
+    first.y === second.y &&
+    first.width === second.width &&
+    first.height === second.height
+  );
+}
+
 export function zoomViewportAtPoint(
   viewport: DiagramViewport,
   point: DiagramPoint,
@@ -1062,9 +1071,24 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
     () => resolveDiagramInteractiveFeatures(interactiveFeatures),
     [interactiveFeatures],
   );
+  const {
+    x: contentBoundsX,
+    y: contentBoundsY,
+    width: contentBoundsWidth,
+    height: contentBoundsHeight,
+  } = contentBounds;
   const fittedViewport = React.useMemo(
-    () => getFittedViewport(contentBounds, padding),
-    [contentBounds, padding],
+    () =>
+      getFittedViewport(
+        {
+          height: contentBoundsHeight,
+          width: contentBoundsWidth,
+          x: contentBoundsX,
+          y: contentBoundsY,
+        },
+        padding,
+      ),
+    [contentBoundsHeight, contentBoundsWidth, contentBoundsX, contentBoundsY, padding],
   );
   const initialViewport = defaultViewport ?? fittedViewport;
   const [internalViewport, setInternalViewport] = React.useState<DiagramViewport>(initialViewport);
@@ -1094,7 +1118,11 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
 
   React.useEffect(() => {
     if (viewport === undefined && defaultViewport === undefined) {
-      queueMicrotask(() => setInternalViewport(fittedViewport));
+      queueMicrotask(() =>
+        setInternalViewport((currentViewport) =>
+          diagramViewportEquals(currentViewport, fittedViewport) ? currentViewport : fittedViewport,
+        ),
+      );
     }
   }, [defaultViewport, fittedViewport, viewport]);
 
@@ -1104,7 +1132,9 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
       const constrained = clampDiagramViewport(nextViewport, fittedViewport);
 
       if (viewport === undefined) {
-        setInternalViewport(constrained);
+        setInternalViewport((currentViewport) =>
+          diagramViewportEquals(currentViewport, constrained) ? currentViewport : constrained,
+        );
       }
 
       onViewportChange?.(constrained, reason);
