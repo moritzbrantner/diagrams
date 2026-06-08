@@ -223,6 +223,7 @@ describe("RelationshipMap", () => {
         nodes={[
           { id: "product", label: "Product", x: 0, y: 0 },
           { id: "sales", label: "Sales", x: 280, y: 0 },
+          { id: "support", label: "Support", x: 560, y: 0 },
         ]}
         edges={[{ id: "briefs", source: "product", target: "sales", label: "briefs" }]}
       />,
@@ -241,7 +242,26 @@ describe("RelationshipMap", () => {
     expect(svg.getAttribute("data-show-labels")).toBe("false");
     expect(labelsToggle.getAttribute("aria-checked")).toBe("false");
     expect(container.querySelector('[data-diagram-label="true"]')).toBeTruthy();
-    expect(container.querySelector('[data-diagram-edge="true"]')).toBeTruthy();
+    const product = container.querySelector<SVGGElement>(
+      '[data-slot="relationship-map-node-interaction"][data-node-id="product"]',
+    );
+    const sales = container.querySelector<SVGGElement>(
+      '[data-slot="relationship-map-node-interaction"][data-node-id="sales"]',
+    );
+    const support = container.querySelector<SVGGElement>(
+      '[data-slot="relationship-map-node-interaction"][data-node-id="support"]',
+    );
+    const edge = container.querySelector<SVGGElement>('[data-diagram-edge="true"]');
+
+    if (!product || !sales || !support || !edge) {
+      throw new Error("Expected relationship map edge hover targets");
+    }
+
+    fireEvent.pointerEnter(edge);
+    expect(edge.getAttribute("data-highlight-state")).toBe("active");
+    expect(product.getAttribute("data-highlight-state")).toBe("related");
+    expect(sales.getAttribute("data-highlight-state")).toBe("related");
+    expect(support.getAttribute("data-highlight-state")).toBe("dimmed");
     expect(svg.getAttribute("class")).toContain("hover");
   });
 

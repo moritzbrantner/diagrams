@@ -1335,12 +1335,13 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
     hoveredElement ??
     (features.search ? effectiveFocusedSearchResult?.ref : null) ??
     (highlightedElement !== undefined ? highlightedElement : internalHighlightedElement);
+  const shouldResolveConnectedElements = features.pathHighlight || Boolean(hoveredElement);
   const connectedElements = React.useMemo(
     () =>
-      features.pathHighlight
+      shouldResolveConnectedElements
         ? getConnectedElementIds(edges, activeElement ?? null, features.pathHighlightMode)
         : { nodeIds: new Set<string>(), edgeIds: new Set<string>() },
-    [activeElement, edges, features.pathHighlight, features.pathHighlightMode],
+    [activeElement, edges, features.pathHighlightMode, shouldResolveConnectedElements],
   );
 
   React.useEffect(() => {
