@@ -23,7 +23,7 @@ describe("package contract", () => {
     expect(packageJson.private).toBe(false);
     expect(packageJson.license).toBe("MIT");
     expect(packageJson.peerDependencies).toMatchObject({
-      "@moritzbrantner/ui": "^0.9.1",
+      "@moritzbrantner/ui": "^1.0.0",
       react: "^19.0.0",
       "react-dom": "^19.0.0",
     });

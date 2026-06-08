@@ -32,7 +32,7 @@ The package is published to public npm.
 | -------------------- | --------------------------- | ------------------------------------------------------- |
 | React                | `^19.0.0`                   | Required for exported React diagram primitives.         |
 | React DOM            | `^19.0.0`                   | Required for examples and React rendering.              |
-| `@moritzbrantner/ui` | `^0.9.1`                    | Provides the shared Atlas stylesheet and design tokens. |
+| `@moritzbrantner/ui` | `^1.0.0`                    | Provides the shared Atlas stylesheet and design tokens. |
 | TypeScript           | Repository compiler version | Public types are checked from the generated package.    |
 
 ## API Stability

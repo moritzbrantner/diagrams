@@ -66,7 +66,7 @@ try {
     }
   }
 
-  assertPeerDependency(packageJson, "@moritzbrantner/ui", "^0.9.1");
+  assertPeerDependency(packageJson, "@moritzbrantner/ui", "^1.0.0");
   assertPeerDependency(packageJson, "react", "^19.0.0");
   assertPeerDependency(packageJson, "react-dom", "^19.0.0");
 
