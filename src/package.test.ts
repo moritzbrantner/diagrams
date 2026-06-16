@@ -60,6 +60,10 @@ describe("package contract", () => {
         types: "./dist/dependency-graph.d.ts",
         import: "./dist/dependency-graph.js",
       },
+      "./diagram-types": {
+        types: "./dist/diagram-types.d.ts",
+        import: "./dist/diagram-types.js",
+      },
       "./entity-relationship-diagram": {
         types: "./dist/entity-relationship-diagram.d.ts",
         import: "./dist/entity-relationship-diagram.js",
@@ -136,9 +140,11 @@ describe("package contract", () => {
       "api:check": "bun run build && node ./scripts/check-api-report.mjs",
       "audit:production": "bun audit --production",
       "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
+      "docs:check": "typedoc --emit none --treatWarningsAsErrors",
       "quality:pages": "bun run test:unlighthouse",
       "test:unlighthouse": "node ./scripts/run-unlighthouse.mjs",
-      "verify:release": "bun run verify && bun run bench:diagrams",
+      "verify:release":
+        "bun run verify && node ./scripts/check-release-state.mjs && bun run bench:diagrams",
       "version-packages": "changeset version",
     });
   });

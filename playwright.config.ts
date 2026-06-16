@@ -19,11 +19,23 @@ export default defineConfig({
   projects: [
     {
       name: "desktop-chromium",
+      testMatch: "examples/src/**/*.e2e.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "mobile-chromium",
+      testMatch: "examples/src/**/*.e2e.spec.ts",
       use: { ...devices["Pixel 5"] },
+    },
+    {
+      name: "desktop-firefox-smoke",
+      testMatch: "examples/src/**/*.cross-browser.spec.ts",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "desktop-webkit-smoke",
+      testMatch: "examples/src/**/*.cross-browser.spec.ts",
+      use: { ...devices["Desktop Safari"] },
     },
   ],
 });

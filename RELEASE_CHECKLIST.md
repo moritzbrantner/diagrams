@@ -8,6 +8,9 @@
 - Changeset present for package-facing changes.
 - Public API report updated intentionally when `etc/diagrams.api.md` changes.
 - Changelog entry explains migration steps for breaking changes.
+- `bun run verify:release` is run only after Changesets have versioned pending
+  release notes into `CHANGELOG.md`; it fails when `.changeset/*.md` files are
+  still pending.
 
 ## Performance budget
 

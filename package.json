@@ -1,6 +1,6 @@
 {
   "name": "@moritzbrantner/diagrams",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "homepage": "https://moritzbrantner.github.io/diagrams/",
   "bugs": {
@@ -34,6 +34,10 @@
     "./dependency-graph": {
       "types": "./dist/dependency-graph.d.ts",
       "import": "./dist/dependency-graph.js"
+    },
+    "./diagram-types": {
+      "types": "./dist/diagram-types.d.ts",
+      "import": "./dist/diagram-types.js"
     },
     "./entity-relationship-diagram": {
       "types": "./dist/entity-relationship-diagram.d.ts",
@@ -100,7 +104,7 @@
     "check-types": "tsc --noEmit",
     "dev": "vite",
     "docs": "typedoc",
-    "docs:check": "typedoc --emit none",
+    "docs:check": "typedoc --emit none --treatWarningsAsErrors",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "eslint . --max-warnings 0",
@@ -116,7 +120,7 @@
     "test:unlighthouse": "node ./scripts/run-unlighthouse.mjs",
     "test:visual": "playwright test -c playwright.visual.config.ts",
     "verify": "bun run check-types && bun run lint && bun run format:check && bun run docs:check && bun run test:coverage && bun run api:check && bun run build:examples && bun run pack:check && bun run test:e2e && bun run build:storybook && bun run test:storybook && bun run test:visual && bun run test:unlighthouse",
-    "verify:release": "bun run verify && bun run bench:diagrams",
+    "verify:release": "bun run verify && node ./scripts/check-release-state.mjs && bun run bench:diagrams",
     "version-packages": "changeset version"
   },
   "dependencies": {

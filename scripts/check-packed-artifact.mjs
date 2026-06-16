@@ -92,7 +92,9 @@ try {
     path.join(consumerDir, "import-check.mjs"),
     [
       `const specifiers = ${JSON.stringify(
-        entrypoints.map((entrypoint) => entrypoint.packageSpecifier),
+        entrypoints
+          .filter((entrypoint) => entrypoint.name !== "diagram-types")
+          .map((entrypoint) => entrypoint.packageSpecifier),
         null,
         2,
       )};`,
@@ -157,6 +159,11 @@ try {
       stdio: "inherit",
     },
   );
+  writeBundlerSmokeApp(consumerDir, packageJson);
+  execFileSync(path.join(rootDir, "node_modules", ".bin", "vite"), ["build"], {
+    cwd: consumerDir,
+    stdio: "inherit",
+  });
 
   console.log("@moritzbrantner/diagrams packed artifact import and type checks passed.");
 } finally {
@@ -210,6 +217,104 @@ function linkInstalledModules(sourceNodeModules, targetNodeModules) {
       symlinkSync(sourcePath, targetPath, entry.isDirectory() ? "dir" : "file");
     }
   }
+}
+
+function writeBundlerSmokeApp(consumerDir, packageJson) {
+  const sourceDir = path.join(consumerDir, "src");
+
+  mkdirSync(sourceDir, { recursive: true });
+  writeFileSync(
+    path.join(consumerDir, "package.json"),
+    JSON.stringify(
+      {
+        private: true,
+        scripts: {
+          build: "vite build",
+        },
+        type: "module",
+        dependencies: {
+          "@moritzbrantner/diagrams": "file:../extract/package",
+          "@moritzbrantner/ui": packageJson.peerDependencies["@moritzbrantner/ui"],
+          react: packageJson.peerDependencies.react,
+          "react-dom": packageJson.peerDependencies["react-dom"],
+        },
+        devDependencies: {
+          "@vitejs/plugin-react": "^latest",
+          vite: "^latest",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(
+    path.join(consumerDir, "index.html"),
+    [
+      "<!doctype html>",
+      '<html lang="en">',
+      "  <head>",
+      '    <meta charset="UTF-8" />',
+      '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+      "    <title>Diagrams packed artifact smoke</title>",
+      "  </head>",
+      "  <body>",
+      '    <div id="root"></div>',
+      '    <script type="module" src="/src/main.tsx"></script>',
+      "  </body>",
+      "</html>",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    path.join(sourceDir, "main.tsx"),
+    [
+      'import "@moritzbrantner/ui/atlas/styles.css";',
+      "",
+      'import { DependencyGraph, RelationshipMap } from "@moritzbrantner/diagrams";',
+      'import { createRoot } from "react-dom/client";',
+      "",
+      "function App() {",
+      "  return (",
+      '    <main style={{ display: "grid", gap: 24, padding: 24 }}>',
+      "      <RelationshipMap",
+      '        ariaLabel="Packed static relationship map"',
+      '        nodes={[{ id: "api", label: "API", x: 0, y: 0 }, { id: "db", label: "Database", x: 260, y: 0 }]}',
+      '        edges={[{ id: "api-db", source: "api", target: "db", label: "reads" }]}',
+      "      />",
+      "      <DependencyGraph",
+      '        ariaLabel="Packed interactive dependency graph"',
+      "        interactiveFeatures",
+      '        selectedNodeId="pkg"',
+      "        onNodeSelect={() => undefined}",
+      '        nodes={[{ id: "app", label: "App", x: 0, y: 0 }, { id: "pkg", label: "Package", x: 260, y: 0 }]}',
+      '        edges={[{ id: "app-pkg", source: "app", target: "pkg", label: "uses" }]}',
+      "      />",
+      "    </main>",
+      "  );",
+      "}",
+      "",
+      'createRoot(document.getElementById("root")!).render(<App />);',
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    path.join(consumerDir, "tsconfig.json"),
+    JSON.stringify(
+      {
+        compilerOptions: {
+          jsx: "react-jsx",
+          module: "ESNext",
+          moduleResolution: "Bundler",
+          skipLibCheck: true,
+          strict: true,
+          target: "ES2022",
+        },
+        include: ["src/**/*.ts", "src/**/*.tsx"],
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 function toNamespaceName(name) {

@@ -119,8 +119,9 @@ export default tseslint.config(
     },
   },
   {
+    // Legacy diagram renderers still mix SVG/DOM calculations with broad data shapes.
+    // Keep these scoped while the files are split and typed more narrowly.
     files: [
-      "src/components/chart/*.tsx",
       "src/components/gantt-chart.tsx",
       "src/components/org-chart.tsx",
       "src/components/process-map.tsx",
@@ -137,6 +138,18 @@ export default tseslint.config(
       "import/order": "off",
       "jsx-a11y/no-noninteractive-tabindex": "off",
       "prefer-const": "off",
+    },
+  },
+  {
+    // Hook cleanup debt: these files rely on memoized diagram state assembled from
+    // mutable DOM refs and large option objects. Remove entries one component at a time.
+    files: [
+      "src/components/gantt-chart.tsx",
+      "src/components/org-chart.tsx",
+      "src/components/process-map.tsx",
+      "src/components/relationship-map.tsx",
+    ],
+    rules: {
       "react-hooks/exhaustive-deps": "off",
       "react-hooks/immutability": "off",
       "react-hooks/preserve-manual-memoization": "off",

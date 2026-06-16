@@ -41,6 +41,109 @@ The package is pre-`1.0`. Public APIs may change, but intentional changes are tr
 Changesets, changelog entries, and the committed API report in `etc/diagrams.api.md`. Breaking
 changes should include migration notes.
 
+## Styling Contract
+
+Diagram components use the shared Atlas token classes from `@moritzbrantner/ui`. Import the
+stylesheet once in the consuming app before rendering diagrams:
+
+```ts
+import "@moritzbrantner/ui/atlas/styles.css";
+```
+
+The package does not inject global styles at runtime. If the stylesheet is omitted, diagrams still
+render structurally, but colors, spacing, borders, focus rings, and dark-mode tokens are not
+guaranteed to match the documented examples.
+
+## Which Diagram Should I Use?
+
+| Use case                                      | Component                       |
+| --------------------------------------------- | ------------------------------- |
+| Service maps, boundaries, queues, data stores | `ArchitectureDiagram`           |
+| Branching decisions and outcomes              | `DecisionTree`                  |
+| Package, module, team, or service dependency  | `DependencyGraph`               |
+| Tables, fields, keys, cardinality             | `EntityRelationshipDiagram`     |
+| Scheduled work across dates                   | `GanttChart`                    |
+| Phased user/customer journeys                 | `JourneyMap`                    |
+| Radial or tree-like idea decomposition        | `MindMap`                       |
+| Hierarchical teams or ownership               | `OrgChart`                      |
+| Linear workflow status                        | `ProcessMap`                    |
+| Stakeholder, ownership, risk, or control maps | `RelationshipMap`               |
+| Ordered participant interactions              | `SequenceDiagram`               |
+| States, transitions, guards, terminal states  | `StateMachineDiagram`           |
+| Work grouped by team, role, or system         | `SwimlaneDiagram`               |
+| Milestones and events over time               | `TimelineDiagram`               |
+| UML class, state, or general node-edge views  | `UmlDiagram`, `UmlClassDiagram` |
+
+Choose the most specific component first. Use `RelationshipMap`, `DependencyGraph`, or `UmlDiagram`
+when the domain is genuinely a node-edge graph and none of the stricter structures fit.
+
+## Interactive Diagrams
+
+SVG-backed graph diagrams share optional interactive canvas props from `DiagramInteractiveProps`.
+Set `interactiveFeatures` to `true` for the full bundle, or pass an object to choose features:
+
+- `viewport` enables pan, wheel zoom, fit, reset, and controlled viewport callbacks.
+- `pathHighlight` highlights neighbors, incoming paths, outgoing paths, or connected paths.
+- `search` adds diagram search and focuses matching nodes or edges.
+- `edgeInspector` exposes hover/focus tooltips and click-open edge details.
+- `controls` controls whether the floating toolbar is automatic, always visible, or hidden.
+
+```tsx
+import * as React from "react";
+import {
+  RelationshipMap,
+  type DiagramElementRef,
+  type DiagramViewport,
+} from "@moritzbrantner/diagrams";
+
+export function InteractiveServiceMap() {
+  const [viewport, setViewport] = React.useState<DiagramViewport>();
+  const [highlightedElement, setHighlightedElement] = React.useState<DiagramElementRef | null>(
+    null,
+  );
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [inspectedEdgeId, setInspectedEdgeId] = React.useState<string | null>(null);
+
+  return (
+    <RelationshipMap
+      ariaLabel="Interactive service relationship map"
+      interactiveFeatures={{
+        controls: "always",
+        edgeInspector: true,
+        pathHighlight: { mode: "neighbors" },
+        search: true,
+        viewport: true,
+      }}
+      viewport={viewport}
+      onViewportChange={setViewport}
+      highlightedElement={highlightedElement}
+      onHighlightedElementChange={setHighlightedElement}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      inspectedEdgeId={inspectedEdgeId}
+      onInspectedEdgeIdChange={setInspectedEdgeId}
+      renderEdgeInspector={(context) => (
+        <div className="grid gap-1">
+          <strong>{context.label ?? context.edgeId}</strong>
+          <span>
+            {context.sourceId} to {context.targetId}
+          </span>
+        </div>
+      )}
+      nodes={[
+        { id: "web", label: "Web", x: 0, y: 0 },
+        { id: "api", label: "API", x: 280, y: 0 },
+        { id: "db", label: "Database", x: 560, y: 0 },
+      ]}
+      edges={[
+        { id: "web-api", source: "web", target: "api", label: "requests" },
+        { id: "api-db", source: "api", target: "db", label: "reads" },
+      ]}
+    />
+  );
+}
+```
+
 ## Example Page
 
 Run the local example page for experimentation:

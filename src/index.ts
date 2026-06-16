@@ -14,12 +14,17 @@ export * from "./swimlane-diagram";
 export * from "./timeline-diagram";
 export * from "./uml-diagram";
 export type {
+  DiagramDirection,
   DiagramEdgeInspectorContext,
   DiagramElementKind,
   DiagramElementRef,
   DiagramInteractiveFeatures,
+  DiagramInteractiveProps,
+  DiagramItemAction,
   DiagramPathHighlightMode,
+  DiagramPoint,
   DiagramSearchResult,
+  DiagramTone,
   DiagramViewport,
   DiagramViewportChangeReason,
-} from "./components/diagram-utils";
+} from "./diagram-types";

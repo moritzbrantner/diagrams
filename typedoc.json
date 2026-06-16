@@ -8,7 +8,6 @@
   "excludeInternal": true,
   "excludePrivate": true,
   "hideGenerator": true,
-  "intentionallyNotExported": ["THEMES", "TooltipNameType"],
   "includeVersion": true,
   "navigationLinks": {
     "GitHub": "https://github.com/moritzbrantner/diagrams"

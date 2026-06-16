@@ -11,6 +11,7 @@
       "@moritzbrantner/diagrams/architecture-diagram": ["./src/architecture-diagram.ts"],
       "@moritzbrantner/diagrams/decision-tree": ["./src/decision-tree.ts"],
       "@moritzbrantner/diagrams/dependency-graph": ["./src/dependency-graph.ts"],
+      "@moritzbrantner/diagrams/diagram-types": ["./src/diagram-types.ts"],
       "@moritzbrantner/diagrams/entity-relationship-diagram": [
         "./src/entity-relationship-diagram.ts"
       ],

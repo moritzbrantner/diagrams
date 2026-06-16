@@ -16,6 +16,8 @@ import { StateMachineDiagram } from "./state-machine-diagram";
 import { SwimlaneDiagram } from "./swimlane-diagram";
 import { TimelineDiagram } from "./timeline-diagram";
 
+import type { ComponentProps } from "react";
+
 const orgNodes = [
   {
     id: "vp",
@@ -290,6 +292,92 @@ describe("RelationshipMap", () => {
     expect(svg.getAttribute("style")).toContain("height:");
 
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(svg.getAttribute("viewBox")).not.toBe(initialViewBox);
+  });
+
+  test("supports wheel scrolling, shifted horizontal scrolling, and ctrl wheel zoom", () => {
+    const { container } = render(
+      <RelationshipMap
+        ariaLabel="Wheel interaction map"
+        nodes={[
+          { id: "start", label: "Start", x: 0, y: 0 },
+          { id: "far", label: "Far away", x: 1800, y: 900 },
+        ]}
+        edges={[{ id: "start-far", source: "start", target: "far" }]}
+      />,
+    );
+    const svg = screen.getByRole("img", { name: "Wheel interaction map" });
+    const scrollArea = container.querySelector<HTMLElement>(
+      '[data-slot="relationship-map-scroll-area"]',
+    );
+
+    if (!scrollArea) {
+      throw new Error("Expected relationship map scroll area");
+    }
+
+    Object.defineProperties(scrollArea, {
+      clientHeight: { configurable: true, value: 300 },
+      clientWidth: { configurable: true, value: 400 },
+      scrollHeight: { configurable: true, value: 800 },
+      scrollWidth: { configurable: true, value: 1000 },
+    });
+
+    const verticalWheel = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 120,
+    });
+    const preventVerticalDefault = vi.spyOn(verticalWheel, "preventDefault");
+    fireEvent(svg, verticalWheel);
+    expect(scrollArea.scrollTop).toBe(120);
+    expect(preventVerticalDefault).toHaveBeenCalled();
+
+    const horizontalWheel = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 80,
+      shiftKey: true,
+    });
+    const preventHorizontalDefault = vi.spyOn(horizontalWheel, "preventDefault");
+    fireEvent(svg, horizontalWheel);
+    expect(scrollArea.scrollLeft).toBe(80);
+    expect(preventHorizontalDefault).toHaveBeenCalled();
+
+    scrollArea.scrollTop = 500;
+    const verticalEdgeWheel = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 40,
+    });
+    const preventVerticalEdgeDefault = vi.spyOn(verticalEdgeWheel, "preventDefault");
+    fireEvent(svg, verticalEdgeWheel);
+    expect(scrollArea.scrollTop).toBe(500);
+    expect(preventVerticalEdgeDefault).not.toHaveBeenCalled();
+
+    scrollArea.scrollLeft = 600;
+    const horizontalEdgeWheel = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 40,
+      shiftKey: true,
+    });
+    const preventHorizontalEdgeDefault = vi.spyOn(horizontalEdgeWheel, "preventDefault");
+    fireEvent(svg, horizontalEdgeWheel);
+    expect(scrollArea.scrollLeft).toBe(600);
+    expect(preventHorizontalEdgeDefault).not.toHaveBeenCalled();
+
+    const initialViewBox = svg.getAttribute("viewBox");
+    const zoomWheel = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 100,
+      clientY: 100,
+      ctrlKey: true,
+      deltaY: -100,
+    });
+    const preventZoomDefault = vi.spyOn(zoomWheel, "preventDefault");
+    fireEvent(svg, zoomWheel);
+    expect(preventZoomDefault).toHaveBeenCalled();
     expect(svg.getAttribute("viewBox")).not.toBe(initialViewBox);
   });
 
@@ -600,6 +688,164 @@ describe("Next diagram primitives", () => {
     );
     expect(decisionRoot).toEqual(decisionSnapshot);
     expect(mindRoot).toEqual(mindSnapshot);
+  });
+});
+
+describe("Targeted interaction hardening", () => {
+  test("ProcessMap skips disabled steps during keyboard navigation and isolates actions", () => {
+    const onFocusedStepIdChange = vi.fn();
+    const onStepActionSelect = vi.fn();
+    const onStepSelect = vi.fn();
+    const onActionSelect = vi.fn();
+
+    render(
+      <ProcessMap
+        defaultFocusedStepId="plan"
+        selectedStepId="plan"
+        steps={[
+          { id: "plan", label: "Plan" },
+          { id: "build", label: "Build" },
+          { id: "ship", label: "Ship" },
+        ]}
+        getStepDisabled={(step) => step.id === "build"}
+        stepActions={(step) => [
+          {
+            id: "inspect",
+            label: `Inspect ${step.id}`,
+            onSelect: onActionSelect,
+          },
+        ]}
+        onFocusedStepIdChange={onFocusedStepIdChange}
+        onStepActionSelect={onStepActionSelect}
+        onStepSelect={onStepSelect}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: /Plan/ }), { key: "ArrowRight" });
+    expect(onFocusedStepIdChange).toHaveBeenCalledWith(expect.objectContaining({ id: "ship" }));
+
+    fireEvent.keyDown(screen.getByRole("button", { name: /Ship/ }), { key: "Enter" });
+    expect(onStepSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "ship" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect plan" }));
+    expect(onActionSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "plan" }));
+    expect(onStepActionSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "inspect" }),
+      expect.objectContaining({ id: "plan" }),
+    );
+  });
+
+  test("OrgChart passes custom render context and keeps action clicks separate from selection", () => {
+    const onNodeActionSelect = vi.fn();
+    const onNodeSelect = vi.fn();
+    const renderNode = vi.fn<NonNullable<ComponentProps<typeof OrgChart>["renderNode"]>>(
+      (node, _depth, context) => (
+        <span data-context-expanded={context.expanded ? "true" : "false"}>{node.label}</span>
+      ),
+    );
+
+    render(
+      <OrgChart
+        nodes={orgNodes}
+        defaultExpandedIds={["vp"]}
+        selectedNodeId="vp"
+        renderNode={renderNode}
+        nodeActions={[{ id: "inspect", label: "Inspect node" }]}
+        onNodeActionSelect={onNodeActionSelect}
+        onNodeSelect={onNodeSelect}
+      />,
+    );
+
+    expect(renderNode).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "vp" }),
+      0,
+      expect.objectContaining({
+        expanded: true,
+        hasChildren: true,
+        selected: true,
+      }),
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Inspect node" })[0]!);
+    expect(onNodeActionSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "inspect" }),
+      expect.objectContaining({ id: "vp" }),
+      expect.objectContaining({ selected: true }),
+    );
+    expect(onNodeSelect).not.toHaveBeenCalled();
+  });
+
+  test("SequenceDiagram handles message and participant actions without selecting disabled items", () => {
+    const onMessageActionSelect = vi.fn();
+    const onMessageSelect = vi.fn();
+    const onParticipantActionSelect = vi.fn();
+    const onParticipantSelect = vi.fn();
+
+    render(
+      <SequenceDiagram
+        participants={[
+          { id: "client", label: "Client" },
+          { id: "api", label: "API" },
+        ]}
+        messages={[{ id: "request", from: "client", to: "api", label: "Request" }]}
+        getMessageDisabled={(message) => message.id === "request"}
+        messageActions={[{ id: "inspect-message", label: "Inspect message" }]}
+        participantActions={[{ id: "inspect-participant", label: "Inspect participant" }]}
+        onMessageActionSelect={onMessageActionSelect}
+        onMessageSelect={onMessageSelect}
+        onParticipantActionSelect={onParticipantActionSelect}
+        onParticipantSelect={onParticipantSelect}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect message" }));
+    expect(onMessageActionSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "inspect-message" }),
+      expect.objectContaining({ id: "request" }),
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Inspect participant" })[0]!);
+    expect(onParticipantActionSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "inspect-participant" }),
+      expect.objectContaining({ id: "client" }),
+    );
+    expect(onMessageSelect).not.toHaveBeenCalled();
+    expect(onParticipantSelect).not.toHaveBeenCalled();
+  });
+
+  test("TimelineDiagram filters visible ranges, groups items, and isolates action clicks", () => {
+    const onItemActionSelect = vi.fn();
+    const onItemSelect = vi.fn();
+    const onActionSelect = vi.fn();
+
+    const { container } = render(
+      <TimelineDiagram
+        items={[
+          { id: "alpha", date: "2026-01-15", label: "Alpha" },
+          { id: "beta", date: "2026-04-15", label: "Beta", meta: "Public" },
+        ]}
+        visibleRange={{ startDate: "2026-04-01", endDate: "2026-04-30" }}
+        groupBy="month"
+        itemActions={[{ id: "inspect", label: "Inspect item", onSelect: onActionSelect }]}
+        onItemActionSelect={onItemActionSelect}
+        onItemSelect={onItemSelect}
+      />,
+    );
+
+    expect(screen.queryByText("Alpha")).toBeNull();
+    expect(screen.getByText("Beta")).toBeTruthy();
+    expect(screen.getByText("Public")).toBeTruthy();
+    expect(
+      container.querySelector('[data-slot="timeline-diagram-marker"]')?.getAttribute("data-group"),
+    ).toBe("Apr 2026");
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect item" }));
+    expect(onActionSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "beta" }));
+    expect(onItemActionSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "inspect" }),
+      expect.objectContaining({ id: "beta" }),
+    );
+    expect(onItemSelect).not.toHaveBeenCalled();
   });
 });
 

@@ -12,117 +12,48 @@ import {
 } from "lucide-react";
 import * as React from "react";
 
-export type DiagramPoint = {
-  x: number;
-  y: number;
-};
+import type {
+  DiagramBounds,
+  DiagramBoundsItem,
+  DiagramEdgeDescriptor,
+  DiagramEdgeInspectorContext,
+  DiagramElementRef,
+  DiagramInteractiveFeatures,
+  DiagramInteractiveProps,
+  DiagramNodeDescriptor,
+  DiagramPathHighlightMode,
+  DiagramPoint,
+  DiagramSearchResult,
+  DiagramTone,
+  DiagramViewport,
+  DiagramViewportChangeReason,
+} from "../diagram-types";
 
-export type DiagramTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";
-export type DiagramDirection = "forward" | "backward" | "both" | "none";
-
-export type DiagramBoundsItem = {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-};
-
-export type DiagramBounds = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-export type DiagramElementKind = "node" | "edge";
-
-export type DiagramElementRef = {
-  kind: DiagramElementKind;
-  id: string;
-};
-
-export type DiagramViewport = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-export type DiagramViewportChangeReason =
-  | "fit"
-  | "reset"
-  | "pan"
-  | "zoom"
-  | "search"
-  | "programmatic";
-
-export type DiagramPathHighlightMode = "neighbors" | "incoming" | "outgoing" | "connected";
-
-export type DiagramInteractiveFeatures =
-  | boolean
-  | {
-      viewport?: boolean;
-      pathHighlight?: boolean | { mode?: DiagramPathHighlightMode };
-      search?: boolean;
-      edgeInspector?: boolean;
-      controls?: "auto" | "always" | "none";
-    };
-
-export type DiagramSearchResult<TNode, TEdge> = {
-  ref: DiagramElementRef;
-  label: string;
-  item: TNode | TEdge;
-};
-
-export type DiagramEdgeInspectorContext<TNode, TEdge> = {
-  edge: TEdge;
-  source?: TNode;
-  target?: TNode;
-  edgeId: string;
-  sourceId?: string;
-  targetId?: string;
-  label?: React.ReactNode;
-  kind?: string;
-  direction?: string;
-};
-
-export type DiagramNodeDescriptor<TNode> = {
-  id: string;
-  item: TNode;
-  label?: React.ReactNode;
-  bounds: DiagramBounds;
-};
-
-export type DiagramEdgeDescriptor<TEdge> = {
-  id: string;
-  item: TEdge;
-  sourceId: string;
-  targetId: string;
-  label?: React.ReactNode;
-  kind?: string;
-  direction?: DiagramDirection | string;
-  labelPoint?: DiagramPoint;
-};
-
-export type DiagramInteractiveProps<TNode, TEdge> = {
-  interactiveFeatures?: DiagramInteractiveFeatures;
-  viewport?: DiagramViewport;
-  defaultViewport?: DiagramViewport;
-  onViewportChange?: (viewport: DiagramViewport, reason: DiagramViewportChangeReason) => void;
-  highlightedElement?: DiagramElementRef | null;
-  defaultHighlightedElement?: DiagramElementRef | null;
-  onHighlightedElementChange?: (element: DiagramElementRef | null) => void;
-  searchQuery?: string;
-  defaultSearchQuery?: string;
-  onSearchQueryChange?: (query: string) => void;
-  focusedSearchResult?: DiagramElementRef | null;
-  onFocusedSearchResultChange?: (result: DiagramSearchResult<TNode, TEdge> | null) => void;
-  getSearchText?: (item: { kind: DiagramElementKind; id: string; item: TNode | TEdge }) => string;
-  inspectedEdgeId?: string | null;
-  defaultInspectedEdgeId?: string | null;
-  onInspectedEdgeIdChange?: (edgeId: string | null) => void;
-  renderEdgeInspector?: (context: DiagramEdgeInspectorContext<TNode, TEdge>) => React.ReactNode;
-};
+export {
+  diagramCanvasLabelVisibilityClass,
+  useDiagramCanvasSettings,
+} from "./diagram-canvas-state";
+export { useDiagramZoomControls } from "./diagram-canvas-controls";
+export { DiagramSvgItemInteraction } from "./diagram-svg-interaction";
+export type {
+  DiagramBounds,
+  DiagramBoundsItem,
+  DiagramDirection,
+  DiagramEdgeDescriptor,
+  DiagramEdgeInspectorContext,
+  DiagramElementKind,
+  DiagramElementRef,
+  DiagramInteractiveFeatures,
+  DiagramInteractiveProps,
+  DiagramItemAction,
+  DiagramNodeDescriptor,
+  DiagramPathHighlightMode,
+  DiagramPoint,
+  DiagramSearchResult,
+  DiagramTone,
+  DiagramViewport,
+  DiagramViewportChangeReason,
+} from "../diagram-types";
 
 export const defaultToneClasses: Record<DiagramTone, string> = {
   default: "border-border bg-background",
@@ -827,175 +758,8 @@ export function isActivationKey(event: React.KeyboardEvent) {
   return event.key === "Enter" || event.key === " ";
 }
 
-export type DiagramItemAction<TItem> = {
-  id: string;
-  label: React.ReactNode;
-  icon?: React.ReactNode;
-  disabled?: boolean;
-  destructive?: boolean;
-  onSelect?: (item: TItem) => void;
-};
-
-export const diagramCanvasLabelVisibilityClass =
-  "[&[data-show-labels='false']_[data-diagram-label]]:pointer-events-none [&[data-show-labels='false']_[data-diagram-label]]:opacity-0 [&[data-show-labels='false']_[data-diagram-label]]:transition-opacity [&[data-show-labels='false']_[data-diagram-edge]:hover_[data-diagram-label]]:opacity-100 [&[data-show-labels='false']_[data-diagram-edge]:focus-within_[data-diagram-label]]:opacity-100";
-
-export function useDiagramCanvasSettings({
-  defaultShowLabels = true,
-}: {
-  defaultShowLabels?: boolean;
-} = {}) {
-  const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
-  const menuRef = React.useRef<HTMLDivElement | null>(null);
-  const [showLabels, setShowLabels] = React.useState(defaultShowLabels);
-  const [menuPosition, setMenuPosition] = React.useState<{ x: number; y: number } | null>(null);
-  const setScrollAreaElement = React.useCallback((element: HTMLDivElement | null) => {
-    scrollAreaRef.current = element;
-  }, []);
-
-  React.useEffect(() => {
-    if (!menuPosition) {
-      return undefined;
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      if (event.target instanceof Node && menuRef.current?.contains(event.target)) {
-        return;
-      }
-
-      setMenuPosition(null);
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setMenuPosition(null);
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [menuPosition]);
-
-  const handleCanvasContextMenu = React.useCallback((event: React.MouseEvent<SVGSVGElement>) => {
-    const target = event.target;
-
-    if (
-      target instanceof Element &&
-      target.closest("button,a,input,select,textarea,[role='button']")
-    ) {
-      return;
-    }
-
-    const scrollArea = scrollAreaRef.current;
-
-    if (!scrollArea) {
-      return;
-    }
-
-    event.preventDefault();
-
-    const scrollAreaRect = scrollArea.getBoundingClientRect();
-
-    setMenuPosition({
-      x: event.clientX - scrollAreaRect.left + scrollArea.scrollLeft,
-      y: event.clientY - scrollAreaRect.top + scrollArea.scrollTop,
-    });
-  }, []);
-
-  const menu = menuPosition ? (
-    <div
-      ref={menuRef}
-      role="menu"
-      tabIndex={-1}
-      aria-label="Diagram settings"
-      data-slot="diagram-canvas-settings-menu"
-      className="absolute z-20 min-w-40 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-      style={{ left: menuPosition.x, top: menuPosition.y }}
-      onContextMenu={(event) => event.preventDefault()}
-    >
-      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Settings</div>
-      <button
-        type="button"
-        role="menuitemcheckbox"
-        aria-checked={showLabels}
-        data-slot="diagram-canvas-settings-labels"
-        className="flex w-full items-center justify-between gap-3 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
-        onClick={() => setShowLabels((current) => !current)}
-      >
-        <span>Labels</span>
-        <span className="text-xs text-muted-foreground">{showLabels ? "On" : "Off"}</span>
-      </button>
-    </div>
-  ) : null;
-
-  return {
-    menu,
-    setScrollAreaElement,
-    showLabels,
-    svgProps: {
-      "data-show-labels": showLabels ? "true" : "false",
-      onContextMenu: handleCanvasContextMenu,
-    },
-  } as const;
-}
-
 const diagramCanvasOverlayButtonClass =
   "inline-flex size-8 items-center justify-center rounded-sm border bg-background/90 text-foreground shadow-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4";
-
-export function useDiagramZoomControls({
-  defaultZoom = 1,
-  maxZoom = 3,
-  minZoom = 0.5,
-  step = 1.15,
-}: {
-  defaultZoom?: number;
-  maxZoom?: number;
-  minZoom?: number;
-  step?: number;
-} = {}) {
-  const [zoom, setZoom] = React.useState(defaultZoom);
-  const zoomStyle = React.useMemo(() => ({ zoom }), [zoom]);
-  const controls = (
-    <div
-      data-slot="diagram-zoom-controls"
-      className="absolute right-2 top-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1"
-    >
-      <button
-        type="button"
-        aria-label="Zoom in"
-        className={diagramCanvasOverlayButtonClass}
-        disabled={zoom >= maxZoom}
-        onClick={() => setZoom((current) => Math.min(maxZoom, current * step))}
-      >
-        <ZoomInIcon aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        aria-label="Zoom out"
-        className={diagramCanvasOverlayButtonClass}
-        disabled={zoom <= minZoom}
-        onClick={() => setZoom((current) => Math.max(minZoom, current / step))}
-      >
-        <ZoomOutIcon aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        aria-label="Reset view"
-        className={diagramCanvasOverlayButtonClass}
-        disabled={zoom === defaultZoom}
-        onClick={() => setZoom(defaultZoom)}
-      >
-        <RotateCcwIcon aria-hidden="true" />
-      </button>
-    </div>
-  );
-
-  return { controls, zoom, zoomStyle } as const;
-}
 
 type ResolvedDiagramInteractiveFeatures = {
   enabled: boolean;
@@ -1076,6 +840,48 @@ export function panViewport(viewport: DiagramViewport, delta: DiagramPoint): Dia
     x: viewport.x + delta.x,
     y: viewport.y + delta.y,
   };
+}
+
+const WHEEL_LINE_PIXEL_SIZE = 16;
+const WHEEL_PAGE_PIXEL_SIZE = 800;
+
+function getWheelDeltaPixels(
+  event: Pick<React.WheelEvent, "deltaMode" | "deltaX" | "deltaY">,
+  scrollArea: HTMLElement | null,
+) {
+  const pageSize = scrollArea?.clientHeight || WHEEL_PAGE_PIXEL_SIZE;
+  const multiplier =
+    event.deltaMode === 1 ? WHEEL_LINE_PIXEL_SIZE : event.deltaMode === 2 ? pageSize : 1;
+
+  return {
+    x: event.deltaX * multiplier,
+    y: event.deltaY * multiplier,
+  };
+}
+
+function scrollElementByWheelDelta(element: HTMLElement, axis: "x" | "y", delta: number) {
+  if (!Number.isFinite(delta) || delta === 0) {
+    return false;
+  }
+
+  const current = axis === "x" ? element.scrollLeft : element.scrollTop;
+  const max =
+    axis === "x"
+      ? Math.max(0, element.scrollWidth - element.clientWidth)
+      : Math.max(0, element.scrollHeight - element.clientHeight);
+  const next = Math.min(max, Math.max(0, current + delta));
+
+  if (Math.abs(next - current) < 0.5) {
+    return false;
+  }
+
+  if (axis === "x") {
+    element.scrollLeft = next;
+  } else {
+    element.scrollTop = next;
+  }
+
+  return true;
 }
 
 export function getDiagramPointFromClientPoint(
@@ -1529,23 +1335,41 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
       svgRef.current = element;
     },
     onWheel: (event: React.WheelEvent<SVGSVGElement>) => {
-      if (!features.viewport || (!event.ctrlKey && !event.metaKey)) {
+      if (!features.viewport) {
         return;
       }
 
-      event.preventDefault();
-      const svg = svgRef.current;
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        const svg = svgRef.current;
 
-      if (!svg) {
+        if (!svg) {
+          return;
+        }
+
+        const point = getDiagramPointFromClientPoint(svg, event.clientX, event.clientY);
+        const factor = event.deltaY > 0 ? 0.85 : 1.15;
+        setViewport(
+          zoomViewportAtPoint(currentViewport, point, factor, 0.25, 4, fittedViewport),
+          "zoom",
+        );
         return;
       }
 
-      const point = getDiagramPointFromClientPoint(svg, event.clientX, event.clientY);
-      const factor = event.deltaY > 0 ? 0.85 : 1.15;
-      setViewport(
-        zoomViewportAtPoint(currentViewport, point, factor, 0.25, 4, fittedViewport),
-        "zoom",
-      );
+      const scrollArea = scrollAreaRef.current;
+
+      if (!scrollArea) {
+        return;
+      }
+
+      const delta = getWheelDeltaPixels(event, scrollArea);
+      const consumed = event.shiftKey
+        ? scrollElementByWheelDelta(scrollArea, "x", delta.x || delta.y)
+        : scrollElementByWheelDelta(scrollArea, "y", delta.y);
+
+      if (consumed) {
+        event.preventDefault();
+      }
     },
     onPointerDown: (event: React.PointerEvent<SVGSVGElement>) => {
       if (!features.viewport || event.button !== 0 || shouldIgnoreCanvasPanTarget(event.target)) {
@@ -2126,7 +1950,7 @@ function getPrimitiveReactNodeText(value: React.ReactNode) {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
-function getDiagramEdgeInspectorContext<TNode, TEdge>(
+export function getDiagramEdgeInspectorContext<TNode, TEdge>(
   edge: DiagramEdgeDescriptor<TEdge>,
   nodes: readonly DiagramNodeDescriptor<TNode>[],
 ): DiagramEdgeInspectorContext<TNode, TEdge> {
@@ -2143,7 +1967,7 @@ function getDiagramEdgeInspectorContext<TNode, TEdge>(
   };
 }
 
-function renderDefaultDiagramEdgeInspector<TNode, TEdge>(
+export function renderDefaultDiagramEdgeInspector<TNode, TEdge>(
   context: DiagramEdgeInspectorContext<TNode, TEdge>,
 ) {
   const edge = context.edge as Record<string, unknown>;
@@ -2224,7 +2048,7 @@ function getRenderableMetadataValue(value: unknown): React.ReactNode | undefined
   return undefined;
 }
 
-function getDiagramEdgeFallbackPoint<TNode, TEdge>(
+export function getDiagramEdgeFallbackPoint<TNode, TEdge>(
   edge: DiagramEdgeDescriptor<TEdge>,
   nodes: readonly DiagramNodeDescriptor<TNode>[],
 ) {
@@ -2238,7 +2062,7 @@ function getDiagramEdgeFallbackPoint<TNode, TEdge>(
   return source ?? target ?? { x: 0, y: 0 };
 }
 
-function getInspectorOverlayStyle(
+export function getInspectorOverlayStyle(
   point: DiagramPoint,
   viewport: DiagramViewport,
   scrollArea: HTMLDivElement | null,
@@ -2259,180 +2083,6 @@ function getInspectorOverlayStyle(
     ),
     top: Math.min(scrollArea.scrollTop + height - 140, Math.max(scrollArea.scrollTop + 8, y + 12)),
   };
-}
-
-export function DiagramSvgItemInteraction<
-  TItem extends Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">> & {
-    id: string;
-    label?: React.ReactNode;
-  },
->({
-  item,
-  slot,
-  selected,
-  focused,
-  disabled,
-  keyboardMode,
-  actions,
-  accessibleName,
-  renderSelection,
-  onSelect,
-  onFocus,
-  onKeyDown,
-  onActionSelect,
-  setItemRef,
-  highlightState,
-  interactionProps,
-  children,
-}: {
-  item: TItem;
-  slot: string;
-  selected: boolean;
-  focused: boolean;
-  disabled: boolean;
-  keyboardMode: "nodes" | "none";
-  actions?: readonly DiagramItemAction<TItem>[];
-  accessibleName?: string;
-  renderSelection?: (item: TItem) => React.ReactNode;
-  onSelect?: (item: TItem) => void;
-  onFocus: (item: TItem) => void;
-  onKeyDown: (event: React.KeyboardEvent<SVGGElement>, item: TItem) => void;
-  onActionSelect?: (action: DiagramItemAction<TItem>, item: TItem) => void;
-  setItemRef: (itemId: string, element: SVGGElement | null) => void;
-  highlightState?: "active" | "related" | "dimmed";
-  interactionProps?: React.SVGProps<SVGGElement>;
-  children: React.ReactNode;
-}) {
-  const resolvedActions = actions ?? [];
-  const resolvedAccessibleName = accessibleName ?? getReactNodeAccessibleName(item.label, item.id);
-  const role = onSelect && resolvedActions.length === 0 ? "button" : undefined;
-
-  return (
-    <g
-      data-slot={`${slot}-interaction`}
-      data-item-id={item.id}
-      data-selected={selected ? "true" : undefined}
-      data-focused={focused ? "true" : undefined}
-      data-disabled={disabled ? "true" : undefined}
-      data-highlight-state={highlightState}
-      role={role}
-      aria-label={role ? resolvedAccessibleName : undefined}
-      aria-pressed={role ? selected : undefined}
-      aria-disabled={role ? disabled || undefined : undefined}
-      tabIndex={keyboardMode === "nodes" && focused && !disabled ? 0 : -1}
-      className={[
-        "outline-none",
-        onSelect ? `cursor-pointer focus-visible:[&_[data-slot='${slot}-focus']]:stroke-ring` : "",
-        disabled ? "opacity-60" : "",
-        "transition-opacity data-[highlight-state=related]:opacity-100 data-[disabled=true]:data-[highlight-state=related]:opacity-60 data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot$='-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot$='-node']>div]:ring-ring/60 data-[highlight-state=active]:[&_[data-slot$='-summary-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot$='-summary-node']>div]:ring-ring/60",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      onClick={onSelect && !disabled ? () => onSelect(item) : undefined}
-      onPointerEnter={interactionProps?.onPointerEnter}
-      onPointerLeave={interactionProps?.onPointerLeave}
-      onFocus={(event) => {
-        interactionProps?.onFocus?.(event);
-        onFocus(item);
-      }}
-      onBlur={interactionProps?.onBlur}
-      onKeyDown={(event) => {
-        interactionProps?.onKeyDown?.(event);
-        onKeyDown(event, item);
-      }}
-      ref={(element) => setItemRef(item.id, element)}
-    >
-      {selected ? (
-        (renderSelection?.(item) ?? (
-          <rect
-            data-slot={`${slot}-focus`}
-            x={item.x - 6}
-            y={item.y - 6}
-            width={item.width + 12}
-            height={item.height + 12}
-            rx="12"
-            className="fill-transparent stroke-primary stroke-2"
-          />
-        ))
-      ) : focused ? (
-        <rect
-          data-slot={`${slot}-focus`}
-          x={item.x - 6}
-          y={item.y - 6}
-          width={item.width + 12}
-          height={item.height + 12}
-          rx="12"
-          className="fill-transparent stroke-ring stroke-2"
-        />
-      ) : null}
-      {children}
-      {resolvedActions.length ? (
-        <DiagramSvgItemActions
-          actions={resolvedActions}
-          item={item}
-          slot={slot}
-          onActionSelect={onActionSelect}
-        />
-      ) : null}
-    </g>
-  );
-}
-
-function DiagramSvgItemActions<TItem extends { id: string }>({
-  actions,
-  item,
-  slot,
-  onActionSelect,
-}: {
-  actions: readonly DiagramItemAction<TItem>[];
-  item: TItem & Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
-  slot: string;
-  onActionSelect?: (action: DiagramItemAction<TItem>, item: TItem) => void;
-}) {
-  const actionSize = 28;
-  const actionGap = 4;
-  const width = actions.length * actionSize + Math.max(0, actions.length - 1) * actionGap;
-
-  return (
-    <foreignObject
-      data-slot={`${slot}-actions`}
-      x={item.x + item.width - width - 8}
-      y={item.y + item.height - actionSize - 8}
-      width={width}
-      height={actionSize}
-    >
-      <div className="flex gap-1">
-        {actions.map((action) => (
-          <button
-            key={action.id}
-            type="button"
-            data-slot={`${slot}-action`}
-            data-action-id={action.id}
-            data-destructive={action.destructive ? "true" : undefined}
-            aria-label={getReactNodeAccessibleName(action.label, action.id)}
-            disabled={action.disabled}
-            className={[
-              "inline-flex size-7 items-center justify-center rounded-sm border bg-background/90 text-xs font-medium text-foreground shadow-sm outline-none transition-colors",
-              "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
-              action.destructive
-                ? "text-destructive hover:bg-destructive/10 hover:text-destructive"
-                : "",
-              "[&_svg]:size-3.5",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            onClick={(event) => {
-              event.stopPropagation();
-              action.onSelect?.(item);
-              onActionSelect?.(action, item);
-            }}
-          >
-            {action.icon ?? action.label}
-          </button>
-        ))}
-      </div>
-    </foreignObject>
-  );
 }
 
 function getItemCenter(item: DiagramBoundsItem): DiagramPoint {
