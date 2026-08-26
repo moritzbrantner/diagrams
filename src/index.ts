@@ -1,3 +1,4 @@
+// Compatibility entry point. Prefer /core for server-safe model/state helpers and /react for client UI.
 export * from "./architecture-diagram";
 export * from "./decision-tree";
 export * from "./dependency-graph";
@@ -13,18 +14,24 @@ export * from "./state-machine-diagram";
 export * from "./swimlane-diagram";
 export * from "./timeline-diagram";
 export * from "./uml-diagram";
+export * from "./view-state";
+export * from "./structured-data";
 export type {
+  DiagramBounds,
+  DiagramBoundsItem,
   DiagramDirection,
-  DiagramEdgeInspectorContext,
   DiagramElementKind,
   DiagramElementRef,
   DiagramInteractiveFeatures,
-  DiagramInteractiveProps,
-  DiagramItemAction,
   DiagramPathHighlightMode,
   DiagramPoint,
-  DiagramSearchResult,
   DiagramTone,
   DiagramViewport,
   DiagramViewportChangeReason,
+} from "./diagram-core-types";
+export type {
+  DiagramEdgeInspectorContext,
+  DiagramInteractiveProps,
+  DiagramItemAction,
+  DiagramSearchResult,
 } from "./diagram-types";
