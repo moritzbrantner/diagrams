@@ -25,7 +25,9 @@
       "@moritzbrantner/diagrams/state-machine-diagram": ["./src/state-machine-diagram.ts"],
       "@moritzbrantner/diagrams/swimlane-diagram": ["./src/swimlane-diagram.ts"],
       "@moritzbrantner/diagrams/timeline-diagram": ["./src/timeline-diagram.ts"],
-      "@moritzbrantner/diagrams/uml-diagram": ["./src/uml-diagram.ts"]
+      "@moritzbrantner/diagrams/uml-diagram": ["./src/uml-diagram.ts"],
+      "@moritzbrantner/diagrams/core": ["./src/core.ts"],
+      "@moritzbrantner/diagrams/react": ["./src/react.ts"]
     },
     "skipLibCheck": true,
     "strict": true,

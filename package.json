@@ -87,6 +87,14 @@
       "types": "./dist/uml-diagram.d.ts",
       "import": "./dist/uml-diagram.js"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

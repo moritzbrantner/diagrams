@@ -22,6 +22,7 @@ Import the shared UI stylesheet once in your app:
 
 ```ts
 import "@moritzbrantner/ui/atlas/styles.css";
+import "@moritzbrantner/ui/component-sources.css";
 ```
 
 The package is published to public npm.
@@ -34,6 +35,32 @@ The package is published to public npm.
 | React DOM            | `^19.0.0`                   | Required for examples and React rendering.              |
 | `@moritzbrantner/ui` | `^1.0.0`                    | Provides the shared Atlas stylesheet and design tokens. |
 | TypeScript           | Repository compiler version | Public types are checked from the generated package.    |
+
+## Package Boundaries
+
+The package separates server-safe diagram state from interactive React rendering:
+
+- `@moritzbrantner/diagrams/core` exposes diagram geometry/state types and shareable view-state
+  codecs without runtime React imports. It is safe for server-rendered code, workers, scripts, and
+  non-React coordination.
+- `@moritzbrantner/diagrams/react` exposes the React diagram components plus the core state
+  helpers. In Next.js, keep this import behind the smallest client boundary that needs interaction.
+- Specific diagram entrypoints such as `@moritzbrantner/diagrams/dependency-graph` remain
+  available when a consumer wants one focused component.
+
+The package does not own routing. Applications can synchronize durable view state with their URL
+without coupling diagrams to Next.js or another router.
+
+## Shareable And Accessible Diagram State
+
+`encodeDiagramViewState` and `decodeDiagramViewState` serialize durable viewport, search,
+highlight, and inspected-edge state to URL query parameters. Use them from the core entrypoint and
+let the application decide when the URL should change.
+
+Interactive diagrams should also have a structured representation when their content affects a
+user decision. Hosts can render their source nodes/edges, entities, steps, or milestones as a list,
+`DescriptionList`, or `DataGrid` alongside the graphical canvas. The diagram package keeps the
+visualization controlled so the same source data can drive both representations.
 
 ## API Stability
 
@@ -48,6 +75,7 @@ stylesheet once in the consuming app before rendering diagrams:
 
 ```ts
 import "@moritzbrantner/ui/atlas/styles.css";
+import "@moritzbrantner/ui/component-sources.css";
 ```
 
 The package does not inject global styles at runtime. If the stylesheet is omitted, diagrams still
