@@ -8,13 +8,16 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@moritzbrantner/diagrams": ["./src/index.ts"],
+      "@moritzbrantner/diagrams/core": ["./src/core.ts"],
+      "@moritzbrantner/diagrams/react": ["./src/react.ts"],
+      "@moritzbrantner/diagrams/diagram-core-types": ["./src/diagram-core-types.ts"],
+      "@moritzbrantner/diagrams/view-state": ["./src/view-state.ts"],
+      "@moritzbrantner/diagrams/structured-data": ["./src/structured-data.ts"],
       "@moritzbrantner/diagrams/architecture-diagram": ["./src/architecture-diagram.ts"],
       "@moritzbrantner/diagrams/decision-tree": ["./src/decision-tree.ts"],
       "@moritzbrantner/diagrams/dependency-graph": ["./src/dependency-graph.ts"],
       "@moritzbrantner/diagrams/diagram-types": ["./src/diagram-types.ts"],
-      "@moritzbrantner/diagrams/entity-relationship-diagram": [
-        "./src/entity-relationship-diagram.ts"
-      ],
+      "@moritzbrantner/diagrams/entity-relationship-diagram": ["./src/entity-relationship-diagram.ts"],
       "@moritzbrantner/diagrams/gantt-chart": ["./src/gantt-chart.ts"],
       "@moritzbrantner/diagrams/journey-map": ["./src/journey-map.ts"],
       "@moritzbrantner/diagrams/mind-map": ["./src/mind-map.ts"],
