@@ -1,4 +1,4 @@
-import { cn } from "@moritzbrantner/ui";
+import { cn } from "../../internal/cn";
 
 import { defaultToneClasses } from "../diagram-utils";
 

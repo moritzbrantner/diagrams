@@ -15,8 +15,17 @@ density-aware data visualizations, analytical chart controls, and chart data pro
 ## Installation
 
 ```sh
-bun add @moritzbrantner/diagrams @moritzbrantner/ui react react-dom
+bun add @moritzbrantner/diagrams react react-dom
 ```
+
+Import the package-owned stylesheet once when using the React renderers:
+
+```ts
+import "@moritzbrantner/diagrams/styles.css";
+```
+
+The published package does not require `@moritzbrantner/ui`. Theme surfaces can be
+overridden with the `--diagrams-*` CSS custom properties.
 
 Import the shared UI stylesheet once in your app:
 

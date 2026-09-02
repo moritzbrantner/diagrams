@@ -1,4 +1,4 @@
-import { cn } from "@moritzbrantner/ui";
+import { cn } from "../../internal/cn";
 import { Minimize2Icon } from "lucide-react";
 
 import { defaultSvgToneClasses } from "../diagram-utils";

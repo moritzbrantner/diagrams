@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@moritzbrantner/ui";
+import { cn } from "../../internal/cn";
 import * as React from "react";
 
 import {

@@ -40,7 +40,8 @@ export function decodeDiagramViewState(input: string | URLSearchParams): Diagram
   const highlightedElement = parseElementRef(params.get("highlight"));
   const edge = params.get("edge")?.trim();
   const search = params.get("search")?.trim();
-  const collapsed = params.get("collapsed")
+  const collapsed = params
+    .get("collapsed")
     ?.split(",")
     .map((value) => value.trim())
     .filter(Boolean);
