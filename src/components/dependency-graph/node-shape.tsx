@@ -1,5 +1,4 @@
 import { cn } from "../../internal/cn";
-
 import { defaultToneClasses } from "../diagram-utils";
 
 import { statusTone } from "./constants";

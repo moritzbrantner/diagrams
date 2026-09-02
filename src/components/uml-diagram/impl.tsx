@@ -1,8 +1,8 @@
 "use client";
 
-import { cn } from "../../internal/cn";
 import * as React from "react";
 
+import { cn } from "../../internal/cn";
 import {
   diagramCanvasLabelVisibilityClass,
   getDiagramCanvasStyle,

@@ -1,6 +1,6 @@
-import { cn } from "../../internal/cn";
 import { Minimize2Icon } from "lucide-react";
 
+import { cn } from "../../internal/cn";
 import { defaultSvgToneClasses } from "../diagram-utils";
 
 import { getDependencyGraphPartAccessibleName } from "./labels";

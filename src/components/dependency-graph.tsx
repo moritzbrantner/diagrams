@@ -1,7 +1,8 @@
 "use client";
 
-import { cn } from "../internal/cn";
 import * as React from "react";
+
+import { cn } from "../internal/cn";
 
 import { edgeToneByKind } from "./dependency-graph/constants";
 import { DependencyGraphEdgeShape } from "./dependency-graph/edge-shape";
