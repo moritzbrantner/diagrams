@@ -15,7 +15,9 @@
     "dist"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -107,7 +109,8 @@
       "types": "./dist/uml-diagram.d.ts",
       "import": "./dist/uml-diagram.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./styles.css": "./dist/styles.css"
   },
   "publishConfig": {
     "access": "public",
@@ -117,7 +120,7 @@
     "api:check": "bun run build && node ./scripts/check-api-report.mjs",
     "audit:production": "bun audit --production",
     "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
-    "build": "node ./scripts/build.mjs",
+    "build": "node ./scripts/build.mjs && vite build --config vite.styles.config.ts",
     "build:examples": "vite build --outDir ../dist-examples --emptyOutDir && node ./scripts/check-example-bundles.mjs && bun run docs && node ./scripts/copy-docs-to-examples.mjs",
     "build:storybook": "storybook build --output-dir storybook-static",
     "changeset": "changeset",
@@ -186,7 +189,6 @@
     "vitest": "^4.1.2"
   },
   "peerDependencies": {
-    "@moritzbrantner/ui": "^1.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

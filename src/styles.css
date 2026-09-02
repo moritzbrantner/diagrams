@@ -1,0 +1,69 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "./components/**/*.{ts,tsx}";
+@source "./internal/**/*.{ts,tsx}";
+
+:root {
+  --diagrams-background: oklch(1 0 0);
+  --diagrams-foreground: oklch(0.21 0.034 264.665);
+  --diagrams-card: oklch(1 0 0);
+  --diagrams-card-foreground: oklch(0.21 0.034 264.665);
+  --diagrams-primary: oklch(0.278 0.033 256.848);
+  --diagrams-primary-foreground: oklch(0.985 0.002 247.839);
+  --diagrams-secondary: oklch(0.967 0.003 264.542);
+  --diagrams-secondary-foreground: oklch(0.278 0.033 256.848);
+  --diagrams-muted: oklch(0.967 0.003 264.542);
+  --diagrams-muted-foreground: oklch(0.551 0.027 264.364);
+  --diagrams-accent: oklch(0.967 0.003 264.542);
+  --diagrams-accent-foreground: oklch(0.278 0.033 256.848);
+  --diagrams-destructive: oklch(0.577 0.245 27.325);
+  --diagrams-border: oklch(0.928 0.006 264.531);
+  --diagrams-input: oklch(0.928 0.006 264.531);
+  --diagrams-ring: oklch(0.707 0.022 261.325);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --diagrams-background: oklch(0.145 0.02 264.695);
+    --diagrams-foreground: oklch(0.985 0.002 247.839);
+    --diagrams-card: oklch(0.205 0.025 263.442);
+    --diagrams-card-foreground: oklch(0.985 0.002 247.839);
+    --diagrams-primary: oklch(0.922 0.006 264.531);
+    --diagrams-primary-foreground: oklch(0.205 0.025 263.442);
+    --diagrams-secondary: oklch(0.269 0.018 264.442);
+    --diagrams-secondary-foreground: oklch(0.985 0.002 247.839);
+    --diagrams-muted: oklch(0.269 0.018 264.442);
+    --diagrams-muted-foreground: oklch(0.707 0.022 261.325);
+    --diagrams-accent: oklch(0.269 0.018 264.442);
+    --diagrams-accent-foreground: oklch(0.985 0.002 247.839);
+    --diagrams-destructive: oklch(0.704 0.191 22.216);
+    --diagrams-border: oklch(1 0 0 / 10%);
+    --diagrams-input: oklch(1 0 0 / 15%);
+    --diagrams-ring: oklch(0.551 0.027 264.364);
+  }
+}
+
+@theme inline {
+  --color-background: var(--diagrams-background);
+  --color-foreground: var(--diagrams-foreground);
+  --color-card: var(--diagrams-card);
+  --color-card-foreground: var(--diagrams-card-foreground);
+  --color-primary: var(--diagrams-primary);
+  --color-primary-foreground: var(--diagrams-primary-foreground);
+  --color-secondary: var(--diagrams-secondary);
+  --color-secondary-foreground: var(--diagrams-secondary-foreground);
+  --color-muted: var(--diagrams-muted);
+  --color-muted-foreground: var(--diagrams-muted-foreground);
+  --color-accent: var(--diagrams-accent);
+  --color-accent-foreground: var(--diagrams-accent-foreground);
+  --color-destructive: var(--diagrams-destructive);
+  --color-border: var(--diagrams-border);
+  --color-input: var(--diagrams-input);
+  --color-ring: var(--diagrams-ring);
+}
+
+.mb-diagram-root {
+  color: var(--diagrams-foreground);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}

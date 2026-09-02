@@ -1,6 +1,7 @@
-import { cn } from "@moritzbrantner/ui";
 import { Maximize2Icon, Minimize2Icon } from "lucide-react";
 import * as React from "react";
+
+import { cn } from "../../internal/cn";
 
 import {
   getDependencyGraphActionAccessibleLabel,

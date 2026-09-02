@@ -3,7 +3,7 @@
 import * as React from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
-import { cn } from "@moritzbrantner/ui";
+import { cn } from "../internal/cn";
 
 import { useDiagramZoomControls } from "./diagram-utils";
 

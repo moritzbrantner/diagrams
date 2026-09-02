@@ -40,7 +40,8 @@ export function decodeDiagramViewState(input: string | URLSearchParams): Diagram
   const highlightedElement = parseElementRef(params.get("highlight"));
   const edge = params.get("edge")?.trim();
   const search = params.get("search")?.trim();
-  const collapsed = params.get("collapsed")
+  const collapsed = params
+    .get("collapsed")
     ?.split(",")
     .map((value) => value.trim())
     .filter(Boolean);
@@ -73,10 +74,10 @@ function parseViewport(value: string | null): DiagramViewport | null {
     return null;
   }
   const viewport: DiagramViewport = {
-    x: parts[0]!,
-    y: parts[1]!,
-    width: parts[2]!,
-    height: parts[3]!,
+    x: parts[0],
+    y: parts[1],
+    width: parts[2],
+    height: parts[3],
   };
   return isFiniteViewport(viewport) ? viewport : null;
 }

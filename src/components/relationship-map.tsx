@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { cn } from "@moritzbrantner/ui";
+import { cn } from "../internal/cn";
 import {
   diagramCanvasLabelVisibilityClass,
   getHullRoute,

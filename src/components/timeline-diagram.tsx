@@ -1,7 +1,8 @@
 "use client";
 
-import { cn } from "@moritzbrantner/ui";
 import * as React from "react";
+
+import { cn } from "../internal/cn";
 
 import {
   clampFiniteNumber,

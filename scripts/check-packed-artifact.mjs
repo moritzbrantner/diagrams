@@ -17,6 +17,7 @@ import { getPublicEntrypoints } from "./public-entrypoints.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = mkdtempSync(path.join(tmpdir(), "diagrams-pack-check-"));
+const typeOnlyEntrypoints = new Set(["diagram-core-types", "diagram-types"]);
 
 try {
   const packed = JSON.parse(
@@ -39,6 +40,7 @@ try {
     stdio: "inherit",
   });
   assertFile(path.join(packageDir, "package.json"));
+  assertFile(path.join(packageDir, "dist", "styles.css"));
 
   const packageJson = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
   const entrypoints = getPublicEntrypoints(packageJson);
@@ -56,7 +58,13 @@ try {
     }
   }
 
-  assertPeerDependency(packageJson, "@moritzbrantner/ui", "^1.0.0");
+  if (
+    packageJson.dependencies?.["@moritzbrantner/ui"] ||
+    packageJson.peerDependencies?.["@moritzbrantner/ui"]
+  ) {
+    throw new Error("Packed diagrams package must not require @moritzbrantner/ui.");
+  }
+
   assertPeerDependency(packageJson, "react", "^19.0.0");
   assertPeerDependency(packageJson, "react-dom", "^19.0.0");
 
@@ -79,7 +87,6 @@ try {
         type: "module",
         dependencies: {
           "@moritzbrantner/diagrams": "file:../extract/package",
-          "@moritzbrantner/ui": packageJson.peerDependencies["@moritzbrantner/ui"],
           react: packageJson.peerDependencies.react,
           "react-dom": packageJson.peerDependencies["react-dom"],
         },
@@ -93,7 +100,7 @@ try {
     [
       `const specifiers = ${JSON.stringify(
         entrypoints
-          .filter((entrypoint) => entrypoint.name !== "diagram-types")
+          .filter((entrypoint) => !typeOnlyEntrypoints.has(entrypoint.name))
           .map((entrypoint) => entrypoint.packageSpecifier),
         null,
         2,
@@ -234,7 +241,6 @@ function writeBundlerSmokeApp(consumerDir, packageJson) {
         type: "module",
         dependencies: {
           "@moritzbrantner/diagrams": "file:../extract/package",
-          "@moritzbrantner/ui": packageJson.peerDependencies["@moritzbrantner/ui"],
           react: packageJson.peerDependencies.react,
           "react-dom": packageJson.peerDependencies["react-dom"],
         },
@@ -268,7 +274,7 @@ function writeBundlerSmokeApp(consumerDir, packageJson) {
   writeFileSync(
     path.join(sourceDir, "main.tsx"),
     [
-      'import "@moritzbrantner/ui/atlas/styles.css";',
+      'import "@moritzbrantner/diagrams/styles.css";',
       "",
       'import { DependencyGraph, RelationshipMap } from "@moritzbrantner/diagrams";',
       'import { createRoot } from "react-dom/client";',

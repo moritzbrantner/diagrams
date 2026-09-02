@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@moritzbrantner/ui";
 import {
   CircleUserRoundIcon,
   CloudIcon,
@@ -11,6 +10,8 @@ import {
   ServerIcon,
 } from "lucide-react";
 import * as React from "react";
+
+import { cn } from "../internal/cn";
 
 import {
   clampFiniteNumber,

@@ -17,20 +17,23 @@ const tsconfig = JSON.parse(readFileSync("tsconfig.json", "utf8")) as {
     paths?: Record<string, string[]>;
   };
 };
-const publicExportPaths = Object.keys(packageJson.exports ?? {})
-  .filter((exportKey) => exportKey !== "." && exportKey !== "./package.json")
+const publicTypeScriptExportPaths = Object.keys(packageJson.exports ?? {})
+  .filter(
+    (exportKey) =>
+      exportKey !== "." && exportKey !== "./package.json" && exportKey !== "./styles.css",
+  )
   .map((exportKey) => `@moritzbrantner/diagrams/${exportKey.slice(2)}`);
 
 describe("package contract", () => {
-  test("is a public MIT package with expected peer contracts", () => {
+  test("is a public MIT package with standalone peer contracts", () => {
     expect(packageJson.name).toBe("@moritzbrantner/diagrams");
     expect(packageJson.private).toBe(false);
     expect(packageJson.license).toBe("MIT");
     expect(packageJson.peerDependencies).toMatchObject({
-      "@moritzbrantner/ui": "^1.0.0",
       react: "^19.0.0",
       "react-dom": "^19.0.0",
     });
+    expect(packageJson.peerDependencies?.["@moritzbrantner/ui"]).toBeUndefined();
   });
 
   test("omits chart package surfaces and density engine scripts", () => {
@@ -113,21 +116,25 @@ describe("package contract", () => {
         import: "./dist/uml-diagram.js",
       },
       "./package.json": "./package.json",
+      "./styles.css": "./dist/styles.css",
     });
   });
 
-  test("has TypeScript path coverage for every public export", () => {
+  test("has TypeScript path coverage for every TypeScript public export", () => {
     expect(tsconfig.compilerOptions?.paths?.["@moritzbrantner/diagrams"]).toEqual([
       "./src/index.ts",
     ]);
     expect(tsconfig.compilerOptions?.paths).toMatchObject(
       Object.fromEntries(
-        publicExportPaths.map((specifier) => [
+        publicTypeScriptExportPaths.map((specifier) => [
           specifier,
           [`./src/${specifier.replace("@moritzbrantner/diagrams/", "")}.ts`],
         ]),
       ),
     );
+    expect(
+      tsconfig.compilerOptions?.paths?.["@moritzbrantner/diagrams/styles.css"],
+    ).toBeUndefined();
   });
 
   test("keeps example-only React Query out of runtime dependencies", () => {
