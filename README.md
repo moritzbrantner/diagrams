@@ -27,22 +27,15 @@ import "@moritzbrantner/diagrams/styles.css";
 The published package does not require `@moritzbrantner/ui`. Theme surfaces can be
 overridden with the `--diagrams-*` CSS custom properties.
 
-Import the shared UI stylesheet once in your app:
-
-```ts
-import "@moritzbrantner/ui/atlas/styles.css";
-```
-
 The package is published to public npm.
 
 ## Support Matrix
 
-| Dependency           | Supported range             | Notes                                                   |
-| -------------------- | --------------------------- | ------------------------------------------------------- |
-| React                | `^19.0.0`                   | Required for exported React diagram primitives.         |
-| React DOM            | `^19.0.0`                   | Required for examples and React rendering.              |
-| `@moritzbrantner/ui` | `^1.0.0`                    | Provides the shared Atlas stylesheet and design tokens. |
-| TypeScript           | Repository compiler version | Public types are checked from the generated package.    |
+| Dependency | Supported range             | Notes                                                |
+| ---------- | --------------------------- | ---------------------------------------------------- |
+| React      | `^19.0.0`                   | Required for exported React diagram primitives.      |
+| React DOM  | `^19.0.0`                   | Required for examples and React rendering.           |
+| TypeScript | Repository compiler version | Public types are checked from the generated package. |
 
 ## API Stability
 
@@ -52,16 +45,16 @@ changes should include migration notes.
 
 ## Styling Contract
 
-Diagram components use the shared Atlas token classes from `@moritzbrantner/ui`. Import the
-stylesheet once in the consuming app before rendering diagrams:
+Diagram renderers own their visual contract. Import the package stylesheet once in the consuming
+app:
 
 ```ts
-import "@moritzbrantner/ui/atlas/styles.css";
+import "@moritzbrantner/diagrams/styles.css";
 ```
 
-The package does not inject global styles at runtime. If the stylesheet is omitted, diagrams still
-render structurally, but colors, spacing, borders, focus rings, and dark-mode tokens are not
-guaranteed to match the documented examples.
+The stylesheet defines the diagram defaults and `--diagrams-*` custom properties. Consumers may
+override those properties to integrate with another design system, but `@moritzbrantner/ui` is not
+required at runtime or as a peer dependency.
 
 ## Which Diagram Should I Use?
 
