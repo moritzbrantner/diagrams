@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 import { decodeDiagramViewState } from "./core";
-
 import { ArchitectureDiagram } from "./react";
 
 import * as compatibilityApi from "./index";
