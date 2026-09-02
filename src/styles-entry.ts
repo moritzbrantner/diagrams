@@ -1,2 +1,2 @@
-// Standalone entrypoint for @moritzbrantner/diagrams/styles.css; do not add UI imports here.
+// Standalone entrypoint for @moritzbrantner/diagrams/styles.css and --diagrams-* tokens; do not add UI imports here.
 import "./styles.css";
