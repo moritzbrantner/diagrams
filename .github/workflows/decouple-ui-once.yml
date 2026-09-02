@@ -27,8 +27,13 @@ jobs:
           from pathlib import Path
 
           src_root = Path("src")
+          source_paths = [
+              path
+              for path in [*src_root.rglob("*.ts"), *src_root.rglob("*.tsx")]
+              if path.is_file()
+          ]
           changed_cn_imports = 0
-          for path in [*src_root.rglob("*.ts"), *src_root.rglob("*.tsx")]:
+          for path in source_paths:
               text = path.read_text()
               exact = 'import { cn } from "@moritzbrantner/ui";'
               if exact not in text:
@@ -42,7 +47,7 @@ jobs:
           if changed_cn_imports == 0:
               raise SystemExit("expected production cn imports from @moritzbrantner/ui")
 
-          for path in [*src_root.rglob("*.ts"), *src_root.rglob("*.tsx")]:
+          for path in source_paths:
               if ".test." in path.name or ".spec." in path.name or "stories" in path.parts:
                   continue
               if "@moritzbrantner/ui" in path.read_text():
