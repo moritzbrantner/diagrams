@@ -7,7 +7,14 @@ export function readPackageJson(rootDir) {
 
 export function getPublicEntrypoints(packageJson) {
   return Object.entries(packageJson.exports)
-    .filter(([exportKey]) => exportKey !== "./package.json")
+    .filter(
+      ([exportKey, exportValue]) =>
+        exportKey !== "./package.json" &&
+        typeof exportValue === "object" &&
+        exportValue !== null &&
+        "import" in exportValue &&
+        "types" in exportValue,
+    )
     .map(([exportKey, exportValue]) => {
       const name = exportKey === "." ? "index" : exportKey.slice(2);
 
