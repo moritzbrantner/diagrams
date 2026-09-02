@@ -42,8 +42,35 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Check Dependency Graph availability
+        id: dependency-graph
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Dependency Graph is unavailable; falling back to Bun production audit."
+          fi
+
       - name: Dependency review
+        if: steps.dependency-graph.outputs.available == 'true'
         uses: actions/dependency-review-action@v5
+
+      - name: Set up Bun fallback
+        if: steps.dependency-graph.outputs.available != 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies for fallback audit
+        if: steps.dependency-graph.outputs.available != 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Production dependency audit fallback
+        if: steps.dependency-graph.outputs.available != 'true'
+        run: bun run audit:production
 
   quality:
     name: Quality
