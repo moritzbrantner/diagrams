@@ -74,10 +74,10 @@ function parseViewport(value: string | null): DiagramViewport | null {
     return null;
   }
   const viewport: DiagramViewport = {
-    x: parts[0]!,
-    y: parts[1]!,
-    width: parts[2]!,
-    height: parts[3]!,
+    x: parts[0],
+    y: parts[1],
+    width: parts[2],
+    height: parts[3],
   };
   return isFiniteViewport(viewport) ? viewport : null;
 }
