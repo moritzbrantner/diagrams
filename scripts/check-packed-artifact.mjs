@@ -17,6 +17,7 @@ import { getPublicEntrypoints } from "./public-entrypoints.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = mkdtempSync(path.join(tmpdir(), "diagrams-pack-check-"));
+const typeOnlyEntrypoints = new Set(["diagram-core-types", "diagram-types"]);
 
 try {
   const packed = JSON.parse(
@@ -93,7 +94,7 @@ try {
     [
       `const specifiers = ${JSON.stringify(
         entrypoints
-          .filter((entrypoint) => entrypoint.name !== "diagram-types")
+          .filter((entrypoint) => !typeOnlyEntrypoints.has(entrypoint.name))
           .map((entrypoint) => entrypoint.packageSpecifier),
         null,
         2,
@@ -268,7 +269,7 @@ function writeBundlerSmokeApp(consumerDir, packageJson) {
   writeFileSync(
     path.join(sourceDir, "main.tsx"),
     [
-      'import "@moritzbrantner/ui/atlas/styles.css";',
+      'import "@moritzbrantner/diagrams/styles.css";',
       "",
       'import { DependencyGraph, RelationshipMap } from "@moritzbrantner/diagrams";',
       'import { createRoot } from "react-dom/client";',
