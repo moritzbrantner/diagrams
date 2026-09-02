@@ -132,7 +132,9 @@ describe("package contract", () => {
         ]),
       ),
     );
-    expect(tsconfig.compilerOptions?.paths?.["@moritzbrantner/diagrams/styles.css"]).toBeUndefined();
+    expect(
+      tsconfig.compilerOptions?.paths?.["@moritzbrantner/diagrams/styles.css"],
+    ).toBeUndefined();
   });
 
   test("keeps example-only React Query out of runtime dependencies", () => {
