@@ -96,7 +96,11 @@ jobs:
         run: bun run test:coverage
 
       - name: Check public API report
-        run: bun run api:check
+        run: |
+          bun run api:check || {
+            cat temp/diagrams.api.md
+            exit 1
+          }
 
       - name: Production dependency audit
         run: bun run audit:production
