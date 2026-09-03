@@ -3,6 +3,11 @@ import { resolve } from "node:path";
 
 import { describe, expect, test } from "vitest";
 
+import { decodeDiagramViewState } from "./core";
+import { ArchitectureDiagram } from "./react";
+
+import * as compatibilityApi from "./index";
+
 type PackageJson = {
   exports?: Record<string, { import?: string; types?: string } | string>;
 };
@@ -19,6 +24,11 @@ describe("package entrypoint boundaries", () => {
       import: "./dist/react.js",
       types: "./dist/react.d.ts",
     });
+  });
+
+  test("keeps source entrypoints aligned with the compatibility surface", () => {
+    expect(compatibilityApi.decodeDiagramViewState).toBe(decodeDiagramViewState);
+    expect(compatibilityApi.ArchitectureDiagram).toBe(ArchitectureDiagram);
   });
 
   test("keeps core source free of React and component imports", () => {
