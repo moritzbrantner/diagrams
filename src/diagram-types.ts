@@ -1,16 +1,14 @@
-import type * as React from "react";
-
 import type {
   DiagramBounds,
   DiagramDirection,
   DiagramElementKind,
   DiagramElementRef,
   DiagramInteractiveFeatures,
-  DiagramPathHighlightMode,
   DiagramPoint,
   DiagramViewport,
   DiagramViewportChangeReason,
 } from "./diagram-core-types";
+import type * as React from "react";
 
 export type {
   DiagramBounds,
