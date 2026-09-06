@@ -27,6 +27,18 @@
       "types": "./dist/core.d.ts",
       "import": "./dist/core.js"
     },
+    "./layout": {
+      "types": "./dist/layout.d.ts",
+      "import": "./dist/layout.js"
+    },
+    "./wasm-runtime": {
+      "types": "./dist/wasm-runtime.d.ts",
+      "import": "./dist/wasm-runtime.js"
+    },
+    "./wasm": {
+      "types": "./dist/wasm/diagrams_wasm.d.ts",
+      "import": "./dist/wasm/diagrams_wasm.js"
+    },
     "./react": {
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
@@ -117,9 +129,11 @@
     "api:check": "bun run build && node ./scripts/check-api-report.mjs",
     "audit:production": "bun audit --production",
     "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
+    "bench:rust": "cargo run -p diagrams-core --release --example benchmark",
     "build": "node ./scripts/build.mjs",
-    "build:examples": "vite build --outDir ../dist-examples --emptyOutDir && node ./scripts/check-example-bundles.mjs && bun run docs && node ./scripts/copy-docs-to-examples.mjs",
+    "build:examples": "bun run build:wasm && vite build --outDir ../dist-examples --emptyOutDir && node ./scripts/check-example-bundles.mjs && bun run docs && node ./scripts/copy-docs-to-examples.mjs",
     "build:storybook": "storybook build --output-dir storybook-static",
+    "build:wasm": "node ./scripts/build-diagrams-wasm.mjs",
     "changeset": "changeset",
     "check-types": "tsc --noEmit",
     "dev": "vite",
@@ -128,19 +142,20 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "eslint . --max-warnings 0",
-    "pack:check": "bun run build && publint --pack bun --strict && node ./scripts/check-packed-artifact.mjs",
-    "prepack": "bun run build",
+    "pack:check": "bun run build && bun run build:wasm && publint --pack bun --strict && node ./scripts/check-packed-artifact.mjs",
+    "prepack": "bun run build && bun run build:wasm",
     "quality:pages": "bun run test:unlighthouse",
     "release": "changeset publish",
     "storybook": "storybook dev -p 6006",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
+    "test:e2e": "bun run build:wasm && playwright test",
     "test:storybook": "playwright test -c playwright.storybook.config.ts",
     "test:unlighthouse": "node ./scripts/run-unlighthouse.mjs",
     "test:visual": "playwright test -c playwright.visual.config.ts",
-    "verify": "bun run check-types && bun run lint && bun run format:check && bun run docs:check && bun run test:coverage && bun run api:check && bun run build:examples && bun run pack:check && bun run test:e2e && bun run build:storybook && bun run test:storybook && bun run test:visual && bun run test:unlighthouse",
-    "verify:release": "bun run verify && node ./scripts/check-release-state.mjs && bun run bench:diagrams",
+    "verify": "bun run check-types && bun run lint && bun run format:check && bun run docs:check && bun run test:coverage && bun run api:check && bun run verify:rust && bun run build:examples && bun run pack:check && bun run test:e2e && bun run build:storybook && bun run test:storybook && bun run test:visual && bun run test:unlighthouse",
+    "verify:release": "bun run verify && node ./scripts/check-release-state.mjs && bun run bench:diagrams && bun run bench:rust",
+    "verify:rust": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace",
     "version-packages": "changeset version"
   },
   "dependencies": {
