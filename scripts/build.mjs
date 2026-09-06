@@ -33,6 +33,8 @@ execFileSync(
     "--clean",
     "--out-dir",
     "dist",
+    "--external",
+    "@moritzbrantner/diagrams/wasm",
   ],
   {
     cwd: rootDir,

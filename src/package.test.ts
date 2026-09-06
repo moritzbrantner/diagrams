@@ -33,13 +33,13 @@ describe("package contract", () => {
     });
   });
 
-  test("omits chart package surfaces and density engine scripts", () => {
+  test("keeps diagram computation local instead of importing chart or viz engines", () => {
     expect(packageJson.exports?.["./charts"]).toBeUndefined();
     expect(tsconfig.compilerOptions?.paths?.["@moritzbrantner/diagrams/charts"]).toBeUndefined();
     expect(packageJson.peerDependencies?.recharts).toBeUndefined();
     expect(packageJson.dependencies?.["@moritzbrantner/viz-engine"]).toBeUndefined();
-    expect(packageJson.scripts?.["build:wasm"]).toBeUndefined();
-    expect(packageJson.scripts?.["test:wasm"]).toBeUndefined();
+    expect(packageJson.scripts?.["build:wasm"]).toBe("node ./scripts/build-diagrams-wasm.mjs");
+    expect(packageJson.scripts?.["verify:rust"]).toContain("cargo clippy");
   });
 
   test("exports root and all public subpaths", () => {
@@ -47,6 +47,22 @@ describe("package contract", () => {
       ".": {
         types: "./dist/index.d.ts",
         import: "./dist/index.js",
+      },
+      "./core": {
+        types: "./dist/core.d.ts",
+        import: "./dist/core.js",
+      },
+      "./layout": {
+        types: "./dist/layout.d.ts",
+        import: "./dist/layout.js",
+      },
+      "./wasm-runtime": {
+        types: "./dist/wasm-runtime.d.ts",
+        import: "./dist/wasm-runtime.js",
+      },
+      "./wasm": {
+        types: "./dist/wasm/diagrams_wasm.d.ts",
+        import: "./dist/wasm/diagrams_wasm.js",
       },
       "./architecture-diagram": {
         types: "./dist/architecture-diagram.d.ts",
@@ -122,10 +138,10 @@ describe("package contract", () => {
     ]);
     expect(tsconfig.compilerOptions?.paths).toMatchObject(
       Object.fromEntries(
-        publicExportPaths.map((specifier) => [
-          specifier,
-          [`./src/${specifier.replace("@moritzbrantner/diagrams/", "")}.ts`],
-        ]),
+        publicExportPaths.map((specifier) => {
+          const name = specifier.replace("@moritzbrantner/diagrams/", "");
+          return [specifier, [`./src/${name}${name === "wasm" ? ".d.ts" : ".ts"}`]];
+        }),
       ),
     );
   });
@@ -140,11 +156,13 @@ describe("package contract", () => {
       "api:check": "bun run build && node ./scripts/check-api-report.mjs",
       "audit:production": "bun audit --production",
       "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
+      "bench:rust": "cargo run -p diagrams-core --release --example benchmark",
+      "build:wasm": "node ./scripts/build-diagrams-wasm.mjs",
       "docs:check": "typedoc --emit none --treatWarningsAsErrors",
       "quality:pages": "bun run test:unlighthouse",
       "test:unlighthouse": "node ./scripts/run-unlighthouse.mjs",
       "verify:release":
-        "bun run verify && node ./scripts/check-release-state.mjs && bun run bench:diagrams",
+        "bun run verify && node ./scripts/check-release-state.mjs && bun run bench:diagrams && bun run bench:rust",
       "version-packages": "changeset version",
     });
   });

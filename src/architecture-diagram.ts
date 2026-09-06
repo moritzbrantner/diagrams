@@ -1,1 +1,1 @@
-export * from "./components/architecture-diagram";
+export * from "./components/architecture-diagram-rust";
