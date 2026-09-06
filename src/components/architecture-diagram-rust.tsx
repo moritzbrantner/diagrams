@@ -22,7 +22,11 @@ const DEFAULT_NODE_HEIGHT = 104;
 
 function ArchitectureDiagram(props: ArchitectureDiagramProps) {
   const runtime = useDiagramComputeRuntime();
-  const { nodes: sourceNodes, connections: sourceConnections, boundaries: sourceBoundaries } = props;
+  const {
+    nodes: sourceNodes,
+    connections: sourceConnections,
+    boundaries: sourceBoundaries,
+  } = props;
   const layout = React.useMemo(
     () =>
       runtime

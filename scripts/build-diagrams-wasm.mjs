@@ -15,14 +15,7 @@ const wasmInput = path.join(
 );
 const outDir = path.join(rootDir, "dist", "wasm");
 
-run("cargo", [
-  "build",
-  "-p",
-  "diagrams-wasm",
-  "--target",
-  "wasm32-unknown-unknown",
-  "--release",
-]);
+run("cargo", ["build", "-p", "diagrams-wasm", "--target", "wasm32-unknown-unknown", "--release"]);
 
 rmSync(outDir, { force: true, recursive: true });
 mkdirSync(outDir, { recursive: true });

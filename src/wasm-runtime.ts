@@ -10,10 +10,7 @@ import {
 type DiagramsWasmModule = {
   default?: (moduleOrPath?: unknown) => Promise<unknown>;
   layoutDiagramGraph(input: DiagramLayoutInput): DiagramLayout;
-  queryDiagramVisibility(
-    layout: DiagramLayout,
-    query: DiagramVisibilityQuery,
-  ): DiagramVisibility;
+  queryDiagramVisibility(layout: DiagramLayout, query: DiagramVisibilityQuery): DiagramVisibility;
 };
 
 let installPromise: Promise<DiagramComputeRuntime> | undefined;
