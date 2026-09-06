@@ -18,6 +18,7 @@ function getPackageAliases(rootDir: string) {
 
   return Object.keys(packageJson.exports)
     .filter((exportKey) => exportKey !== "./package.json")
+    .sort((left, right) => right.length - left.length)
     .map((exportKey) => {
       const name = exportKey === "." ? "index" : exportKey.slice(2);
       const find = exportKey === "." ? packageJson.name : `${packageJson.name}/${name}`;
