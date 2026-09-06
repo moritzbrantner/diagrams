@@ -250,7 +250,9 @@ pub fn layout_graph(input: DiagramLayoutInput) -> Result<DiagramLayout, DiagramL
         .map(|node| {
             (
                 node.id.clone(),
-                node.group_id.clone().unwrap_or_else(|| UNGROUPED.to_owned()),
+                node.group_id
+                    .clone()
+                    .unwrap_or_else(|| UNGROUPED.to_owned()),
             )
         })
         .collect::<BTreeMap<_, _>>();
@@ -282,7 +284,10 @@ pub fn layout_graph(input: DiagramLayoutInput) -> Result<DiagramLayout, DiagramL
         if nodes.is_empty() {
             continue;
         }
-        let ids = nodes.iter().map(|node| node.id.clone()).collect::<BTreeSet<_>>();
+        let ids = nodes
+            .iter()
+            .map(|node| node.id.clone())
+            .collect::<BTreeSet<_>>();
         let node_ranks = ranks(
             &ids,
             input.edges.iter().filter_map(|edge| {
@@ -357,7 +362,9 @@ pub fn query_visibility(
 ) -> Result<DiagramVisibility, DiagramLayoutError> {
     validate_bounds(query.viewport, "viewport")?;
     if !query.overscan.is_finite() || query.overscan < 0.0 {
-        return Err(DiagramLayoutError::new("overscan must be finite and non-negative"));
+        return Err(DiagramLayoutError::new(
+            "overscan must be finite and non-negative",
+        ));
     }
     let viewport = query.viewport.expand(query.overscan);
     let node_ids = layout
@@ -584,8 +591,8 @@ fn layout_local_group(
                     height: node.height,
                     group_id: node.group_id.clone(),
                 });
-                cross += cross_size(node.width, node.height, options.node_direction)
-                    + options.node_gap;
+                cross +=
+                    cross_size(node.width, node.height, options.node_direction) + options.node_gap;
             }
             primary += lane_primary + options.rank_gap;
         }
@@ -633,10 +640,7 @@ fn place_groups(
             (*rank, (primary, cross))
         })
         .collect::<BTreeMap<_, _>>();
-    let max_cross = sizes
-        .values()
-        .map(|(_, cross)| *cross)
-        .fold(0.0, f64::max);
+    let max_cross = sizes.values().map(|(_, cross)| *cross).fold(0.0, f64::max);
     let mut primary = options.padding;
     let mut result = BTreeMap::new();
     for (rank, column) in columns {
@@ -648,8 +652,8 @@ fn place_groups(
                 / 2.0;
             let (x, y) = xy(primary + offset, cross, options.group_direction);
             result.insert(group.id.clone(), DiagramPoint { x, y });
-            cross += cross_size(group.width, group.height, options.group_direction)
-                + options.group_gap;
+            cross +=
+                cross_size(group.width, group.height, options.group_direction) + options.group_gap;
         }
         primary += column_primary + options.group_gap;
     }
@@ -710,8 +714,7 @@ fn route(
                 y: source.y,
             },
         ]
-    } else if (target_center.x - source_center.x).abs()
-        >= (target_center.y - source_center.y).abs()
+    } else if (target_center.x - source_center.x).abs() >= (target_center.y - source_center.y).abs()
     {
         let forward = target_center.x >= source_center.x;
         let start = DiagramPoint {
@@ -795,9 +798,7 @@ fn center(node: &PositionedDiagramNode) -> DiagramPoint {
 fn longest_segment_midpoint(points: &[DiagramPoint]) -> DiagramPoint {
     points
         .windows(2)
-        .max_by(|left, right| {
-            distance(left[0], left[1]).total_cmp(&distance(right[0], right[1]))
-        })
+        .max_by(|left, right| distance(left[0], left[1]).total_cmp(&distance(right[0], right[1])))
         .map(|segment| DiagramPoint {
             x: (segment[0].x + segment[1].x) / 2.0,
             y: (segment[0].y + segment[1].y) / 2.0,
