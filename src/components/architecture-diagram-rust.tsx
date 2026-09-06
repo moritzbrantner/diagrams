@@ -39,7 +39,7 @@ function ArchitectureDiagram(props: ArchitectureDiagramProps) {
     [runtime, sourceNodes, sourceConnections, sourceBoundaries],
   );
 
-  if (!layout) {
+  if (!runtime || !layout) {
     return <LegacyArchitectureDiagram {...props} />;
   }
 
