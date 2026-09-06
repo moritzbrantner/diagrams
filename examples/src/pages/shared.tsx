@@ -1,8 +1,9 @@
-import { loadAndInstallDiagramsWasmRuntime } from "@moritzbrantner/diagrams/wasm-runtime";
 import { Card, CardContent } from "@moritzbrantner/ui";
 import { ArrowLeftIcon, BookOpenIcon } from "lucide-react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+
+import { loadAndInstallDiagramsWasmRuntime } from "@moritzbrantner/diagrams/wasm-runtime";
 
 import { diagramPages, type DiagramPage } from "../diagram-pages";
 import "../styles.css";
