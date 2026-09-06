@@ -21,10 +21,14 @@ function getPackageAliases(rootDir: string) {
     .map((exportKey) => {
       const name = exportKey === "." ? "index" : exportKey.slice(2);
       const find = exportKey === "." ? packageJson.name : `${packageJson.name}/${name}`;
+      const replacement =
+        name === "wasm"
+          ? path.resolve(rootDir, "src/testing/diagrams-wasm.ts")
+          : path.resolve(rootDir, `src/${name}.ts`);
 
       return {
         find,
-        replacement: path.resolve(rootDir, `src/${name}.ts`),
+        replacement,
       };
     });
 }
