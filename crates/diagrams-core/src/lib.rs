@@ -290,7 +290,11 @@ pub fn layout_graph(input: DiagramLayoutInput) -> Result<DiagramLayout, DiagramL
             .collect::<BTreeSet<_>>();
         let node_ranks = ranks(
             &ids,
-            input.edges.iter().filter(|&edge| ids.contains(&edge.source) && ids.contains(&edge.target)).map(|edge| (edge.source.clone(), edge.target.clone())),
+            input
+                .edges
+                .iter()
+                .filter(|&edge| ids.contains(&edge.source) && ids.contains(&edge.target))
+                .map(|edge| (edge.source.clone(), edge.target.clone())),
         );
         local_groups.push(layout_local_group(
             group_id,
