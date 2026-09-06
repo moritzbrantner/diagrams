@@ -81,6 +81,7 @@ function ArchitectureDiagram(props: ArchitectureDiagramProps) {
   return (
     <LegacyArchitectureDiagram
       {...props}
+      data-diagram-engine={runtime.kind}
       nodes={nodes}
       boundaries={boundaries}
       connections={connections}
