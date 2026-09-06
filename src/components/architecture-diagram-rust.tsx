@@ -12,14 +12,27 @@ import type {
   ArchitectureDiagramProps,
 } from "./architecture-diagram";
 
+type ArchitectureLayoutProps = Pick<
+  ArchitectureDiagramProps,
+  "nodes" | "connections" | "boundaries"
+>;
+
 const DEFAULT_NODE_WIDTH = 188;
 const DEFAULT_NODE_HEIGHT = 104;
 
 function ArchitectureDiagram(props: ArchitectureDiagramProps) {
   const runtime = useDiagramComputeRuntime();
+  const { nodes: sourceNodes, connections: sourceConnections, boundaries: sourceBoundaries } = props;
   const layout = React.useMemo(
-    () => (runtime ? createArchitectureLayout(runtime.layoutGraph, props) : null),
-    [runtime, props.nodes, props.connections, props.boundaries],
+    () =>
+      runtime
+        ? createArchitectureLayout(runtime, {
+            nodes: sourceNodes,
+            connections: sourceConnections,
+            boundaries: sourceBoundaries,
+          })
+        : null,
+    [runtime, sourceNodes, sourceConnections, sourceBoundaries],
   );
 
   if (!layout) {
@@ -29,7 +42,7 @@ function ArchitectureDiagram(props: ArchitectureDiagramProps) {
   const nodesById = new Map(layout.nodes.map((node) => [node.id, node]));
   const groupsById = new Map(layout.groups.map((group) => [group.id, group]));
   const edgesById = new Map(layout.edges.map((edge) => [edge.id, edge]));
-  const nodes = props.nodes.map((node) => {
+  const nodes = sourceNodes.map((node) => {
     const positioned = nodesById.get(node.id);
     return positioned
       ? {
@@ -41,7 +54,7 @@ function ArchitectureDiagram(props: ArchitectureDiagramProps) {
         }
       : node;
   });
-  const boundaries = (props.boundaries ?? []).map((boundary) => {
+  const boundaries = (sourceBoundaries ?? []).map((boundary) => {
     const positioned = groupsById.get(boundary.id);
     return positioned
       ? {
@@ -53,7 +66,7 @@ function ArchitectureDiagram(props: ArchitectureDiagramProps) {
         }
       : boundary;
   });
-  const connections = (props.connections ?? []).map((connection) => {
+  const connections = (sourceConnections ?? []).map((connection) => {
     if (connection.points?.length || connection.waypoints?.length) {
       return connection;
     }
@@ -72,8 +85,8 @@ function ArchitectureDiagram(props: ArchitectureDiagramProps) {
 }
 
 function createArchitectureLayout(
-  layoutGraph: DiagramComputeRuntime["layoutGraph"],
-  props: ArchitectureDiagramProps,
+  runtime: DiagramComputeRuntime,
+  props: ArchitectureLayoutProps,
 ): DiagramLayout | null {
   if (!canUseRustAutoLayout(props)) {
     return null;
@@ -85,7 +98,7 @@ function createArchitectureLayout(
   );
 
   try {
-    return layoutGraph({
+    return runtime.layoutGraph({
       nodes: props.nodes.map(toLayoutNode),
       edges: connections.map(toLayoutEdge),
       groups: (props.boundaries ?? []).map((boundary) => ({ id: boundary.id })),
@@ -107,7 +120,7 @@ function createArchitectureLayout(
   }
 }
 
-function canUseRustAutoLayout(props: ArchitectureDiagramProps) {
+function canUseRustAutoLayout(props: ArchitectureLayoutProps) {
   if (!props.nodes.length) {
     return false;
   }
@@ -160,4 +173,17 @@ function finiteOr(value: number | undefined, fallback: number) {
 }
 
 export { ArchitectureDiagram };
-export type * from "./architecture-diagram";
+export type {
+  ArchitectureDiagramBoundary,
+  ArchitectureDiagramConnection,
+  ArchitectureDiagramConnectionKind,
+  ArchitectureDiagramDirection,
+  ArchitectureDiagramNode,
+  ArchitectureDiagramNodeAction,
+  ArchitectureDiagramNodeKind,
+  ArchitectureDiagramPoint,
+  ArchitectureDiagramProps,
+  ArchitectureDiagramTone,
+  PositionedArchitectureDiagramBoundary,
+  PositionedArchitectureDiagramNode,
+} from "./architecture-diagram";
