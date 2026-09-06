@@ -41,7 +41,9 @@ fn main() {
             },
         )
         .expect("visibility query should succeed");
-        assert!(!visible.node_ids.is_empty());
+        assert!(visible.node_ids.len() <= NODE_COUNT);
+        assert!(visible.edge_ids.len() <= EDGE_COUNT);
+        assert!(visible.group_ids.len() <= GROUP_COUNT);
     }
     let visibility_elapsed = visibility_started_at.elapsed();
 
