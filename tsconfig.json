@@ -17,7 +17,9 @@
       "@moritzbrantner/diagrams/decision-tree": ["./src/decision-tree.ts"],
       "@moritzbrantner/diagrams/dependency-graph": ["./src/dependency-graph.ts"],
       "@moritzbrantner/diagrams/diagram-types": ["./src/diagram-types.ts"],
-      "@moritzbrantner/diagrams/entity-relationship-diagram": ["./src/entity-relationship-diagram.ts"],
+      "@moritzbrantner/diagrams/entity-relationship-diagram": [
+        "./src/entity-relationship-diagram.ts"
+      ],
       "@moritzbrantner/diagrams/gantt-chart": ["./src/gantt-chart.ts"],
       "@moritzbrantner/diagrams/journey-map": ["./src/journey-map.ts"],
       "@moritzbrantner/diagrams/mind-map": ["./src/mind-map.ts"],

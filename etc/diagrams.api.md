@@ -195,6 +195,13 @@ export {
   UmlStateTransition,
   getUmlDiagramBounds,
 } from "./uml-diagram.js";
+export { DiagramViewState, decodeDiagramViewState, encodeDiagramViewState } from "./view-state.js";
+export {
+  DiagramStructuredData,
+  DiagramStructuredEdge,
+  DiagramStructuredNode,
+  createDiagramStructuredData,
+} from "./structured-data.js";
 export {
   DiagramDirection as ArchitectureDiagramDirection,
   DiagramPoint as ArchitectureDiagramPoint,
@@ -203,16 +210,14 @@ export {
   DiagramDirection as DependencyGraphDirection,
   DiagramPoint as DependencyGraphPoint,
   DiagramTone as DependencyGraphTone,
+  DiagramBounds,
+  DiagramBoundsItem,
   DiagramDirection,
-  DiagramEdgeInspectorContext,
   DiagramElementKind,
   DiagramElementRef,
   DiagramInteractiveFeatures,
-  DiagramInteractiveProps,
-  DiagramItemAction,
   DiagramPathHighlightMode,
   DiagramPoint,
-  DiagramSearchResult,
   DiagramTone,
   DiagramViewport,
   DiagramViewportChangeReason,
@@ -228,6 +233,12 @@ export {
   DiagramPoint as SwimlaneDiagramPoint,
   DiagramTone as SwimlaneDiagramTone,
   DiagramTone as TimelineDiagramTone,
+} from "./diagram-core-types.js";
+export {
+  DiagramEdgeInspectorContext,
+  DiagramInteractiveProps,
+  DiagramItemAction,
+  DiagramSearchResult,
 } from "./diagram-types.js";
 import "react";
 ```
