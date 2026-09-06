@@ -1,3 +1,4 @@
+import { loadAndInstallDiagramsWasmRuntime } from "@moritzbrantner/diagrams/wasm-runtime";
 import { Card, CardContent } from "@moritzbrantner/ui";
 import { ArrowLeftIcon, BookOpenIcon } from "lucide-react";
 import { StrictMode } from "react";
@@ -7,6 +8,8 @@ import { diagramPages, type DiagramPage } from "../diagram-pages";
 import "../styles.css";
 
 import type React from "react";
+
+let runtimeReady: Promise<unknown> | undefined;
 
 export function getDiagramPage(slug: string) {
   const page = diagramPages.find((item) => item.slug === slug);
@@ -31,7 +34,10 @@ export function getDiagramHref(slug: string) {
 }
 
 export function renderDiagramPage(children: React.ReactNode) {
-  createRoot(document.getElementById("root")!).render(<StrictMode>{children}</StrictMode>);
+  runtimeReady ??= loadAndInstallDiagramsWasmRuntime().catch(() => undefined);
+  void runtimeReady.then(() => {
+    createRoot(document.getElementById("root")!).render(<StrictMode>{children}</StrictMode>);
+  });
 }
 
 export function DiagramPageShell({
