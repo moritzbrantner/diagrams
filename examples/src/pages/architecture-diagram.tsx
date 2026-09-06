@@ -8,28 +8,24 @@ const page = getDiagramPage("architecture-diagram");
 
 const boundaries = [
   { id: "platform", label: "Platform" },
-  { id: "external", label: "External", x: 560, y: -44, width: 236, height: 300 },
+  { id: "external", label: "External" },
 ] satisfies ComponentProps<typeof ArchitectureDiagram>["boundaries"];
 
 const nodes = [
-  { id: "gateway", label: "Gateway", kind: "gateway", boundaryId: "platform", x: 0, y: 40 },
+  { id: "gateway", label: "Gateway", kind: "gateway", boundaryId: "platform" },
   {
     id: "orders-arch",
     label: "Orders",
     kind: "service",
     boundaryId: "platform",
-    x: 260,
-    y: 40,
     tone: "accent",
   },
-  { id: "db", label: "Orders DB", kind: "database", boundaryId: "platform", x: 260, y: 190 },
+  { id: "db", label: "Orders DB", kind: "database", boundaryId: "platform" },
   {
     id: "payments",
     label: "Payments",
     kind: "external",
     boundaryId: "external",
-    x: 600,
-    y: 100,
   },
 ] satisfies ComponentProps<typeof ArchitectureDiagram>["nodes"];
 
