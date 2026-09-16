@@ -49,7 +49,9 @@ test("example presentation preference persists through shared settings", async (
   const toggle = page.getByTestId("show-api-shape-setting");
   const settingRow = toggle.locator("..");
   await expect(toggle).toBeChecked();
-  await expect(settingRow).toHaveAttribute("data-settings-foundation", "ready", { timeout: 15_000 });
+  await expect(settingRow).toHaveAttribute("data-settings-foundation", "ready", {
+    timeout: 15_000,
+  });
   await expect(page.getByRole("heading", { name: "API shape" })).toBeVisible();
 
   await toggle.uncheck();
@@ -74,7 +76,9 @@ test("example presentation preference persists through shared settings", async (
     .toEqual({ schemaVersion: 2, scope: "user", showApiShape: false });
 
   await page.reload();
-  await expect(settingRow).toHaveAttribute("data-settings-foundation", "ready", { timeout: 15_000 });
+  await expect(settingRow).toHaveAttribute("data-settings-foundation", "ready", {
+    timeout: 15_000,
+  });
   await expect(toggle).not.toBeChecked();
   await expect(page.getByRole("heading", { name: "API shape" })).toHaveCount(0);
 });

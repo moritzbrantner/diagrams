@@ -185,7 +185,9 @@ export function ExampleSettingsProvider({ children }: { children: React.ReactNod
     [foundationStatus, setShowApiShape, showApiShape],
   );
 
-  return <ExampleSettingsContext.Provider value={value}>{children}</ExampleSettingsContext.Provider>;
+  return (
+    <ExampleSettingsContext.Provider value={value}>{children}</ExampleSettingsContext.Provider>
+  );
 }
 
 export function useExampleSettings() {
