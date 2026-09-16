@@ -109,8 +109,10 @@ test("decision tree branch selection traces its reasoning path", async ({ page }
   await page.goto("/decision-tree/");
 
   const diagram = page.getByRole("group", { name: "Release decision tree" });
+  const clearRoute = page.getByTestId("decision-clear-route");
   await diagram.getByRole("button", { name: "Tests" }).click();
-  await page.getByRole("heading", { name: "Decision walkthrough" }).hover();
+  await clearRoute.hover();
+  await clearRoute.focus();
 
   await expect(page.getByTestId("decision-trail-status")).toHaveText(
     "Route ends at: Fix failing tests",
@@ -128,7 +130,7 @@ test("decision tree branch selection traces its reasoning path", async ({ page }
     "related",
   );
 
-  await page.getByTestId("decision-clear-route").click();
+  await clearRoute.click();
   await expect(page.getByTestId("decision-trail-status")).toHaveText("No route selected.");
 });
 
