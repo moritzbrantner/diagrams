@@ -90,15 +90,18 @@ export function ExampleSettingsProvider({ children }: { children: React.ReactNod
 
   React.useEffect(() => {
     showApiShapeRef.current = showApiShape;
-    writeLegacyShowApiShape(showApiShape);
+    const legacyPersisted = writeLegacyShowApiShape(showApiShape);
 
     const session = sessionRef.current;
     if (!session) {
+      if (!legacyPersisted) setFoundationStatus("degraded");
       return;
     }
 
     session.set(SHOW_API_SHAPE_SETTING_ID, { type: "bool", value: showApiShape });
-    window.localStorage.setItem(SHARED_SETTINGS_STORAGE_KEY, session.exportScope("user"));
+    if (!writeSharedSnapshot(session)) {
+      setFoundationStatus("degraded");
+    }
   }, [showApiShape]);
 
   React.useEffect(() => {
@@ -112,7 +115,15 @@ export function ExampleSettingsProvider({ children }: { children: React.ReactNod
           return;
         }
 
-        const stored = window.localStorage.getItem(SHARED_SETTINGS_STORAGE_KEY);
+        let storageAvailable = true;
+        let stored: string | null = null;
+        try {
+          stored = window.localStorage.getItem(SHARED_SETTINGS_STORAGE_KEY);
+        } catch (error) {
+          storageAvailable = false;
+          console.warn("Shared example settings storage is unavailable", error);
+        }
+
         if (stored) {
           try {
             session.importScope("user", stored);
@@ -134,8 +145,8 @@ export function ExampleSettingsProvider({ children }: { children: React.ReactNod
         const restored = effective?.type === "bool" ? effective.value : showApiShapeRef.current;
         sessionRef.current = session;
         setShowApiShape(restored);
-        window.localStorage.setItem(SHARED_SETTINGS_STORAGE_KEY, session.exportScope("user"));
-        setFoundationStatus("ready");
+        storageAvailable = writeSharedSnapshot(session) && storageAvailable;
+        setFoundationStatus(storageAvailable ? "ready" : "degraded");
       })
       .catch((error) => {
         if (!cancelled) {
@@ -189,5 +200,21 @@ function readLegacyShowApiShape() {
 }
 
 function writeLegacyShowApiShape(showApiShape: boolean) {
-  window.localStorage.setItem(LEGACY_SETTINGS_STORAGE_KEY, JSON.stringify({ showApiShape }));
+  try {
+    window.localStorage.setItem(LEGACY_SETTINGS_STORAGE_KEY, JSON.stringify({ showApiShape }));
+    return true;
+  } catch (error) {
+    console.warn("Local example settings projection could not be persisted", error);
+    return false;
+  }
+}
+
+function writeSharedSnapshot(session: SettingsFoundationSession) {
+  try {
+    window.localStorage.setItem(SHARED_SETTINGS_STORAGE_KEY, session.exportScope("user"));
+    return true;
+  } catch (error) {
+    console.warn("Shared example settings snapshot could not be persisted", error);
+    return false;
+  }
 }
