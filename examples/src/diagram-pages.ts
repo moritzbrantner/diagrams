@@ -12,18 +12,20 @@ export const diagramPages = [
     slug: "architecture-diagram",
     label: "Architecture Diagram",
     title: "Architecture diagram",
-    description: "Model service boundaries, external systems, and labeled runtime connections.",
+    description:
+      "Explore service boundaries and pin downstream blast-radius paths through runtime connections.",
     ariaLabel: "Service architecture diagram",
     snippet:
-      "<ArchitectureDiagram nodes={nodes} connections={connections} boundaries={boundaries} />",
+      '<ArchitectureDiagram interactiveFeatures={{ pathHighlight: { mode: "outgoing" } }} highlightedElement={spotlight} onNodeSelect={selectNode} />',
   },
   {
     slug: "decision-tree",
     label: "Decision Tree",
     title: "Decision tree",
-    description: "Show branching release decisions and their outcomes in one compact tree.",
+    description: "Walk branching decisions and trace the selected reasoning path back to its root.",
     ariaLabel: "Release decision tree",
-    snippet: "<DecisionTree root={root} />",
+    snippet:
+      '<DecisionTree root={root} interactiveFeatures={{ pathHighlight: { mode: "incoming" } }} highlightedElement={routeEnd} onBranchSelect={chooseBranch} />',
   },
   {
     slug: "dependency-graph",
@@ -93,9 +95,11 @@ export const diagramPages = [
     slug: "sequence-diagram",
     label: "Sequence Diagram",
     title: "Sequence diagram",
-    description: "Document interactions between participants over time with typed messages.",
+    description:
+      "Play a request trace message by message while retaining direct message selection.",
     ariaLabel: "Release sequence diagram",
-    snippet: "<SequenceDiagram participants={participants} messages={messages} />",
+    snippet:
+      "<SequenceDiagram participants={participants} messages={messages} highlightedElement={playhead} onMessageSelect={jumpToMessage} />",
   },
   {
     slug: "state-machine-diagram",
