@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { loadAndInstallDiagramsWasmRuntime } from "@moritzbrantner/diagrams/wasm-runtime";
 
 import { diagramPages, type DiagramPage } from "../diagram-pages";
+import { ExampleSettingsProvider, useExampleSettings } from "../example-settings";
 import "../styles.css";
 
 import type React from "react";
@@ -37,7 +38,11 @@ export function getDiagramHref(slug: string) {
 export function renderDiagramPage(children: React.ReactNode) {
   runtimeReady ??= loadAndInstallDiagramsWasmRuntime().catch(() => undefined);
   void runtimeReady.then(() => {
-    createRoot(document.getElementById("root")!).render(<StrictMode>{children}</StrictMode>);
+    createRoot(document.getElementById("root")!).render(
+      <StrictMode>
+        <ExampleSettingsProvider>{children}</ExampleSettingsProvider>
+      </StrictMode>,
+    );
   });
 }
 
@@ -48,6 +53,8 @@ export function DiagramPageShell({
   children: React.ReactNode;
   page: DiagramPage;
 }) {
+  const { foundationStatus, showApiShape, setShowApiShape } = useExampleSettings();
+
   return (
     <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-foreground">
       <header className="grid gap-4">
@@ -70,6 +77,18 @@ export function DiagramPageShell({
         <div className="grid gap-2">
           <h1 className="text-3xl font-semibold tracking-normal">{page.title}</h1>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{page.description}</p>
+          <label
+            className="flex w-fit items-center gap-2 text-sm text-muted-foreground"
+            data-settings-foundation={foundationStatus}
+          >
+            <input
+              type="checkbox"
+              checked={showApiShape}
+              onChange={(event) => setShowApiShape(event.target.checked)}
+              data-testid="show-api-shape-setting"
+            />
+            Show API shape
+          </label>
         </div>
       </header>
 
@@ -77,7 +96,7 @@ export function DiagramPageShell({
         <Card className="grid min-w-0 gap-4 p-4">{children}</Card>
       </section>
 
-      <SnippetPanel snippet={page.snippet} />
+      {showApiShape ? <SnippetPanel snippet={page.snippet} /> : null}
 
       <nav
         aria-label="All diagram examples"
