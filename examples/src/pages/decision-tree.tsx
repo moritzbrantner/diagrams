@@ -91,8 +91,14 @@ function DecisionTreeInteractionExample() {
             Choose a branch to trace the exact reasoning path back to the root. Branches remain
             keyboard-selectable, so the walkthrough does not depend on pointer input.
           </p>
-          <p className="text-xs text-muted-foreground" aria-live="polite" data-testid="decision-trail-status">
-            {trailNodeId ? `Route ends at: ${nodeLabels.get(trailNodeId) ?? trailNodeId}` : "No route selected."}
+          <p
+            className="text-xs text-muted-foreground"
+            aria-live="polite"
+            data-testid="decision-trail-status"
+          >
+            {trailNodeId
+              ? `Route ends at: ${nodeLabels.get(trailNodeId) ?? trailNodeId}`
+              : "No route selected."}
           </p>
         </div>
         <button
