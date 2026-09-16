@@ -83,26 +83,30 @@ const presentation: readonly WirePresentationEntry[] = [
 let browserModulePromise: Promise<SettingsBrowserModule> | undefined;
 
 export function ExampleSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [showApiShape, setShowApiShape] = React.useState(readLegacyShowApiShape);
+  const [showApiShape, setShowApiShapeState] = React.useState(readLegacyShowApiShape);
   const [foundationStatus, setFoundationStatus] = React.useState<FoundationStatus>("loading");
   const showApiShapeRef = React.useRef(showApiShape);
+  const userEditedBeforeFoundationReadyRef = React.useRef(false);
   const sessionRef = React.useRef<SettingsFoundationSession | null>(null);
 
-  React.useEffect(() => {
-    showApiShapeRef.current = showApiShape;
-    const legacyPersisted = writeLegacyShowApiShape(showApiShape);
+  const setShowApiShape = React.useCallback((next: boolean) => {
+    showApiShapeRef.current = next;
+    setShowApiShapeState(next);
 
+    const legacyPersisted = writeLegacyShowApiShape(next);
     const session = sessionRef.current;
     if (!session) {
+      userEditedBeforeFoundationReadyRef.current = true;
       if (!legacyPersisted) setFoundationStatus("degraded");
       return;
     }
 
-    session.set(SHOW_API_SHAPE_SETTING_ID, { type: "bool", value: showApiShape });
-    if (!writeSharedSnapshot(session)) {
+    session.set(SHOW_API_SHAPE_SETTING_ID, { type: "bool", value: next });
+    const sharedPersisted = writeSharedSnapshot(session);
+    if (!legacyPersisted || !sharedPersisted) {
       setFoundationStatus("degraded");
     }
-  }, [showApiShape]);
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -141,11 +145,22 @@ export function ExampleSettingsProvider({ children }: { children: React.ReactNod
           });
         }
 
-        const effective = session.effectiveValues()[SHOW_API_SHAPE_SETTING_ID];
-        const restored = effective?.type === "bool" ? effective.value : showApiShapeRef.current;
+        let restored: boolean;
+        if (userEditedBeforeFoundationReadyRef.current) {
+          restored = showApiShapeRef.current;
+          session.set(SHOW_API_SHAPE_SETTING_ID, { type: "bool", value: restored });
+          userEditedBeforeFoundationReadyRef.current = false;
+        } else {
+          const effective = session.effectiveValues()[SHOW_API_SHAPE_SETTING_ID];
+          restored = effective?.type === "bool" ? effective.value : showApiShapeRef.current;
+          showApiShapeRef.current = restored;
+          setShowApiShapeState(restored);
+        }
+
         sessionRef.current = session;
-        setShowApiShape(restored);
-        storageAvailable = writeSharedSnapshot(session) && storageAvailable;
+        const sharedPersisted = writeSharedSnapshot(session);
+        const legacyPersisted = writeLegacyShowApiShape(restored);
+        storageAvailable = sharedPersisted && legacyPersisted && storageAvailable;
         setFoundationStatus(storageAvailable ? "ready" : "degraded");
       })
       .catch((error) => {
@@ -167,7 +182,7 @@ export function ExampleSettingsProvider({ children }: { children: React.ReactNod
 
   const value = React.useMemo<ExampleSettingsContextValue>(
     () => ({ foundationStatus, showApiShape, setShowApiShape }),
-    [foundationStatus, showApiShape],
+    [foundationStatus, setShowApiShape, showApiShape],
   );
 
   return <ExampleSettingsContext.Provider value={value}>{children}</ExampleSettingsContext.Provider>;
