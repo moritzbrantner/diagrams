@@ -52,7 +52,7 @@ type FoundationStatus = "loading" | "ready" | "degraded";
 type ExampleSettingsContextValue = {
   foundationStatus: FoundationStatus;
   showApiShape: boolean;
-  setShowApiShape(value: boolean): void;
+  setShowApiShape: (value: boolean) => void;
 };
 
 const ExampleSettingsContext = React.createContext<ExampleSettingsContextValue | null>(null);
