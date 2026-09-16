@@ -95,7 +95,8 @@ export const diagramPages = [
     slug: "sequence-diagram",
     label: "Sequence Diagram",
     title: "Sequence diagram",
-    description: "Play a request trace message by message while retaining direct message selection.",
+    description:
+      "Play a request trace message by message while retaining direct message selection.",
     ariaLabel: "Release sequence diagram",
     snippet:
       "<SequenceDiagram participants={participants} messages={messages} highlightedElement={playhead} onMessageSelect={jumpToMessage} />",
