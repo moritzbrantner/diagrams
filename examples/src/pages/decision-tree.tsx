@@ -1,9 +1,8 @@
+import { useState, type ComponentProps } from "react";
+
 import { DecisionTree } from "@moritzbrantner/diagrams/decision-tree";
-import { useState } from "react";
 
 import { DiagramPageShell, getDiagramPage, renderDiagramPage } from "./shared";
-
-import type { ComponentProps } from "react";
 
 const page = getDiagramPage("decision-tree");
 
