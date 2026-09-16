@@ -9,6 +9,9 @@
     "paths": {
       "@moritzbrantner/diagrams": ["./src/index.ts"],
       "@moritzbrantner/diagrams/core": ["./src/core.ts"],
+      "@moritzbrantner/diagrams/layout": ["./src/layout.ts"],
+      "@moritzbrantner/diagrams/wasm-runtime": ["./src/wasm-runtime.ts"],
+      "@moritzbrantner/diagrams/wasm": ["./src/wasm.d.ts"],
       "@moritzbrantner/diagrams/react": ["./src/react.ts"],
       "@moritzbrantner/diagrams/diagram-core-types": ["./src/diagram-core-types.ts"],
       "@moritzbrantner/diagrams/view-state": ["./src/view-state.ts"],

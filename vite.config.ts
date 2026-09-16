@@ -9,9 +9,10 @@ import { diagramPages } from "./examples/src/diagram-pages";
 
 const rootDir = fileURLToPath(new URL("./", import.meta.url));
 
+type PackageExport = { import?: string; types?: string } | string;
 type PackageJson = {
   name: string;
-  exports: Record<string, { import?: string; types?: string } | string>;
+  exports: Record<string, PackageExport>;
 };
 
 function getPackageAliases(rootDir: string): { find: RegExp; replacement: string }[] {
@@ -19,15 +20,19 @@ function getPackageAliases(rootDir: string): { find: RegExp; replacement: string
     readFileSync(path.join(rootDir, "package.json"), "utf8"),
   ) as unknown as PackageJson;
 
-  return Object.keys(packageJson.exports)
-    .filter((exportKey) => exportKey !== "./package.json")
-    .map((exportKey) => {
+  return Object.entries(packageJson.exports)
+    .filter(([exportKey]) => exportKey !== "./package.json")
+    .map(([exportKey, exportValue]) => {
       const name = exportKey === "." ? "index" : exportKey.slice(2);
       const find = exportKey === "." ? packageJson.name : `${packageJson.name}/${name}`;
+      const generatedWasmPath =
+        typeof exportValue === "object" && exportValue.import?.startsWith("./dist/wasm/")
+          ? exportValue.import.slice(2)
+          : undefined;
 
       return {
         find: new RegExp(`^${escapeRegExp(find)}$`),
-        replacement: path.resolve(rootDir, `src/${name}.ts`),
+        replacement: path.resolve(rootDir, generatedWasmPath ?? `src/${name}.ts`),
       };
     });
 }

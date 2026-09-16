@@ -18,13 +18,18 @@ function getPackageAliases(rootDir: string) {
 
   return Object.keys(packageJson.exports)
     .filter((exportKey) => exportKey !== "./package.json")
+    .sort((left, right) => right.length - left.length)
     .map((exportKey) => {
       const name = exportKey === "." ? "index" : exportKey.slice(2);
       const find = exportKey === "." ? packageJson.name : `${packageJson.name}/${name}`;
+      const replacement =
+        name === "wasm"
+          ? path.resolve(rootDir, "src/testing/diagrams-wasm.ts")
+          : path.resolve(rootDir, `src/${name}.ts`);
 
       return {
         find,
-        replacement: path.resolve(rootDir, `src/${name}.ts`),
+        replacement,
       };
     });
 }

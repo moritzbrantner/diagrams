@@ -58,6 +58,10 @@ for (const diagramPage of diagramPages) {
       await expect(page.getByRole(expectation.role)).toBeVisible();
     }
 
+    if (diagramPage.slug === "architecture-diagram") {
+      await expect(page.locator('[data-diagram-engine="wasm"]')).toBeVisible();
+    }
+
     await expectA11yClean(page);
     await expectNoInvalidSvgGeometry(page);
     await expectNoVisibleTextOverflow(page);

@@ -7,7 +7,10 @@ export function readPackageJson(rootDir) {
 
 export function getPublicEntrypoints(packageJson) {
   return Object.entries(packageJson.exports)
-    .filter(([exportKey]) => exportKey !== "./package.json")
+    .filter(
+      ([exportKey, exportValue]) =>
+        exportKey !== "./package.json" && !isGeneratedWasmExport(exportValue),
+    )
     .map(([exportKey, exportValue]) => {
       const name = exportKey === "." ? "index" : exportKey.slice(2);
 
@@ -21,4 +24,13 @@ export function getPublicEntrypoints(packageJson) {
         exportValue,
       };
     });
+}
+
+function isGeneratedWasmExport(exportValue) {
+  return (
+    exportValue !== null &&
+    typeof exportValue === "object" &&
+    typeof exportValue.import === "string" &&
+    exportValue.import.startsWith("./dist/wasm/")
+  );
 }
