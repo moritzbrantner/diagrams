@@ -10,8 +10,8 @@ import {
 } from "./testing/playwright";
 
 const diagramExpectations = {
-  "architecture-diagram": { role: "img", name: "Service architecture diagram" },
-  "decision-tree": { role: "img", name: "Release decision tree" },
+  "architecture-diagram": { role: "group", name: "Service architecture diagram" },
+  "decision-tree": { role: "group", name: "Release decision tree" },
   "dependency-graph": { role: "img", name: "Package dependency graph" },
   "entity-relationship-diagram": { role: "img", name: "Order entity relationship diagram" },
   "gantt-chart": { role: "img", name: "Release Gantt chart" },
@@ -20,7 +20,7 @@ const diagramExpectations = {
   "org-chart": { role: "treeitem", name: "Program owner" },
   "process-map": { role: "list" },
   "relationship-map": { role: "img", name: "Release relationship map" },
-  "sequence-diagram": { role: "img", name: "Release sequence diagram" },
+  "sequence-diagram": { role: "group", name: "Release sequence diagram" },
   "state-machine-diagram": { role: "img", name: "Release state machine diagram" },
   "swimlane-diagram": { role: "img", name: "Release swimlane diagram" },
   "timeline-diagram": { role: "img", name: "Release timeline diagram" },
@@ -81,6 +81,75 @@ test("example presentation preference persists through shared settings", async (
   });
   await expect(toggle).not.toBeChecked();
   await expect(page.getByRole("heading", { name: "API shape" })).toHaveCount(0);
+});
+
+test("architecture example pins and clears downstream impact", async ({ page }) => {
+  await page.goto("/architecture-diagram/");
+
+  const diagram = page.getByRole("group", { name: "Service architecture diagram" });
+  const orders = diagram.locator('[data-item-id="orders-arch"]');
+  const database = diagram.locator('[data-item-id="db"]');
+  const payments = diagram.locator('[data-item-id="payments"]');
+  const gateway = diagram.locator('[data-item-id="gateway"]');
+
+  await expect(orders).toHaveAttribute("data-highlight-state", "active");
+  await expect(database).toHaveAttribute("data-highlight-state", "related");
+  await expect(payments).toHaveAttribute("data-highlight-state", "related");
+  await expect(gateway).toHaveAttribute("data-highlight-state", "dimmed");
+
+  await diagram.getByRole("button", { name: "Orders DB" }).click();
+  await expect(database).toHaveAttribute("data-highlight-state", "active");
+  await expect(orders).toHaveAttribute("data-highlight-state", "dimmed");
+
+  await page.getByTestId("architecture-clear-impact").click();
+  await expect(page.getByText("No service pinned.")).toBeVisible();
+});
+
+test("decision tree branch selection traces its reasoning path", async ({ page }) => {
+  await page.goto("/decision-tree/");
+
+  const diagram = page.getByRole("group", { name: "Release decision tree" });
+  await diagram.getByRole("button", { name: "Tests" }).click();
+  await page.getByRole("heading", { name: "Decision walkthrough" }).hover();
+
+  await expect(page.getByTestId("decision-trail-status")).toHaveText(
+    "Route ends at: Fix failing tests",
+  );
+  await expect(diagram.locator('[data-item-id="fix-tests"]')).toHaveAttribute(
+    "data-highlight-state",
+    "active",
+  );
+  await expect(diagram.locator('[data-item-id="blocker-type"]')).toHaveAttribute(
+    "data-highlight-state",
+    "related",
+  );
+  await expect(diagram.locator('[data-item-id="release-ready"]')).toHaveAttribute(
+    "data-highlight-state",
+    "related",
+  );
+
+  await page.getByTestId("decision-clear-route").click();
+  await expect(page.getByTestId("decision-trail-status")).toHaveText("No route selected.");
+});
+
+test("sequence playback advances the active trace message", async ({ page }) => {
+  await page.goto("/sequence-diagram/");
+
+  const diagram = page.getByRole("group", { name: "Release sequence diagram" });
+  const request = diagram.locator('[data-message-id="request"]');
+  const command = diagram.locator('[data-message-id="command"]');
+
+  await expect(request).toHaveAttribute("data-highlight-state", "active");
+  await expect(page.getByTestId("sequence-playback-status")).toHaveText(
+    "Step 1 of 6: POST /orders",
+  );
+
+  await page.getByTestId("sequence-next-step").click();
+  await expect(command).toHaveAttribute("data-highlight-state", "active");
+  await expect(request).toHaveAttribute("data-highlight-state", "dimmed");
+  await expect(page.getByTestId("sequence-playback-status")).toHaveText(
+    "Step 2 of 6: Create order",
+  );
 });
 
 for (const diagramPage of diagramPages) {
