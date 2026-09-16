@@ -16,6 +16,7 @@ export * from "./state-machine-diagram";
 export * from "./swimlane-diagram";
 export * from "./timeline-diagram";
 export * from "./uml-diagram";
+export * from "./use-diagram-view-state";
 export type {
   DiagramEdgeInspectorContext,
   DiagramInteractiveProps,
