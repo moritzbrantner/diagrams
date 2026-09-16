@@ -1,9 +1,8 @@
+import { useState, type ComponentProps } from "react";
+
 import { ArchitectureDiagram } from "@moritzbrantner/diagrams/architecture-diagram";
-import { useState } from "react";
 
 import { DiagramPageShell, getDiagramPage, renderDiagramPage } from "./shared";
-
-import type { ComponentProps } from "react";
 
 const page = getDiagramPage("architecture-diagram");
 
