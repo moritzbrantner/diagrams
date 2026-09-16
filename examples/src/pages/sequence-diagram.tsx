@@ -35,7 +35,11 @@ function SequenceInteractionExample() {
             Step through the request as a trace. Selecting any message jumps the playhead to that
             point, while hover and focus can still preview another exchange.
           </p>
-          <output className="text-xs text-muted-foreground" aria-live="polite" data-testid="sequence-playback-status">
+          <output
+            className="text-xs text-muted-foreground"
+            aria-live="polite"
+            data-testid="sequence-playback-status"
+          >
             Step {activeMessageIndex + 1} of {messages.length}: {activeMessage?.label}
           </output>
         </div>
