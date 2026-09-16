@@ -37,7 +37,7 @@
       "package:check": ["bun", "run", "pack:check"],
       "benchmark:smoke": ["bun", "run", "bench:diagrams"]
     },
-    "diagrams-core": {
+    "diagrams": {
       "benchmark:smoke": [
         "cargo",
         "run",
