@@ -110,7 +110,7 @@ test("decision tree branch selection traces its reasoning path", async ({ page }
 
   const diagram = page.getByRole("group", { name: "Release decision tree" });
   const clearRoute = page.getByTestId("decision-clear-route");
-  await diagram.getByRole("button", { name: "Tests" }).click();
+  await diagram.getByText("Tests", { exact: true }).click();
   await clearRoute.hover();
   await clearRoute.focus();
 
