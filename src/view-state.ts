@@ -1,4 +1,8 @@
-import type { DiagramElementRef, DiagramViewport } from "./diagram-core-types";
+import type {
+  DiagramElementRef,
+  DiagramViewport,
+  DiagramViewportChangeReason,
+} from "./diagram-core-types";
 
 export type DiagramViewState = {
   collapsedIds?: string[];
@@ -7,6 +11,104 @@ export type DiagramViewState = {
   searchQuery?: string;
   viewport?: DiagramViewport;
 };
+
+/** A small durable state change emitted by diagram interactions. */
+export type DiagramViewDelta =
+  | {
+      type: "viewport";
+      viewport: DiagramViewport;
+      reason: DiagramViewportChangeReason;
+    }
+  | {
+      type: "highlighted-element";
+      element: DiagramElementRef | null;
+    }
+  | {
+      type: "inspected-edge";
+      edgeId: string | null;
+    }
+  | {
+      type: "search-query";
+      query: string;
+    }
+  | {
+      type: "collapsed-ids";
+      ids: readonly string[];
+    };
+
+/**
+ * Applies one durable interaction change without copying state when the semantic value is already
+ * satisfied. Empty strings and collections are canonicalized away. Explicit null highlight and
+ * inspector values are retained so a durable clear remains authoritative over ephemeral preview.
+ */
+export function applyDiagramViewDelta(
+  state: DiagramViewState,
+  delta: DiagramViewDelta,
+): DiagramViewState {
+  switch (delta.type) {
+    case "viewport": {
+      if (!isFiniteViewport(delta.viewport) || viewportEquals(state.viewport, delta.viewport)) {
+        return state;
+      }
+
+      return { ...state, viewport: delta.viewport };
+    }
+    case "highlighted-element": {
+      const current = state.highlightedElement ?? null;
+      if (
+        elementRefEquals(current, delta.element) &&
+        (delta.element !== null || state.highlightedElement === null)
+      ) {
+        return state;
+      }
+
+      if (!delta.element) {
+        return { ...state, highlightedElement: null };
+      }
+
+      return { ...state, highlightedElement: delta.element };
+    }
+    case "inspected-edge": {
+      const edgeId = delta.edgeId?.trim() || null;
+      const current = state.inspectedEdgeId?.trim() || null;
+      if (current === edgeId && (edgeId !== null || state.inspectedEdgeId === null)) {
+        return state;
+      }
+
+      if (!edgeId) {
+        return { ...state, inspectedEdgeId: null };
+      }
+
+      return { ...state, inspectedEdgeId: edgeId };
+    }
+    case "search-query": {
+      const query = delta.query.trim();
+      const current = state.searchQuery?.trim() ?? "";
+      if (current === query) {
+        return state;
+      }
+
+      if (!query) {
+        return omitKey(state, "searchQuery");
+      }
+
+      return { ...state, searchQuery: query };
+    }
+    case "collapsed-ids": {
+      const ids = canonicalizeIds(delta.ids);
+      const current = canonicalizeIds(state.collapsedIds ?? []);
+      if (stringArraysEqual(current, ids)) {
+        return state;
+      }
+
+      if (!ids.length) {
+        return omitKey(state, "collapsedIds");
+      }
+
+      return { ...state, collapsedIds: ids };
+    }
+  }
+}
 
 export function encodeDiagramViewState(state: DiagramViewState): string {
   const params = new URLSearchParams();
@@ -27,7 +129,7 @@ export function encodeDiagramViewState(state: DiagramViewState): string {
     params.set("search", state.searchQuery.trim());
   }
   if (state.collapsedIds?.length) {
-    params.set("collapsed", [...new Set(state.collapsedIds)].sort().join(","));
+    params.set("collapsed", canonicalizeIds(state.collapsedIds).join(","));
   }
 
   return params.toString();
@@ -59,7 +161,7 @@ export function decodeDiagramViewState(input: string | URLSearchParams): Diagram
     state.searchQuery = search;
   }
   if (collapsed?.length) {
-    state.collapsedIds = [...new Set(collapsed)].sort();
+    state.collapsedIds = canonicalizeIds(collapsed);
   }
 
   return state;
@@ -95,6 +197,37 @@ function parseElementRef(value: string | null): DiagramElementRef | null {
     return null;
   }
   return { kind, id: value.slice(separator + 1) };
+}
+
+function canonicalizeIds(ids: readonly string[]) {
+  return [...new Set(ids.map((id) => id.trim()).filter(Boolean))].sort();
+}
+
+function viewportEquals(first: DiagramViewport | undefined, second: DiagramViewport) {
+  return (
+    first?.x === second.x &&
+    first.y === second.y &&
+    first.width === second.width &&
+    first.height === second.height
+  );
+}
+
+function elementRefEquals(first: DiagramElementRef | null, second: DiagramElementRef | null) {
+  return first?.kind === second?.kind && first?.id === second?.id;
+}
+
+function stringArraysEqual(first: readonly string[], second: readonly string[]) {
+  return first.length === second.length && first.every((value, index) => value === second[index]);
+}
+
+function omitKey<TKey extends keyof DiagramViewState>(state: DiagramViewState, key: TKey) {
+  if (!(key in state)) {
+    return state;
+  }
+
+  const next = { ...state };
+  delete next[key];
+  return next;
 }
 
 function isFiniteViewport(viewport: DiagramViewport) {

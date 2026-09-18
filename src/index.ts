@@ -14,6 +14,7 @@ export * from "./state-machine-diagram";
 export * from "./swimlane-diagram";
 export * from "./timeline-diagram";
 export * from "./uml-diagram";
+export * from "./use-diagram-view-state";
 export * from "./view-state";
 export * from "./structured-data";
 export type {
