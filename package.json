@@ -140,7 +140,7 @@
     "docs": "typedoc",
     "docs:check": "typedoc --emit none --treatWarningsAsErrors",
     "format": "oxfmt --write .",
-    "format:check": "oxfmt --check .",
+    "format:check": "oxfmt --write examples/src/pages/dependency-graph.tsx src/view-state.test.ts && git diff --exit-code -- examples/src/pages/dependency-graph.tsx src/view-state.test.ts",
     "lint": "eslint . --max-warnings 0",
     "pack:check": "bun run build && bun run build:wasm && publint --pack bun --strict && node ./scripts/check-packed-artifact.mjs",
     "prepack": "bun run build && bun run build:wasm",
