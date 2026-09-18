@@ -21,6 +21,30 @@ describe("useDiagramViewState", () => {
     });
   });
 
+  test("keeps the supplied controlled value authoritative across rejected deltas", () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() => useDiagramViewState({ value: {}, onChange }));
+
+    act(() => {
+      result.current[1]({ type: "search-query", query: "rejected" });
+      result.current[1]({
+        type: "viewport",
+        viewport: { x: 10, y: 20, width: 800, height: 500 },
+        reason: "pan",
+      });
+    });
+
+    expect(onChange).toHaveBeenNthCalledWith(
+      2,
+      { viewport: { x: 10, y: 20, width: 800, height: 500 } },
+      {
+        type: "viewport",
+        viewport: { x: 10, y: 20, width: 800, height: 500 },
+        reason: "pan",
+      },
+    );
+  });
+
   test("does not emit an already-satisfied delta", () => {
     const onChange = vi.fn();
     const onDelta = vi.fn();
@@ -56,6 +80,13 @@ describe("useDiagramViewState", () => {
 
     expect(props).not.toHaveProperty("onHighlightedElementChange");
     expect(props).not.toHaveProperty("onInspectedEdgeIdChange");
+
+    const clearedProps = getDurableDiagramInteractionProps(
+      { highlightedElement: null, inspectedEdgeId: null },
+      dispatch,
+    );
+    expect(clearedProps.highlightedElement).toBeNull();
+    expect(clearedProps.inspectedEdgeId).toBeNull();
 
     props.onViewportChange?.({ x: 10, y: 20, width: 800, height: 500 }, "pan");
     props.onSearchQueryChange?.("payments");
