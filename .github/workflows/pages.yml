@@ -90,13 +90,8 @@ jobs:
           source_sha: ${{ needs.resolve-package.outputs.source_sha }}
           artifact_key: ${{ needs.resolve-package.outputs.artifact_key }}
           identity_digest: ${{ needs.resolve-package.outputs.identity_digest }}
-          destination_path: .artifacts/diagrams-package
+          destination_path: dist
           github_token: ${{ github.token }}
-
-      - name: Stage compiled package
-        run: |
-          rm -rf dist
-          cp -R .artifacts/diagrams-package/dist ./dist
 
       - name: Build Pages composition without recompiling WASM
         run: BASE_PATH=/diagrams/ bun run build:examples:prepared
