@@ -36,15 +36,15 @@ export function useDiagramViewState({
 
   const dispatch = React.useCallback(
     (delta: DiagramViewDelta) => {
-      const current = stateRef.current;
+      const current = value ?? stateRef.current;
       const next = applyDiagramViewDelta(current, delta);
 
       if (next === current) {
         return;
       }
 
-      stateRef.current = next;
       if (value === undefined) {
+        stateRef.current = next;
         setInternalState(next);
       }
       onDelta?.(delta);
