@@ -704,7 +704,7 @@ function ArchitectureConnectionShape({
       data-slot="architecture-diagram-connection"
       data-kind={connection.kind ?? "sync"}
       data-highlight-state={highlightState}
-      className="transition-opacity data-[highlight-state=dimmed]:opacity-25"
+      className="data-[highlight-state=dimmed]:[&>path]:opacity-25"
       {...interactionProps}
     >
       <path

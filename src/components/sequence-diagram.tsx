@@ -596,7 +596,7 @@ function ParticipantShape({
         "outline-none",
         onParticipantSelect && "cursor-pointer",
         disabled && "opacity-60",
-        "transition-opacity data-[highlight-state=related]:opacity-100 data-[disabled=true]:data-[highlight-state=related]:opacity-60 data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_foreignObject>div]:ring-2 data-[highlight-state=active]:[&_foreignObject>div]:ring-ring/60",
+        "data-[highlight-state=related]:opacity-100 data-[disabled=true]:data-[highlight-state=related]:opacity-60 data-[highlight-state=dimmed]:[&>line]:opacity-25 data-[highlight-state=dimmed]:[&>rect]:opacity-25 data-[highlight-state=dimmed]:[&>foreignObject>div]:border-muted-foreground/30 data-[highlight-state=dimmed]:[&>foreignObject>div]:shadow-none data-[highlight-state=active]:[&_foreignObject>div]:ring-2 data-[highlight-state=active]:[&_foreignObject>div]:ring-ring/60",
       )}
       onClick={
         onParticipantSelect && !disabled ? () => onParticipantSelect(participant) : undefined
@@ -738,7 +738,7 @@ function MessageShape({
         keyboardMode === "nodes" && focused && !disabled ? 0 : (interactionProps?.tabIndex ?? -1)
       }
       className={cn(
-        "outline-none transition-opacity data-[highlight-state=dimmed]:opacity-25",
+        "outline-none data-[highlight-state=dimmed]:[&>line]:opacity-25 data-[highlight-state=dimmed]:[&>rect]:opacity-25",
         onMessageSelect && "cursor-pointer",
         disabled && "opacity-60",
       )}
