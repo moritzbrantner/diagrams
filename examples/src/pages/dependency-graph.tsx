@@ -47,8 +47,8 @@ function DependencyImpactExample() {
         <div className="grid gap-1">
           <h2 className="text-sm font-semibold">Failure impact explorer</h2>
           <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
-            Select a dependency to pin the packages that would be affected if it disappeared.
-            Hover and focus remain temporary previews; only selection changes the durable view.
+            Select a dependency to pin the packages that would be affected if it disappeared. Hover
+            and focus remain temporary previews; only selection changes the durable view.
           </p>
           <p
             className="text-xs text-muted-foreground"
