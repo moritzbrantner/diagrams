@@ -4,7 +4,7 @@ const host = "127.0.0.1";
 const port = "41736";
 const site = `http://${host}:${port}`;
 
-await run("bun", ["run", "build:examples"]);
+await run("bun", ["run", process.env.DIAGRAMS_PREBUILT_WASM === "1" ? "build:examples:prepared" : "build:examples"]);
 
 const preview = spawn(
   "bun",
