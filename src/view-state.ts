@@ -38,7 +38,8 @@ export type DiagramViewDelta =
 
 /**
  * Applies one durable interaction change without copying state when the semantic value is already
- * satisfied. Empty values are canonicalized away so equivalent states have one representation.
+ * satisfied. Empty strings and collections are canonicalized away. Explicit null highlight and
+ * inspector values are retained so a durable clear remains authoritative over ephemeral preview.
  */
 export function applyDiagramViewDelta(
   state: DiagramViewState,
@@ -54,12 +55,15 @@ export function applyDiagramViewDelta(
     }
     case "highlighted-element": {
       const current = state.highlightedElement ?? null;
-      if (elementRefEquals(current, delta.element)) {
+      if (
+        elementRefEquals(current, delta.element) &&
+        (delta.element !== null || state.highlightedElement === null)
+      ) {
         return state;
       }
 
       if (!delta.element) {
-        return omitKey(state, "highlightedElement");
+        return { ...state, highlightedElement: null };
       }
 
       return { ...state, highlightedElement: delta.element };
@@ -67,12 +71,12 @@ export function applyDiagramViewDelta(
     case "inspected-edge": {
       const edgeId = delta.edgeId?.trim() || null;
       const current = state.inspectedEdgeId?.trim() || null;
-      if (current === edgeId) {
+      if (current === edgeId && (edgeId !== null || state.inspectedEdgeId === null)) {
         return state;
       }
 
       if (!edgeId) {
-        return omitKey(state, "inspectedEdgeId");
+        return { ...state, inspectedEdgeId: null };
       }
 
       return { ...state, inspectedEdgeId: edgeId };
