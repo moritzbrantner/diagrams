@@ -77,6 +77,23 @@ describe("diagram view state", () => {
     ).toBe(state);
   });
 
+  test("retains explicit clears for preview-backed durable state", () => {
+    const clearedHighlight = applyDiagramViewDelta({}, {
+      type: "highlighted-element",
+      element: null,
+    });
+    expect(clearedHighlight).toEqual({ highlightedElement: null });
+    expect(
+      applyDiagramViewDelta(clearedHighlight, { type: "highlighted-element", element: null }),
+    ).toBe(clearedHighlight);
+
+    const clearedInspector = applyDiagramViewDelta({}, { type: "inspected-edge", edgeId: null });
+    expect(clearedInspector).toEqual({ inspectedEdgeId: null });
+    expect(applyDiagramViewDelta(clearedInspector, { type: "inspected-edge", edgeId: null })).toBe(
+      clearedInspector,
+    );
+  });
+
   test("canonicalizes empty and unordered durable values", () => {
     const state = applyDiagramViewDelta(
       {
