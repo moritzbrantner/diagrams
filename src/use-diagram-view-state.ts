@@ -2,12 +2,12 @@
 
 import * as React from "react";
 
-import type { DiagramInteractiveProps } from "./diagram-types";
 import {
   applyDiagramViewDelta,
   type DiagramViewDelta,
   type DiagramViewState,
 } from "./view-state";
+import type { DiagramInteractiveProps } from "./diagram-types";
 
 export type UseDiagramViewStateOptions = {
   value?: DiagramViewState;
@@ -32,7 +32,10 @@ export function useDiagramViewState({
   const [internalState, setInternalState] = React.useState<DiagramViewState>(defaultValue);
   const state = value ?? internalState;
   const stateRef = React.useRef(state);
-  stateRef.current = state;
+
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const dispatch = React.useCallback(
     (delta: DiagramViewDelta) => {
