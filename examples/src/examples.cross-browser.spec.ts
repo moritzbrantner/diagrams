@@ -8,8 +8,8 @@ import {
 } from "./testing/playwright";
 
 const diagramExpectations = {
-  "architecture-diagram": { role: "img", name: "Service architecture diagram" },
-  "decision-tree": { role: "img", name: "Release decision tree" },
+  "architecture-diagram": { role: "group", name: "Service architecture diagram" },
+  "decision-tree": { role: "group", name: "Release decision tree" },
   "dependency-graph": { role: "img", name: "Package dependency graph" },
   "entity-relationship-diagram": { role: "img", name: "Order entity relationship diagram" },
   "gantt-chart": { role: "img", name: "Release Gantt chart" },
@@ -18,7 +18,7 @@ const diagramExpectations = {
   "org-chart": { role: "treeitem", name: "Program owner" },
   "process-map": { role: "list" },
   "relationship-map": { role: "img", name: "Release relationship map" },
-  "sequence-diagram": { role: "img", name: "Release sequence diagram" },
+  "sequence-diagram": { role: "group", name: "Release sequence diagram" },
   "state-machine-diagram": { role: "img", name: "Release state machine diagram" },
   "swimlane-diagram": { role: "img", name: "Release swimlane diagram" },
   "timeline-diagram": { role: "img", name: "Release timeline diagram" },

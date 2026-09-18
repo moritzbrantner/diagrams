@@ -67,7 +67,7 @@ export function DiagramSvgItemInteraction<
         "outline-none",
         onSelect ? `cursor-pointer focus-visible:[&_[data-slot='${slot}-focus']]:stroke-ring` : "",
         disabled ? "opacity-60" : "",
-        "transition-opacity data-[highlight-state=related]:opacity-100 data-[disabled=true]:data-[highlight-state=related]:opacity-60 data-[highlight-state=dimmed]:opacity-25 data-[highlight-state=active]:[&_[data-slot$='-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot$='-node']>div]:ring-ring/60 data-[highlight-state=active]:[&_[data-slot$='-summary-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot$='-summary-node']>div]:ring-ring/60",
+        "data-[highlight-state=related]:opacity-100 data-[disabled=true]:data-[highlight-state=related]:opacity-60 data-[highlight-state=dimmed]:[&_foreignObject>div]:border-muted-foreground/30 data-[highlight-state=dimmed]:[&_foreignObject>div]:shadow-none data-[highlight-state=dimmed]:[&_foreignObject_svg]:opacity-40 data-[highlight-state=dimmed]:[&_path]:opacity-25 data-[highlight-state=dimmed]:[&_rect]:opacity-25 data-[highlight-state=dimmed]:[&_circle]:opacity-25 data-[highlight-state=active]:[&_[data-slot$='-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot$='-node']>div]:ring-ring/60 data-[highlight-state=active]:[&_[data-slot$='-summary-node']>div]:ring-2 data-[highlight-state=active]:[&_[data-slot$='-summary-node']>div]:ring-ring/60",
       ]
         .filter(Boolean)
         .join(" ")}

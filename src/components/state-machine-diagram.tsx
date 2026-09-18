@@ -521,7 +521,7 @@ function TransitionShape({
       aria-describedby={interactionProps?.["aria-describedby"]}
       tabIndex={onTransitionSelect ? 0 : interactionProps?.tabIndex}
       className={cn(
-        "transition-opacity data-[highlight-state=dimmed]:opacity-25",
+        "data-[highlight-state=dimmed]:[&>path]:opacity-25",
         onTransitionSelect && "cursor-pointer outline-none",
       )}
       onClick={

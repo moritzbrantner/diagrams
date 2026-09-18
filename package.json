@@ -131,7 +131,7 @@
     "bench:diagrams": "bun run build && node ./scripts/benchmark-diagrams.mjs",
     "bench:rust": "cargo run -p diagrams-core --release --example benchmark",
     "build": "node ./scripts/build.mjs",
-    "build:examples": "bun run build:wasm && vite build --outDir ../dist-examples --emptyOutDir && node ./scripts/check-example-bundles.mjs && bun run docs && node ./scripts/copy-docs-to-examples.mjs",
+    "build:examples": "bun run build:wasm && bun run build:examples:prepared",
     "build:storybook": "storybook build --output-dir storybook-static",
     "build:wasm": "node ./scripts/build-diagrams-wasm.mjs",
     "changeset": "changeset",
@@ -156,7 +156,8 @@
     "verify": "bun run check-types && bun run lint && bun run format:check && bun run docs:check && bun run test:coverage && bun run api:check && bun run verify:rust && bun run build:examples && bun run pack:check && bun run test:e2e && bun run build:storybook && bun run test:storybook && bun run test:visual && bun run test:unlighthouse",
     "verify:release": "bun run verify && node ./scripts/check-release-state.mjs && bun run bench:diagrams && bun run bench:rust",
     "verify:rust": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace",
-    "version-packages": "changeset version"
+    "version-packages": "changeset version",
+    "build:examples:prepared": "vite build --outDir ../dist-examples --emptyOutDir && node ./scripts/check-example-bundles.mjs && bun run docs && node ./scripts/copy-docs-to-examples.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.7.0"

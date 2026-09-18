@@ -559,7 +559,7 @@ function DecisionEdgeShape({
       aria-describedby={interactionProps?.["aria-describedby"]}
       tabIndex={onBranchSelect ? 0 : interactionProps?.tabIndex}
       className={cn(
-        "transition-opacity data-[highlight-state=dimmed]:opacity-25",
+        "data-[highlight-state=dimmed]:[&>path]:opacity-25",
         onBranchSelect && "cursor-pointer outline-none",
       )}
       onClick={
@@ -589,6 +589,7 @@ function DecisionEdgeShape({
       <path
         d={pointsToPath(points)}
         fill="none"
+        pointerEvents={onBranchSelect ? "none" : undefined}
         strokeWidth={2}
         className={defaultEdgeToneClasses[edge.tone ?? "default"]}
       />
