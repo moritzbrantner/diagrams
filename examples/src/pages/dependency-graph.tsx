@@ -41,9 +41,7 @@ function DependencyImpactExample() {
 
   return (
     <div className="grid min-w-0 gap-3">
-      <div
-        className="flex flex-wrap items-start justify-between gap-3 rounded-md border bg-muted/30 p-3"
-      >
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border bg-muted/30 p-3">
         <div className="grid gap-1">
           <h2 className="text-sm font-semibold">Failure impact explorer</h2>
           <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
