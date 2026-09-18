@@ -1,10 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
-import {
-  getDurableDiagramInteractionProps,
-  useDiagramViewState,
-} from "./use-diagram-view-state";
+import { getDurableDiagramInteractionProps, useDiagramViewState } from "./use-diagram-view-state";
 
 describe("useDiagramViewState", () => {
   test("updates uncontrolled durable state through deltas", () => {

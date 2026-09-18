@@ -35,23 +35,26 @@ const nodeLabels = new Map(nodes.map((node) => [node.id, node.label]));
 
 function DependencyImpactExample() {
   const [viewState, dispatchViewDelta] = useDiagramViewState();
-  const durableInteractionProps = getDurableDiagramInteractionProps(
-    viewState,
-    dispatchViewDelta,
-  );
+  const durableInteractionProps = getDurableDiagramInteractionProps(viewState, dispatchViewDelta);
   const selectedNodeId =
     viewState.highlightedElement?.kind === "node" ? viewState.highlightedElement.id : null;
 
   return (
     <div className="grid min-w-0 gap-3">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border bg-muted/30 p-3">
+      <div
+        className="flex flex-wrap items-start justify-between gap-3 rounded-md border bg-muted/30 p-3"
+      >
         <div className="grid gap-1">
           <h2 className="text-sm font-semibold">Failure impact explorer</h2>
           <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
             Select a dependency to pin the packages that would be affected if it disappeared.
             Hover and focus remain temporary previews; only selection changes the durable view.
           </p>
-          <p className="text-xs text-muted-foreground" aria-live="polite" data-testid="dependency-impact-status">
+          <p
+            className="text-xs text-muted-foreground"
+            aria-live="polite"
+            data-testid="dependency-impact-status"
+          >
             {selectedNodeId
               ? `Pinned failure: ${nodeLabels.get(selectedNodeId) ?? selectedNodeId}`
               : "Select a dependency to inspect its dependents."}
@@ -62,9 +65,7 @@ function DependencyImpactExample() {
           disabled={!selectedNodeId}
           data-testid="dependency-clear-impact"
           className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-3 text-sm font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-          onClick={() =>
-            dispatchViewDelta({ type: "highlighted-element", element: null })
-          }
+          onClick={() => dispatchViewDelta({ type: "highlighted-element", element: null })}
         >
           Clear impact
         </button>
@@ -88,9 +89,7 @@ function DependencyImpactExample() {
             element: { kind: "node", id: node.id },
           })
         }
-        onNodeDeselect={() =>
-          dispatchViewDelta({ type: "highlighted-element", element: null })
-        }
+        onNodeDeselect={() => dispatchViewDelta({ type: "highlighted-element", element: null })}
       />
     </div>
   );

@@ -2,11 +2,7 @@
 
 import * as React from "react";
 
-import {
-  applyDiagramViewDelta,
-  type DiagramViewDelta,
-  type DiagramViewState,
-} from "./view-state";
+import { applyDiagramViewDelta, type DiagramViewDelta, type DiagramViewState } from "./view-state";
 
 import type { DiagramInteractiveProps } from "./diagram-types";
 
@@ -80,8 +76,7 @@ export function getDurableDiagramInteractionProps(
 ): DurableDiagramInteractionProps {
   return {
     viewport: state.viewport,
-    onViewportChange: (viewport, reason) =>
-      dispatch({ type: "viewport", viewport, reason }),
+    onViewportChange: (viewport, reason) => dispatch({ type: "viewport", viewport, reason }),
     ...(state.highlightedElement !== undefined
       ? { highlightedElement: state.highlightedElement }
       : {}),

@@ -208,10 +208,7 @@ function viewportEquals(first: DiagramViewport | undefined, second: DiagramViewp
   );
 }
 
-function elementRefEquals(
-  first: DiagramElementRef | null,
-  second: DiagramElementRef | null,
-) {
+function elementRefEquals(first: DiagramElementRef | null, second: DiagramElementRef | null) {
   return first?.kind === second?.kind && first?.id === second?.id;
 }
 
