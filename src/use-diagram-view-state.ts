@@ -7,6 +7,7 @@ import {
   type DiagramViewDelta,
   type DiagramViewState,
 } from "./view-state";
+
 import type { DiagramInteractiveProps } from "./diagram-types";
 
 export type UseDiagramViewStateOptions = {
