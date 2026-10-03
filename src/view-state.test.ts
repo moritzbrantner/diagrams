@@ -78,10 +78,13 @@ describe("diagram view state", () => {
   });
 
   test("retains explicit clears for preview-backed durable state", () => {
-    const clearedHighlight = applyDiagramViewDelta({}, {
-      type: "highlighted-element",
-      element: null,
-    });
+    const clearedHighlight = applyDiagramViewDelta(
+      {},
+      {
+        type: "highlighted-element",
+        element: null,
+      },
+    );
     expect(clearedHighlight).toEqual({ highlightedElement: null });
     expect(
       applyDiagramViewDelta(clearedHighlight, { type: "highlighted-element", element: null }),
