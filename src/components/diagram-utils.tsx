@@ -1095,6 +1095,24 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
   const [internalInspectedEdgeId, setInternalInspectedEdgeId] = React.useState<string | null>(
     () => defaultInspectedEdgeId ?? null,
   );
+  // When a consumer releases control (e.g. a URL-owned clear that drops the parameter), discard the
+  // ephemeral fallback so a stale preview or default does not resurface over the durable clear.
+  const isHighlightControlled = highlightedElement !== undefined;
+  const isInspectorControlled = inspectedEdgeId !== undefined;
+  const [wasHighlightControlled, setWasHighlightControlled] = React.useState(isHighlightControlled);
+  const [wasInspectorControlled, setWasInspectorControlled] = React.useState(isInspectorControlled);
+  if (wasHighlightControlled !== isHighlightControlled) {
+    setWasHighlightControlled(isHighlightControlled);
+    if (!isHighlightControlled) {
+      setInternalHighlightedElement(null);
+    }
+  }
+  if (wasInspectorControlled !== isInspectorControlled) {
+    setWasInspectorControlled(isInspectorControlled);
+    if (!isInspectorControlled) {
+      setInternalInspectedEdgeId(null);
+    }
+  }
   const [inspectorRole, setInspectorRole] = React.useState<"tooltip" | "dialog">("tooltip");
   const [inspectorPoint, setInspectorPoint] = React.useState<DiagramPoint | null>(null);
   const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
