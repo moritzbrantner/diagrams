@@ -1096,11 +1096,19 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
     () => defaultInspectedEdgeId ?? null,
   );
   // When a consumer releases control (e.g. a URL-owned clear that drops the parameter), discard the
-  // ephemeral fallback so a stale preview or default does not resurface over the durable clear.
+  // ephemeral fallback so a stale preview, pan or default does not resurface over the durable clear.
   const isHighlightControlled = highlightedElement !== undefined;
   const isInspectorControlled = inspectedEdgeId !== undefined;
   const [wasHighlightControlled, setWasHighlightControlled] = React.useState(isHighlightControlled);
   const [wasInspectorControlled, setWasInspectorControlled] = React.useState(isInspectorControlled);
+  const isViewportControlled = viewport !== undefined;
+  const [wasViewportControlled, setWasViewportControlled] = React.useState(isViewportControlled);
+  if (wasViewportControlled !== isViewportControlled) {
+    setWasViewportControlled(isViewportControlled);
+    if (!isViewportControlled) {
+      setInternalViewport(initialViewport);
+    }
+  }
   if (wasHighlightControlled !== isHighlightControlled) {
     setWasHighlightControlled(isHighlightControlled);
     if (!isHighlightControlled) {
