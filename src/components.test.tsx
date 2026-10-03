@@ -381,6 +381,31 @@ describe("RelationshipMap", () => {
     expect(svg.getAttribute("viewBox")).not.toBe(initialViewBox);
   });
 
+  test("resets the viewport fallback when viewport control is released", () => {
+    const props = {
+      ariaLabel: "Released viewport map",
+      interactiveFeatures: true,
+      defaultViewport: { x: -50, y: -50, width: 500, height: 300 },
+      nodes: [
+        { id: "product", label: "Product", x: 0, y: 0 },
+        { id: "sales", label: "Sales", x: 260, y: 0 },
+      ],
+      edges: [{ id: "briefs", source: "product", target: "sales", label: "briefs" }],
+    } satisfies ComponentProps<typeof RelationshipMap>;
+    const { rerender } = render(<RelationshipMap {...props} />);
+    const svg = screen.getByRole("img", { name: "Released viewport map" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    const pannedViewBox = svg.getAttribute("viewBox");
+    expect(pannedViewBox).not.toBe("-50 -50 500 300");
+
+    rerender(<RelationshipMap {...props} viewport={{ x: 0, y: 0, width: 400, height: 200 }} />);
+    expect(svg.getAttribute("viewBox")).toBe("0 0 400 200");
+
+    rerender(<RelationshipMap {...props} />);
+    expect(svg.getAttribute("viewBox")).toBe("-50 -50 500 300");
+  });
+
   test("supports interactive viewport controls, highlighting, search, and edge inspection", async () => {
     const onViewportChange = vi.fn();
     const { container } = render(

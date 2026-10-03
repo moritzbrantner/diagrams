@@ -3,6 +3,8 @@ import { describe, expect, test, vi } from "vitest";
 
 import { DependencyGraph } from "./dependency-graph";
 
+import type { ComponentProps } from "react";
+
 describe("DependencyGraph", () => {
   test("keeps static rendering as an image and filters invalid edges", () => {
     const { container } = render(
@@ -184,6 +186,41 @@ describe("DependencyGraph", () => {
     ).toBe("dimmed");
     const tooltip = await screen.findByRole("tooltip");
     expect(tooltip.textContent).toContain("runtime");
+  });
+
+  test("drops stale fallback highlight and inspector when control is released", async () => {
+    const props = {
+      ariaLabel: "Released dependency graph",
+      interactiveFeatures: { pathHighlight: true, edgeInspector: true, controls: "always" },
+      defaultHighlightedElement: { kind: "node", id: "docs" },
+      defaultInspectedEdgeId: "app-pkg",
+      nodes: [
+        { id: "app", label: "App", x: 0, y: 0 },
+        { id: "pkg", label: "Package", x: 260, y: 0 },
+        { id: "docs", label: "Docs", x: 520, y: 0 },
+      ],
+      edges: [{ id: "app-pkg", source: "app", target: "pkg", label: "runtime", kind: "runtime" }],
+    } satisfies ComponentProps<typeof DependencyGraph>;
+    const { container, rerender } = render(
+      <DependencyGraph
+        {...props}
+        highlightedElement={{ kind: "node", id: "app" }}
+        inspectedEdgeId={null}
+      />,
+    );
+    const highlightState = (nodeId: string) =>
+      container
+        .querySelector(`[data-slot="dependency-graph-node-interaction"][data-node-id="${nodeId}"]`)
+        ?.getAttribute("data-highlight-state");
+
+    expect(highlightState("app")).toBe("active");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    rerender(<DependencyGraph {...props} />);
+
+    await waitFor(() => expect(highlightState("docs")).not.toBe("active"));
+    expect(highlightState("app")).not.toBe("active");
+    expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
   test("minimizes explicit parts into summary nodes and remaps external edges", () => {

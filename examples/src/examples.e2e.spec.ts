@@ -12,7 +12,7 @@ import {
 const diagramExpectations = {
   "architecture-diagram": { role: "group", name: "Service architecture diagram" },
   "decision-tree": { role: "group", name: "Release decision tree" },
-  "dependency-graph": { role: "img", name: "Package dependency graph" },
+  "dependency-graph": { role: "group", name: "Package dependency graph" },
   "entity-relationship-diagram": { role: "img", name: "Order entity relationship diagram" },
   "gantt-chart": { role: "img", name: "Release Gantt chart" },
   "journey-map": { role: "grid", name: "Adoption journey map" },
@@ -103,6 +103,23 @@ test("architecture example pins and clears downstream impact", async ({ page }) 
 
   await page.getByTestId("architecture-clear-impact").click();
   await expect(page.getByText("No service pinned.")).toBeVisible();
+});
+
+test("dependency impact selection persists only from semantic selection", async ({ page }) => {
+  await page.goto("/dependency-graph/");
+
+  const diagram = page.getByRole("group", { name: "Package dependency graph" });
+  const status = page.getByTestId("dependency-impact-status");
+  const diagramsNode = diagram.getByRole("button", { name: "Diagrams" });
+
+  await diagramsNode.hover();
+  await expect(status).toHaveText("Select a dependency to inspect its dependents.");
+
+  await diagramsNode.click();
+  await expect(status).toHaveText("Pinned failure: Diagrams");
+
+  await page.getByTestId("dependency-clear-impact").click();
+  await expect(status).toHaveText("Select a dependency to inspect its dependents.");
 });
 
 test("decision tree branch selection traces its reasoning path", async ({ page }) => {

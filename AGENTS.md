@@ -20,11 +20,16 @@ Apply, in order of specificity:
 - Do not add `viz-engine`, `charts`, or another visualization meta-layer as an implementation dependency.
 - New renderer-independent geometry should be implemented once in `diagrams-core` and exposed through the thin runtime boundary. Avoid TypeScript/Rust forks of the same layout or routing semantics.
 - Explicit author coordinates and waypoints remain valid compatibility inputs; acceleration must not silently overwrite authored geometry.
+- A boundary does not justify copying by itself. Prefer stable references, compact descriptors, retained prepared state, and shared immutable inputs; materialize a full independent copy only when lifetime, ownership, isolation, persistence, or an explicit snapshot requires one.
 
 ## Interaction and accessibility
 
 - Keep durable diagram state controlled and serializable; routing and URL ownership stay in consuming applications.
-- Interactive diagrams must preserve keyboard and touch workflows.
+- Treat `DiagramViewState` as the durable interaction boundary. Express mutations as small `DiagramViewDelta` values and make applying an already-satisfied delta a no-op.
+- Pointer hover, keyboard focus preview, tooltip placement, drag state, and other high-frequency presentation state are ephemeral renderer state. They must not silently mutate durable view state or URL state.
+- Persist highlighting or edge inspection only from a semantic action such as pin/select/open-details, not from pointer enter/leave or focus/blur.
+- Interactive diagrams must preserve equivalent keyboard and touch workflows.
+- Dimming and emphasis must preserve readable text contrast. Prefer changing structural strokes/fills/rings over applying opacity to a group that contains text.
 - When a diagram carries information, expose an equivalent structured node/edge representation suitable for lists, tables, or other semantic views.
 - Performance work must preserve semantic and accessible alternatives rather than making the canvas the sole source of truth.
 
@@ -32,6 +37,9 @@ Apply, in order of specificity:
 
 - Exercise the Rust core against representative graphs with at least hundreds of nodes and edges before changing core algorithms.
 - Keep viewport culling and other large-data optimizations deterministic and idempotent.
+- Build adjacency/search/spatial indexes once per stable input set and reuse them across hover, focus, selection, and traversal. Do not rescan all edges for every BFS step or recreate equivalent graph metadata on every interaction.
+- Keep high-frequency browser-only preview work local to React when crossing the WASM boundary would add transport/materialization cost without moving authoritative computation.
+- Prefer small deltas for pan/zoom/search changes over repeated full-state snapshots. Create full snapshots only for explicit persistence/share/save boundaries.
 - Add executable evidence for visual-layout fixes: geometry tests in Rust plus browser/example coverage for the adapter that consumes the geometry.
 
 ## Work style

@@ -195,7 +195,19 @@ export {
   UmlStateTransition,
   getUmlDiagramBounds,
 } from "./uml-diagram.js";
-export { DiagramViewState, decodeDiagramViewState, encodeDiagramViewState } from "./view-state.js";
+export {
+  DurableDiagramInteractionProps,
+  UseDiagramViewStateOptions,
+  getDurableDiagramInteractionProps,
+  useDiagramViewState,
+} from "./react.js";
+export {
+  DiagramViewDelta,
+  DiagramViewState,
+  applyDiagramViewDelta,
+  decodeDiagramViewState,
+  encodeDiagramViewState,
+} from "./view-state.js";
 export {
   DiagramStructuredData,
   DiagramStructuredEdge,
