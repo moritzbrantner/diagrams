@@ -113,4 +113,14 @@ describe("diagram view state", () => {
       inspectedEdgeId: "edge",
     });
   });
+
+  test("preserves whitespace in search queries while editing", () => {
+    let state = applyDiagramViewDelta({}, { type: "search-query", query: "orders" });
+    state = applyDiagramViewDelta(state, { type: "search-query", query: "orders " });
+    expect(state).toEqual({ searchQuery: "orders " });
+    state = applyDiagramViewDelta(state, { type: "search-query", query: "orders s" });
+    expect(state).toEqual({ searchQuery: "orders s" });
+    expect(applyDiagramViewDelta(state, { type: "search-query", query: "orders s" })).toBe(state);
+    expect(encodeDiagramViewState({ searchQuery: " orders " })).toBe("search=orders");
+  });
 });

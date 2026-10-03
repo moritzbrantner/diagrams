@@ -17,7 +17,7 @@ describe("useDiagramViewState", () => {
 
     expect(result.current[0]).toEqual({
       highlightedElement: { kind: "node", id: "orders" },
-      searchQuery: "payments",
+      searchQuery: " payments ",
     });
   });
 

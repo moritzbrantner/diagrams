@@ -38,7 +38,8 @@ export type DiagramViewDelta =
 
 /**
  * Applies one durable interaction change without copying state when the semantic value is already
- * satisfied. Empty strings and collections are canonicalized away. Explicit null highlight and
+ * satisfied. Empty strings and collections are canonicalized away; nonempty search queries keep
+ * their whitespace while editing and are trimmed only when encoded. Explicit null highlight and
  * inspector values are retained so a durable clear remains authoritative over ephemeral preview.
  */
 export function applyDiagramViewDelta(
@@ -82,8 +83,10 @@ export function applyDiagramViewDelta(
       return { ...state, inspectedEdgeId: edgeId };
     }
     case "search-query": {
-      const query = delta.query.trim();
-      const current = state.searchQuery?.trim() ?? "";
+      // Keep in-progress whitespace (e.g. "orders ") so controlled inputs can type multi-word
+      // queries; only whitespace-only queries clear. Trimming happens at the encode boundary.
+      const query = delta.query.trim() ? delta.query : "";
+      const current = state.searchQuery ?? "";
       if (current === query) {
         return state;
       }
