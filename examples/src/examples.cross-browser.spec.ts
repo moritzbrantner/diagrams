@@ -10,7 +10,7 @@ import {
 const diagramExpectations = {
   "architecture-diagram": { role: "group", name: "Service architecture diagram" },
   "decision-tree": { role: "group", name: "Release decision tree" },
-  "dependency-graph": { role: "img", name: "Package dependency graph" },
+  "dependency-graph": { role: "group", name: "Package dependency graph" },
   "entity-relationship-diagram": { role: "img", name: "Order entity relationship diagram" },
   "gantt-chart": { role: "img", name: "Release Gantt chart" },
   "journey-map": { role: "grid", name: "Adoption journey map" },
