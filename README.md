@@ -13,15 +13,12 @@ density-aware data visualizations, analytical chart controls, and chart data pro
 
 ## Installation
 
-The package is not published to npm. Install a commit-pinned git dependency and
-trust it so bun runs its `prepare` build:
+The package is not published to npm. Install a commit-pinned git dependency;
+`--trust` adds it to `trustedDependencies`, which bun requires before it runs the
+package's `prepare` build:
 
 ```sh
-bun add "@moritzbrantner/diagrams@git+https://github.com/moritzbrantner/diagrams.git#<commit-sha>" @moritzbrantner/ui react react-dom
-```
-
-```json
-{ "trustedDependencies": ["@moritzbrantner/diagrams"] }
+bun add --trust @moritzbrantner/diagrams@git+https://github.com/moritzbrantner/diagrams.git#<commit-sha> @moritzbrantner/ui react react-dom
 ```
 
 The `prepare` build includes the optional `./wasm` runtime only when `cargo` and
