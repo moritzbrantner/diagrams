@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/moritzbrantner/diagrams/actions/workflows/ci.yml/badge.svg)](https://github.com/moritzbrantner/diagrams/actions/workflows/ci.yml)
 [![Pages](https://github.com/moritzbrantner/diagrams/actions/workflows/pages.yml/badge.svg)](https://github.com/moritzbrantner/diagrams/actions/workflows/pages.yml)
-[![npm version](https://img.shields.io/npm/v/@moritzbrantner/diagrams.svg)](https://www.npmjs.com/package/@moritzbrantner/diagrams)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Diagram primitives for React 19 applications. This package is for authored structural diagrams,
@@ -14,17 +13,23 @@ density-aware data visualizations, analytical chart controls, and chart data pro
 
 ## Installation
 
+npm publishing is discontinued: versions already on npm stay installable but
+receive no further updates. Install a commit-pinned git dependency instead;
+`--trust` adds it to `trustedDependencies`, which bun requires before it runs the
+package's `prepare` build:
+
 ```sh
-bun add @moritzbrantner/diagrams @moritzbrantner/ui react react-dom
+bun add --trust @moritzbrantner/diagrams@git+https://github.com/moritzbrantner/diagrams.git#<commit-sha> @moritzbrantner/ui react react-dom
 ```
+
+The `prepare` build includes the optional `./wasm` runtime only when `cargo` and
+`wasm-bindgen` are on `PATH`.
 
 Import the shared UI stylesheet once in your app:
 
 ```ts
 import "@moritzbrantner/ui/atlas/styles.css";
 ```
-
-The package is published to public npm.
 
 ## Support Matrix
 
