@@ -266,6 +266,9 @@ jobs:
       - name: Check package artifact
         run: bunx publint --pack bun --strict && node ./scripts/check-packed-artifact.mjs
 
+      - name: Verify commit-pinned git install
+        run: bun run verify:git-install
+
   browser:
     name: Browser
     runs-on: ubuntu-latest

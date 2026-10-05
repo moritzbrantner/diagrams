@@ -141,6 +141,7 @@
     "pack:check": "bun run build && bun run build:wasm && publint --pack bun --strict && node ./scripts/check-packed-artifact.mjs",
     "prepack": "bun run build && bun run build:wasm",
     "prepare": "bun ./scripts/prepare-git-install.ts",
+    "verify:git-install": "bun ./scripts/verify-git-install.ts",
     "quality:pages": "bun run test:unlighthouse",
     "storybook": "storybook dev -p 6006",
     "test": "vitest run",
