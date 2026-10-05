@@ -53,6 +53,8 @@ function collectTargets(value: unknown, targets: string[]) {
 
 try {
   // Push candidate commits before this networked consumer acceptance check.
+  // CI on a fork must fetch the commit from the fork, not from upstream.
+  const repository = process.env.GITHUB_REPOSITORY ?? "moritzbrantner/diagrams";
   const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: packageRoot }).toString().trim();
   writeFileSync(
     path.join(consumerDir, "package.json"),
@@ -61,7 +63,7 @@ try {
       private: true,
       dependencies: {
         ...peers,
-        [packageName]: `git+https://github.com/moritzbrantner/diagrams.git#${head}`,
+        [packageName]: `git+https://github.com/${repository}.git#${head}`,
       },
       trustedDependencies: [packageName],
     }),
