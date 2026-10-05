@@ -121,10 +121,6 @@
     },
     "./package.json": "./package.json"
   },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org"
-  },
   "scripts": {
     "api:check": "bun run build && node ./scripts/check-api-report.mjs",
     "audit:production": "bun audit --production",
@@ -144,8 +140,8 @@
     "lint": "eslint . --max-warnings 0",
     "pack:check": "bun run build && bun run build:wasm && publint --pack bun --strict && node ./scripts/check-packed-artifact.mjs",
     "prepack": "bun run build && bun run build:wasm",
+    "prepare": "bun ./scripts/prepare-git-install.ts",
     "quality:pages": "bun run test:unlighthouse",
-    "release": "changeset publish",
     "storybook": "storybook dev -p 6006",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

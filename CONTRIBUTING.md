@@ -62,11 +62,11 @@ pull requests.
 
 ## Releases
 
-Releases are automated through Changesets and GitHub Actions.
+The package is not published to npm; consumers install a commit-pinned git
+dependency. Changesets records release notes and versions.
 
 1. Add a changeset with `bun run changeset`.
 2. Select the correct semver impact.
 3. Merge to `main`.
-4. The release workflow opens a version PR or publishes changed packages.
-
-Publishing targets public npm with provenance enabled.
+4. To cut a version, run `bun run version-packages` and open a pull request with
+   the resulting `package.json` and `CHANGELOG.md` changes.

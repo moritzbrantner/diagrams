@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The latest published minor version receives security fixes. The project is
+The latest commit on `main` receives security fixes. The project is
 pre-`1.0`, so older experimental releases may not receive patches unless a fix
 can be shipped safely.
 
