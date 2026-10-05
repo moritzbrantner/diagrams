@@ -13,7 +13,8 @@ density-aware data visualizations, analytical chart controls, and chart data pro
 
 ## Installation
 
-The package is not published to npm. Install a commit-pinned git dependency;
+npm publishing is discontinued: versions already on npm stay installable but
+receive no further updates. Install a commit-pinned git dependency instead;
 `--trust` adds it to `trustedDependencies`, which bun requires before it runs the
 package's `prepare` build:
 

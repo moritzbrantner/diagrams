@@ -6,8 +6,8 @@
 // ignores tsconfig.json and TypeScript emits no declarations. So the build runs in a copy
 // outside node_modules with its own frozen install, and only the build output is copied back.
 // The dependency's own node_modules, which bun resolved for the consumer, is left untouched.
-// The optional `./wasm` runtime is built only when cargo and wasm-bindgen are on PATH; without
-// them the diagram components fall back to their TypeScript layouts.
+// The optional `./wasm` runtime is built only when cargo and wasm-bindgen are on PATH and the
+// build succeeds; otherwise the diagram components fall back to their TypeScript layouts.
 // In a normal checkout it does nothing: `bun install` and `npm pack` must stay side-effect free.
 
 import { execFileSync, spawnSync } from "node:child_process";
@@ -42,12 +42,20 @@ if (packageRoot.split(path.sep).includes("node_modules")) {
     });
     run(["install", "--frozen-lockfile", "--ignore-scripts", "--linker", "hoisted"], buildRoot);
     run(["run", "build"], buildRoot);
-    if (hasCommand("cargo") && hasCommand("wasm-bindgen")) {
-      run(["run", "build:wasm"], buildRoot);
-    } else {
+    if (!hasCommand("cargo") || !hasCommand("wasm-bindgen")) {
       console.warn(
         "@moritzbrantner/diagrams: cargo or wasm-bindgen not found; building without the optional ./wasm runtime.",
       );
+    } else {
+      try {
+        run(["run", "build:wasm"], buildRoot);
+      } catch {
+        // An incompatible toolchain must not block the TypeScript package; drop partial output.
+        rmSync(path.join(buildRoot, "dist", "wasm"), { recursive: true, force: true });
+        console.warn(
+          "@moritzbrantner/diagrams: the WASM build failed; building without the optional ./wasm runtime.",
+        );
+      }
     }
 
     for (const output of buildOutputs) {
