@@ -410,3 +410,17 @@ jobs:
         with:
           name: page-quality-artifacts
           path: .unlighthouse/
+
+  merge-ready:
+    name: merge-ready
+    if: ${{ always() }}
+    needs: [workflow-validation, dependency-review, build-package, rust-core, quality, package, browser, page-quality]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: moritzbrantner/reusable-workflows/.github/actions/merge-ready@b0f25f241d76af2584dfc9e375084ff5c5cb97da
+        with:
+          needs: ${{ toJSON(needs) }}
+          required: '["workflow-validation", "dependency-review", "build-package", "rust-core", "quality", "package", "browser", "page-quality"]'
+          allow-skipped: ${{ github.event_name != 'pull_request' && '["dependency-review"]' || '[]' }}

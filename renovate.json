@@ -15,5 +15,6 @@
       "matchDepTypes": ["peerDependencies"],
       "rangeStrategy": "widen"
     }
-  ]
+  ],
+  "platformAutomerge": true
 }
