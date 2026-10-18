@@ -414,7 +414,17 @@ jobs:
   merge-ready:
     name: merge-ready
     if: ${{ always() }}
-    needs: [workflow-validation, dependency-review, build-package, rust-core, quality, package, browser, page-quality]
+    needs:
+      [
+        workflow-validation,
+        dependency-review,
+        build-package,
+        rust-core,
+        quality,
+        package,
+        browser,
+        page-quality,
+      ]
     runs-on: ubuntu-latest
     permissions:
       contents: read
