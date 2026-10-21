@@ -38,7 +38,7 @@ export const OrgChartStory: ComponentsStory = {
     </StoryFrame>
   ),
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("treeitem", { name: "Program owner" })).toBeVisible();
+    await expect(canvas.getByRole("treeitem", { name: /Program owner/ })).toBeVisible();
     await expect(canvas.getByText("Quality")).toBeVisible();
   },
 };

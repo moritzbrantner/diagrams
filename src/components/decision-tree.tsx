@@ -475,7 +475,7 @@ function DecisionTree({
                           <button
                             type="button"
                             data-slot="decision-tree-node-action"
-                            aria-label={`${internalExpandedNodeIds.has(node.id) ? "Collapse" : "Expand"} ${getReactNodeAccessibleName(node.label, node.id)}`}
+                            aria-label={`${internalExpandedNodeIds.has(node.id) ? "Hide" : "Show"} ${getReactNodeAccessibleName(node.label, node.id)}`}
                             className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
                             onClick={(event) => {
                               event.stopPropagation();

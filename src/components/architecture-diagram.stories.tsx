@@ -62,7 +62,7 @@ export const InteractiveArchitectureDiagramStory: ComponentsStory = {
     await expect(
       canvas.getByRole("group", { name: "Interactive architecture diagram" }),
     ).toBeVisible();
-    await userEvent.click(canvas.getByRole("button", { name: "Expand Platform" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Show Platform" }));
   },
 };
 

@@ -35,8 +35,9 @@ const orgNodes = [
 ];
 
 function getOrgChartNode(name: string) {
-  const branch = screen.getByRole("treeitem", { name });
-  const node = branch.querySelector<HTMLElement>('[data-slot="org-chart-node"]');
+  const node = screen
+    .getAllByRole("treeitem")
+    .find((item) => item.querySelector('[data-slot="org-chart-node-label"]')?.textContent === name);
 
   if (!node) {
     throw new Error(`Could not find org chart node ${name}`);

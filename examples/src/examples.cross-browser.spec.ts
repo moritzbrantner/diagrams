@@ -15,7 +15,7 @@ const diagramExpectations = {
   "gantt-chart": { role: "img", name: "Release Gantt chart" },
   "journey-map": { role: "grid", name: "Adoption journey map" },
   "mind-map": { role: "img", name: "Diagram mind map" },
-  "org-chart": { role: "treeitem", name: "Program owner" },
+  "org-chart": { role: "treeitem", name: /Program owner/ },
   "process-map": { role: "list" },
   "relationship-map": { role: "img", name: "Release relationship map" },
   "sequence-diagram": { role: "group", name: "Release sequence diagram" },
