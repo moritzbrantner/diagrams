@@ -551,7 +551,7 @@ function ArchitectureDiagram({
                         <button
                           type="button"
                           data-slot="architecture-diagram-boundary-action"
-                          aria-label={`Collapse ${getReactNodeAccessibleName(boundary.label, boundary.id)}`}
+                          aria-label={`Hide ${getReactNodeAccessibleName(boundary.label, boundary.id)}`}
                           className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
                           onClick={(event) => {
                             event.stopPropagation();
@@ -616,7 +616,7 @@ function ArchitectureDiagram({
                         <button
                           type="button"
                           data-slot="architecture-diagram-node-action"
-                          aria-label={`Expand ${getReactNodeAccessibleName(node.label, node.id)}`}
+                          aria-label={`Show ${getReactNodeAccessibleName(node.label, node.id)}`}
                           className="inline-flex h-7 items-center rounded-sm border bg-background/90 px-2 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
                           onClick={(event) => {
                             event.stopPropagation();

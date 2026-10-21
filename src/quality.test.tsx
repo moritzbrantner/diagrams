@@ -281,9 +281,7 @@ describe("diagram quality invariants", () => {
       </>,
     );
 
-    const disabledOrgNode = screen
-      .getByRole("treeitem", { name: "Design" })
-      .querySelector('[data-slot="org-chart-node"]');
+    const disabledOrgNode = screen.getByRole("treeitem", { name: /^Design\b/ });
     const focusedOrgNode = container.querySelector(
       '[data-slot="org-chart-node"][data-focused="true"]',
     );

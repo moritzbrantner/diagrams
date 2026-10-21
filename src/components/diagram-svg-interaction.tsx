@@ -49,6 +49,11 @@ export function DiagramSvgItemInteraction<
   const resolvedActions = actions ?? [];
   const resolvedAccessibleName = accessibleName ?? getReactNodeAccessibleName(item.label, item.id);
   const role = onSelect && resolvedActions.length === 0 ? "button" : undefined;
+  const elementRef = React.useRef<SVGGElement | null>(null);
+  const [hasVisibleContent, setHasVisibleContent] = React.useState(false);
+  React.useLayoutEffect(() => {
+    setHasVisibleContent((elementRef.current?.textContent ?? "").trim() !== "");
+  }, [item, children]);
 
   return (
     <g
@@ -59,7 +64,10 @@ export function DiagramSvgItemInteraction<
       data-disabled={disabled ? "true" : undefined}
       data-highlight-state={highlightState}
       role={role}
-      aria-label={role ? resolvedAccessibleName : undefined}
+      // A button item is named by its rendered content (label, description, badges), so the
+      // name contains the visible text (axe label-content-name-mismatch). Items without
+      // visible text keep the label.
+      aria-label={role && !hasVisibleContent ? resolvedAccessibleName : undefined}
       aria-pressed={role ? selected : undefined}
       aria-disabled={role ? disabled || undefined : undefined}
       tabIndex={keyboardMode === "nodes" && focused && !disabled ? 0 : -1}
@@ -83,7 +91,10 @@ export function DiagramSvgItemInteraction<
         interactionProps?.onKeyDown?.(event);
         onKeyDown(event, item);
       }}
-      ref={(element) => setItemRef(item.id, element)}
+      ref={(element) => {
+        elementRef.current = element;
+        setItemRef(item.id, element);
+      }}
     >
       {selected ? (
         (renderSelection?.(item) ?? (

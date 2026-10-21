@@ -60,6 +60,13 @@ export function DependencyGraphInteractiveNode({
     typeof nodeActions === "function" ? nodeActions(node) : (nodeActions ?? []);
   const interactive = Boolean(onNodeSelect) && !disabled;
   const accessibleName = getDependencyGraphNodeAccessibleName(node);
+  // A button node is named by its rendered content, so the name contains the visible text
+  // (axe label-content-name-mismatch). Nodes without visible text keep the label.
+  const elementRef = React.useRef<SVGGElement | null>(null);
+  const [hasVisibleContent, setHasVisibleContent] = React.useState(false);
+  React.useLayoutEffect(() => {
+    setHasVisibleContent((elementRef.current?.textContent ?? "").trim() !== "");
+  }, [node]);
   const selectNode = React.useCallback(() => {
     if (!disabled) {
       onNodeSelect?.(node);
@@ -81,7 +88,11 @@ export function DependencyGraphInteractiveNode({
       data-disabled={disabled ? "true" : undefined}
       data-highlight-state={highlightState}
       role={onNodeSelect && resolvedActions.length === 0 ? "button" : undefined}
-      aria-label={onNodeSelect && resolvedActions.length === 0 ? accessibleName : undefined}
+      aria-label={
+        onNodeSelect && resolvedActions.length === 0 && !hasVisibleContent
+          ? accessibleName
+          : undefined
+      }
       aria-pressed={onNodeSelect && resolvedActions.length === 0 ? selected : undefined}
       aria-disabled={
         onNodeSelect && resolvedActions.length === 0 ? disabled || undefined : undefined
@@ -106,7 +117,10 @@ export function DependencyGraphInteractiveNode({
         interactionProps?.onKeyDown?.(event);
         handleKeyDown(event);
       }}
-      ref={(element) => setNodeRef(node.id, element)}
+      ref={(element) => {
+        elementRef.current = element;
+        setNodeRef(node.id, element);
+      }}
     >
       {selected ? (
         (renderNodeSelection?.(node) ?? (

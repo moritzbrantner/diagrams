@@ -461,6 +461,7 @@ const OrgChartNode = React.memo(function OrgChartNode({
   const selected = selectedProp ?? selectedNodeId === node.id;
   const focused = focusedProp ?? focusedNodeId === node.id;
   const accessibleName = getNodeAccessibleName(node);
+  const childrenId = React.useId();
   const toggleExpanded = React.useCallback(() => {
     const nextExpanded = !expanded;
 
@@ -536,7 +537,6 @@ const OrgChartNode = React.memo(function OrgChartNode({
       typeof nodeActions === "function" ? nodeActions(node, renderContext) : (nodeActions ?? []),
     [node, nodeActions, renderContext],
   );
-  const hasNestedControls = hasChildren || resolvedActions.length > 0;
   const selectNode = React.useCallback(() => {
     if (!disabled) {
       renderContext.selectNode();
@@ -553,23 +553,25 @@ const OrgChartNode = React.memo(function OrgChartNode({
     <div
       data-slot="org-chart-node-branch"
       data-depth={depth}
-      role="treeitem"
-      aria-label={accessibleName}
-      aria-expanded={hasChildren ? expanded : undefined}
-      aria-selected={selected || undefined}
-      aria-disabled={disabled || undefined}
-      aria-level={depth + 1}
-      aria-posinset={index + 1}
-      aria-setsize={siblingCount}
+      role="none"
       className={cn("grid justify-items-center gap-3", className)}
       {...props}
     >
+      {/* The card is the treeitem, and it owns its children group. As the branch wrapper, the
+          treeitem's visible text would include every descendant, which no name can contain (axe
+          label-content-name-mismatch). Its name comes from its own content. */}
       <div
         data-slot="org-chart-node"
         data-selected={selected ? "true" : undefined}
         data-focused={focused ? "true" : undefined}
         data-disabled={disabled ? "true" : undefined}
-        role={onNodeSelect && !hasNestedControls ? "button" : undefined}
+        role="treeitem"
+        aria-expanded={hasChildren ? expanded : undefined}
+        aria-selected={selected || undefined}
+        aria-level={depth + 1}
+        aria-posinset={index + 1}
+        aria-setsize={siblingCount}
+        aria-owns={hasChildren && expanded ? childrenId : undefined}
         tabIndex={
           keyboardMode === "tree" && focused && !disabled
             ? 0
@@ -577,7 +579,6 @@ const OrgChartNode = React.memo(function OrgChartNode({
               ? 0
               : -1
         }
-        aria-label={onNodeSelect && !hasNestedControls ? accessibleName : undefined}
         aria-disabled={disabled || undefined}
         className={cn(
           "relative min-w-56 rounded-md border bg-background p-3 shadow-sm outline-none transition-colors",
@@ -592,29 +593,6 @@ const OrgChartNode = React.memo(function OrgChartNode({
         onFocus={() => renderContext.focusNode()}
         onKeyDown={handleNodeKeyDown}
       >
-        {hasChildren ? (
-          <button
-            type="button"
-            data-slot="org-chart-node-toggle"
-            aria-label={`${expanded ? "Collapse" : "Expand"} ${accessibleName}`}
-            aria-expanded={expanded}
-            className={cn(
-              "absolute right-1 top-1 inline-grid size-10 place-items-center rounded-sm text-muted-foreground outline-none transition-colors",
-              "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
-              "[&_svg]:size-4",
-            )}
-            onClick={(event) => {
-              event.stopPropagation();
-              toggleExpanded();
-            }}
-          >
-            {expanded ? (
-              <ChevronDownIcon aria-hidden="true" />
-            ) : (
-              <ChevronRightIcon aria-hidden="true" />
-            )}
-          </button>
-        ) : null}
         <div className={cn(hasChildren && "pr-10")}>
           {renderNode ? (
             renderNode(node, depth, renderContext)
@@ -675,11 +653,36 @@ const OrgChartNode = React.memo(function OrgChartNode({
             ))}
           </div>
         ) : null}
+        {/* Last in reading order so the treeitem name starts with the node content. */}
+        {hasChildren ? (
+          <button
+            type="button"
+            data-slot="org-chart-node-toggle"
+            aria-label={`${expanded ? "Collapse" : "Expand"} ${accessibleName}`}
+            aria-expanded={expanded}
+            className={cn(
+              "absolute right-1 top-1 inline-grid size-10 place-items-center rounded-sm text-muted-foreground outline-none transition-colors",
+              "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+              "[&_svg]:size-4",
+            )}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleExpanded();
+            }}
+          >
+            {expanded ? (
+              <ChevronDownIcon aria-hidden="true" />
+            ) : (
+              <ChevronRightIcon aria-hidden="true" />
+            )}
+          </button>
+        ) : null}
       </div>
       {hasChildren && expanded ? (
         <>
           <div data-slot="org-chart-connector" aria-hidden="true" className="h-6 w-px bg-border" />
           <div
+            id={childrenId}
             data-slot="org-chart-children"
             role="group"
             className="grid gap-3 md:flex md:items-start md:gap-4"
