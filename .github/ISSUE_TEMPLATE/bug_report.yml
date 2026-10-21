@@ -20,7 +20,7 @@ body:
     attributes:
       label: Environment
       description: Runtime, bundler, browser, React, @moritzbrantner/ui, and TypeScript versions.
-      placeholder: "Bun 1.3.14, React 19.2, @moritzbrantner/ui 0.9, Vite 8"
+      placeholder: "Bun 1.4.3, React 19.2, @moritzbrantner/ui 0.9, Vite 8"
     validations:
       required: true
   - type: textarea

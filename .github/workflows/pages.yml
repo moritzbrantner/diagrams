@@ -31,7 +31,7 @@ jobs:
       source_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
       artifact_key: diagrams-compiled-package-v1
       node_version: "24"
-      bun_version: "1.3.14"
+      bun_version: "1.4.3"
       rust_toolchain: "1.98.1"
       rust_targets: wasm32-unknown-unknown
       cache_bun: true
