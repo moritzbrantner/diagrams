@@ -184,7 +184,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.13.0",
     "jsdom": "26.1.0",
-    "oxfmt": "0.73.0",
+    "oxfmt": "0.74.0",
     "publint": "0.3.25",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -193,7 +193,7 @@
     "tsup": "8.5.1",
     "typedoc": "0.28.20",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.71.2",
+    "typescript-eslint": "8.72.0",
     "unlighthouse": "0.19.1",
     "vite": "8.3.4",
     "vitest": "4.1.12"
