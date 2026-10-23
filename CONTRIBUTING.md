@@ -10,7 +10,7 @@ bun install
 bun run verify
 ```
 
-Use Bun `1.3.14`, matching the `packageManager` field in `package.json`.
+Use the latest stable Bun; the `packageManager` field in `package.json` is a minimum.
 
 ## Development workflow
 
