@@ -17,8 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUN_VERSION: latest
-  RUST_VERSION: 1.98.1
+  RUST_VERSION: stable
   WASM_BINDGEN_VERSION: 0.2.128
   CARGO_AUDIT_VERSION: 0.22.2
 
@@ -65,7 +64,7 @@ jobs:
         if: steps.dependency-graph.outputs.available != 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version: latest
 
       - name: Install JavaScript dependencies for fallback audit
         if: steps.dependency-graph.outputs.available != 'true'
@@ -101,9 +100,9 @@ jobs:
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       artifact_key: diagrams-compiled-package-v1
-      node_version: "24"
+      node_version: lts/*
       bun_version: latest
-      rust_toolchain: "1.98.1"
+      rust_toolchain: stable
       rust_targets: wasm32-unknown-unknown
       cache_bun: true
       bun_cache_dependency_path: bun.lock
@@ -167,12 +166,12 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version: latest
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: lts/*
 
       - name: Cache Bun
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -226,12 +225,12 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version: latest
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: lts/*
 
       - name: Cache Bun
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -289,12 +288,12 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version: latest
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: lts/*
 
       - name: Cache Bun
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -365,12 +364,12 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version: latest
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: lts/*
 
       - name: Cache Bun
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
