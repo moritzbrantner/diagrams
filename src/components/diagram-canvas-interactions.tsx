@@ -5,6 +5,7 @@ import * as React from "react";
 import { DiagramCanvasInteractionOverlay } from "./diagram-canvas-overlay";
 import { resolveDiagramInteractiveFeatures } from "./diagram-interactive-features";
 import {
+  buildDiagramEdgeAdjacency,
   buildDiagramSearchIndex,
   getConnectedElementIds,
   isSameDiagramElementRef,
@@ -239,12 +240,28 @@ export function useDiagramCanvasInteractions<TNode, TEdge>({
     (features.search ? effectiveFocusedSearchResult?.ref : null) ??
     (highlightedElement !== undefined ? highlightedElement : internalHighlightedElement);
   const shouldResolveConnectedElements = features.pathHighlight || Boolean(hoveredElement);
+  const edgeAdjacency = React.useMemo(
+    () =>
+      features.pathHighlightMode === "neighbors" ? undefined : buildDiagramEdgeAdjacency(edges),
+    [edges, features.pathHighlightMode],
+  );
   const connectedElements = React.useMemo(
     () =>
       shouldResolveConnectedElements
-        ? getConnectedElementIds(edges, activeElement ?? null, features.pathHighlightMode)
+        ? getConnectedElementIds(
+            edges,
+            activeElement ?? null,
+            features.pathHighlightMode,
+            edgeAdjacency,
+          )
         : { nodeIds: new Set<string>(), edgeIds: new Set<string>() },
-    [activeElement, edges, features.pathHighlightMode, shouldResolveConnectedElements],
+    [
+      activeElement,
+      edgeAdjacency,
+      edges,
+      features.pathHighlightMode,
+      shouldResolveConnectedElements,
+    ],
   );
 
   React.useEffect(() => {

@@ -96,11 +96,14 @@ export function getHullRoute({
   waypoints,
   selfLoop,
 }: HullRouteInput): HullRoute {
+  // Every candidate route and label position tests against every obstacle, so normalize them once.
+  const obstacleBounds = obstacles.map(normalizeBounds);
+
   if (points?.length) {
     const routePoints = simplifyRoutePoints(points);
 
     return {
-      labelPoint: getRouteLabelPoint(routePoints, obstacles),
+      labelPoint: getRouteLabelPoint(routePoints, obstacleBounds),
       points: routePoints,
     };
   }
@@ -113,7 +116,7 @@ export function getHullRoute({
     return {
       labelPoint: getRouteLabelPoint(
         [start, { x: start.x + offset, y: start.y }, { x: end.x + offset, y: end.y }, end],
-        obstacles,
+        obstacleBounds,
         { x: source.x + source.width + offset + 10, y: source.y + source.height / 2 },
       ),
       points: simplifyRoutePoints([
@@ -134,7 +137,7 @@ export function getHullRoute({
     const routePoints = simplifyRoutePoints([start, ...waypoints, end]);
 
     return {
-      labelPoint: getRouteLabelPoint(routePoints, obstacles),
+      labelPoint: getRouteLabelPoint(routePoints, obstacleBounds),
       points: routePoints,
     };
   }
@@ -144,14 +147,14 @@ export function getHullRoute({
   const routePoints = getBestOrthogonalRoute({
     edgeIndex,
     end,
-    obstacles,
+    obstacleBounds,
     source,
     start,
     target,
   });
 
   return {
-    labelPoint: getRouteLabelPoint(routePoints, obstacles),
+    labelPoint: getRouteLabelPoint(routePoints, obstacleBounds),
     points: routePoints,
   };
 }
@@ -161,16 +164,21 @@ function getBestOrthogonalRoute({
   target,
   start,
   end,
-  obstacles,
+  obstacleBounds,
   edgeIndex,
 }: {
   source: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
   target: Required<Pick<DiagramBoundsItem, "x" | "y" | "width" | "height">>;
   start: BoundaryAnchor;
   end: BoundaryAnchor;
-  obstacles: readonly DiagramBoundsItem[];
+  obstacleBounds: readonly DiagramBounds[];
   edgeIndex: number;
 }) {
+  const sourceBounds = normalizeBounds(source);
+  const targetBounds = normalizeBounds(target);
+  const routeObstacles = obstacleBounds.filter(
+    (obstacle) => !sameBounds(sourceBounds, obstacle) && !sameBounds(targetBounds, obstacle),
+  );
   const offset = getRouteOffset(edgeIndex);
   const clearance = 24 + Math.abs(offset);
   const routeStart = getEndpointStub(start);
@@ -235,7 +243,7 @@ function getBestOrthogonalRoute({
   return candidates
     .map((points) => ({
       points,
-      score: getRouteScore(points, obstacles, [source, target]),
+      score: getRouteScore(points, routeObstacles),
     }))
     .sort((first, second) => first.score - second.score)[0].points;
 }
@@ -306,11 +314,7 @@ function pointIsBetweenCollinearPoints(
   );
 }
 
-function getRouteScore(
-  points: readonly DiagramPoint[],
-  obstacles: readonly DiagramBoundsItem[],
-  endpointItems: readonly DiagramBoundsItem[],
-) {
+function getRouteScore(points: readonly DiagramPoint[], obstacles: readonly DiagramBounds[]) {
   let score = points.length * 4;
 
   for (let index = 1; index < points.length; index += 1) {
@@ -325,10 +329,6 @@ function getRouteScore(
     }
 
     for (const obstacle of obstacles) {
-      if (endpointItems.some((item) => sameBounds(item, obstacle))) {
-        continue;
-      }
-
       if (segmentIntersectsBounds(start, end, obstacle, 10)) {
         score += 1200;
       }
@@ -340,7 +340,7 @@ function getRouteScore(
 
 function getRouteLabelPoint(
   points: readonly DiagramPoint[],
-  obstacles: readonly DiagramBoundsItem[],
+  obstacles: readonly DiagramBounds[],
   preferredPoint = getPolylineMidpoint(points),
 ) {
   const segment = getPolylineMidSegment(points);
@@ -410,13 +410,13 @@ function getPolylineMidSegment(points: readonly DiagramPoint[]) {
   return null;
 }
 
-function getLabelObstaclePenalty(point: DiagramPoint, obstacles: readonly DiagramBoundsItem[]) {
-  const labelBounds = {
+function getLabelObstaclePenalty(point: DiagramPoint, obstacles: readonly DiagramBounds[]) {
+  const labelBounds = normalizeBounds({
     x: point.x - 76,
     y: point.y - 24,
     width: 152,
     height: 48,
-  };
+  });
 
   return obstacles.reduce(
     (penalty, obstacle) => penalty + (boundsOverlap(labelBounds, obstacle, 8) ? 800 : 0),
@@ -424,10 +424,7 @@ function getLabelObstaclePenalty(point: DiagramPoint, obstacles: readonly Diagra
   );
 }
 
-function boundsOverlap(first: DiagramBoundsItem, second: DiagramBoundsItem, padding = 0) {
-  const firstBounds = normalizeBounds(first);
-  const secondBounds = normalizeBounds(second);
-
+function boundsOverlap(firstBounds: DiagramBounds, secondBounds: DiagramBounds, padding = 0) {
   return (
     firstBounds.x < secondBounds.x + secondBounds.width + padding &&
     firstBounds.x + firstBounds.width > secondBounds.x - padding &&
@@ -439,10 +436,9 @@ function boundsOverlap(first: DiagramBoundsItem, second: DiagramBoundsItem, padd
 function segmentIntersectsBounds(
   start: DiagramPoint,
   end: DiagramPoint,
-  boundsItem: DiagramBoundsItem,
+  bounds: DiagramBounds,
   padding = 0,
 ) {
-  const bounds = normalizeBounds(boundsItem);
   const left = bounds.x - padding;
   const right = bounds.x + bounds.width + padding;
   const top = bounds.y - padding;
@@ -504,10 +500,7 @@ function linesIntersect(
   );
 }
 
-function sameBounds(first: DiagramBoundsItem, second: DiagramBoundsItem) {
-  const firstBounds = normalizeBounds(first);
-  const secondBounds = normalizeBounds(second);
-
+function sameBounds(firstBounds: DiagramBounds, secondBounds: DiagramBounds) {
   return (
     firstBounds.x === secondBounds.x &&
     firstBounds.y === secondBounds.y &&

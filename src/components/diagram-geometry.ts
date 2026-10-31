@@ -25,8 +25,11 @@ export function getSpatialBounds(
   points: readonly DiagramPoint[] = [],
   fallback: DiagramBounds = { x: 0, y: 0, width: 640, height: 320 },
 ): DiagramBounds {
-  const xs: number[] = [];
-  const ys: number[] = [];
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let hasBounds = false;
 
   for (const item of items) {
     const x = clampFiniteNumber(item.x, Number.NaN);
@@ -35,8 +38,11 @@ export function getSpatialBounds(
     const height = Math.max(0, clampFiniteNumber(item.height, 0));
 
     if (Number.isFinite(x) && Number.isFinite(y)) {
-      xs.push(x, x + width);
-      ys.push(y, y + height);
+      hasBounds = true;
+      minX = Math.min(minX, x, x + width);
+      maxX = Math.max(maxX, x, x + width);
+      minY = Math.min(minY, y, y + height);
+      maxY = Math.max(maxY, y, y + height);
     }
   }
 
@@ -45,23 +51,23 @@ export function getSpatialBounds(
     const y = clampFiniteNumber(point.y, Number.NaN);
 
     if (Number.isFinite(x) && Number.isFinite(y)) {
-      xs.push(x);
-      ys.push(y);
+      hasBounds = true;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
     }
   }
 
-  if (!xs.length || !ys.length) {
+  if (!hasBounds) {
     return fallback;
   }
-
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
 
   return {
     x: minX,
     y: minY,
-    width: Math.max(1, Math.max(...xs) - minX),
-    height: Math.max(1, Math.max(...ys) - minY),
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
   };
 }
 

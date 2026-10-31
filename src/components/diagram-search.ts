@@ -47,10 +47,40 @@ export function buildDiagramSearchIndex<TNode, TEdge>(
   ].map((entry) => ({ ...entry, searchText: entry.searchText.toLowerCase() }));
 }
 
+type DiagramEdgeAdjacency<TEdge> = ReadonlyMap<string, readonly DiagramEdgeDescriptor<TEdge>[]>;
+
+/** Indexes edges by the nodes they touch, keeping each node's edges in input order. */
+export function buildDiagramEdgeAdjacency<TEdge>(
+  edges: readonly DiagramEdgeDescriptor<TEdge>[],
+): DiagramEdgeAdjacency<TEdge> {
+  const adjacency = new Map<string, DiagramEdgeDescriptor<TEdge>[]>();
+
+  function addEdge(nodeId: string, edge: DiagramEdgeDescriptor<TEdge>) {
+    const nodeEdges = adjacency.get(nodeId);
+
+    if (nodeEdges) {
+      nodeEdges.push(edge);
+    } else {
+      adjacency.set(nodeId, [edge]);
+    }
+  }
+
+  for (const edge of edges) {
+    addEdge(edge.sourceId, edge);
+
+    if (edge.targetId !== edge.sourceId) {
+      addEdge(edge.targetId, edge);
+    }
+  }
+
+  return adjacency;
+}
+
 export function getConnectedElementIds<TEdge>(
   edges: readonly DiagramEdgeDescriptor<TEdge>[],
   activeElement: DiagramElementRef | null,
   mode: DiagramPathHighlightMode,
+  adjacency?: DiagramEdgeAdjacency<TEdge>,
 ) {
   const nodeIds = new Set<string>();
   const edgeIds = new Set<string>();
@@ -85,13 +115,14 @@ export function getConnectedElementIds<TEdge>(
     return { nodeIds, edgeIds };
   }
 
+  const edgesByNode = adjacency ?? buildDiagramEdgeAdjacency(edges);
   const queue = [activeElement.id];
   const visited = new Set(queue);
 
-  while (queue.length) {
-    const nodeId = queue.shift()!;
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const nodeId = queue[queueIndex];
 
-    for (const edge of edges) {
+    for (const edge of edgesByNode.get(nodeId) ?? []) {
       const directions = getTraversalDirections(edge);
       const traversable =
         mode === "connected"
