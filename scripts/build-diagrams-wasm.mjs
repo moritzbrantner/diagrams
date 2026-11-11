@@ -41,7 +41,7 @@ function run(command, args) {
 
   if (result.error?.code === "ENOENT" && command === "wasm-bindgen") {
     console.error(
-      "wasm-bindgen CLI is required. Install the pinned tool with: cargo install wasm-bindgen-cli --version 0.2.128 --locked",
+      "wasm-bindgen CLI is required. Install the pinned tool with: cargo install wasm-bindgen-cli --version 0.2.130 --locked",
     );
     process.exit(1);
   }

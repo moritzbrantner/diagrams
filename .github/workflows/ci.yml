@@ -18,7 +18,7 @@ concurrency:
 
 env:
   RUST_VERSION: stable
-  WASM_BINDGEN_VERSION: 0.2.128
+  WASM_BINDGEN_VERSION: 0.2.130
   CARGO_AUDIT_VERSION: 0.22.2
 
 jobs:
@@ -111,7 +111,7 @@ jobs:
       use_environment_v1: false
       setup_command: |
         bun install --frozen-lockfile
-        cargo install wasm-bindgen-cli --version 0.2.128 --locked
+        cargo install wasm-bindgen-cli --version 0.2.130 --locked
       build_command: |
         bun run build
         bun run build:wasm
