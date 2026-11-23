@@ -10,7 +10,7 @@ bun install
 bun run verify
 ```
 
-Use the latest stable Bun; the `packageManager` field in `package.json` is a minimum.
+Use the latest stable Bun; the repository declares no Bun version and `bun.lock` keeps dependencies frozen.
 
 ## Development workflow
 
